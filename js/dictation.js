@@ -47,7 +47,16 @@ export function tidyKorean(t) {
   return /[.!?…~]$/.test(t) ? t : t + '.';
 }
 
-export function dictationMessage(code) {
+// 영어: 첫 글자를 대문자로, 끝에 마침표.
+export function tidyEnglish(t) {
+  t = String(t || '').replace(/\s+/g, ' ').trim();
+  if (!t) return '';
+  t = t.replace(/\bi\b(?=$|[\s'’.,!?])/g, 'I');   // i, i'm, i've → I, I'm, I've
+  t = t.charAt(0).toUpperCase() + t.slice(1);
+  return /[.!?]$/.test(t) ? t : t + '.';
+}
+
+export function dictationMessage(code, lang = 'ko-KR') {
   switch (code) {
     case 'not-allowed':
     case 'service-not-allowed':
@@ -59,7 +68,7 @@ export function dictationMessage(code) {
     case 'network':
       return '말로 쓰기는 인터넷이 있어야 돼요. 연결을 확인해 주세요.';
     case 'language-not-supported':
-      return '이 브라우저는 한국어 말로 쓰기를 못 해요. 크롬이나 엣지에서 해 봐요.';
+      return `이 브라우저는 ${lang.startsWith('en') ? '영어' : '한국어'} 말로 쓰기를 못 해요. 크롬이나 엣지에서 해 봐요.`;
     default:
       return '말로 쓰기가 잘 안 됐어요. 한 번 더 눌러 봐요.';
   }

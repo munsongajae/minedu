@@ -5,7 +5,7 @@ import { renderVideo, totalDur, canMakeVideo } from './video.js';
 import { canRecord, startRecording, micErrorMessage } from './recorder.js';
 import { aiEnabled, coach, aiMessage, getFamilyCode, setFamilyCode } from './ai.js';
 import { importPortfolioPdf, isPdf } from './pdf-import.js';
-import { canDictate, startDictation, tidyKorean, dictationMessage } from './dictation.js';
+import { canDictate, startDictation, tidyKorean, tidyEnglish, dictationMessage } from './dictation.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
@@ -34,7 +34,7 @@ let rendering = false;
 let cancelRequested = false;
 let result = null; // { blob, ext, total, url }
 const rec = { lineId: null, sceneId: null, handle: null, timer: null };
-const dict = { lineId: null, sceneId: null, handle: null };   // 말로 쓰기(음성 입력) 중인 문장
+const dict = { lineId: null, sceneId: null, field: null, handle: null };   // 말로 쓰기(음성 입력) 중인 문장과 칸
 const busy = new Map();      // 문장 id → { kind: 'translate'|'check', ctl: AbortController }
 const statusMsg = new Map(); // 문장 id → { text, err }
 
@@ -210,7 +210,10 @@ function aiBoxHTML(l) {
         <div class="row"><button class="btn small grass" type="button" data-act="use-fix">이 문장으로 정하기</button></div>
       </div>` : '';
     inner = `<div class="field">
-        <label class="lab" for="att-${l.id}">내가 먼저 영어로 써 보기</label>
+        <div class="lab-row">
+          <label class="lab" for="att-${l.id}">내가 먼저 영어로 써 보기</label>
+          ${dictButtonHTML(l, 'attempt')}
+        </div>
         <textarea id="att-${l.id}" data-field="attempt" rows="2" placeholder="Today I ..." lang="en" autocapitalize="sentences">${esc(l.attempt)}</textarea>
       </div>
       <div class="row">
@@ -222,9 +225,17 @@ function aiBoxHTML(l) {
   return `${tabs}<div class="ai-box">${inner}</div>`;
 }
 
-function dictButtonHTML(l) {
-  const on = dict.lineId === l.id;
-  return `<button class="btn small mic ${on ? 'on' : ''}" type="button" data-act="dictate" aria-pressed="${on}">${ICON.mic} ${on ? '듣는 중이에요… 다 말하면 눌러요' : '말로 쓰기'}</button>`;
+// 말로 쓰기 칸: ko(한국어), attempt·en(영어)
+const DICT_FIELDS = {
+  ko: { lang: 'ko-KR', id: 'ko-', idle: '말로 쓰기', on: '듣는 중이에요… 다 말하면 눌러요' },
+  attempt: { lang: 'en-US', id: 'att-', idle: '영어로 말하기', on: 'Listening… 다 말하면 눌러요' },
+  en: { lang: 'en-US', id: 'en-', idle: '영어로 말하기', on: 'Listening… 다 말하면 눌러요' }
+};
+function dictButtonHTML(l, field) {
+  if (!DICT_OK) return '';
+  const F = DICT_FIELDS[field];
+  const on = dict.lineId === l.id && dict.field === field;
+  return `<button class="btn small mic ${on ? 'on' : ''}" type="button" data-act="dictate" data-dfield="${field}" aria-pressed="${on}">${ICON.mic} ${on ? F.on : F.idle}</button>`;
 }
 
 function lineHTML(l, j, n) {
@@ -241,13 +252,16 @@ function lineHTML(l, j, n) {
     <div class="field">
       <div class="lab-row">
         <label class="lab" for="ko-${l.id}">한글로 쓰기</label>
-        ${DICT_OK ? dictButtonHTML(l) : ''}
+        ${dictButtonHTML(l, 'ko')}
       </div>
       <textarea id="ko-${l.id}" data-field="ko" rows="2" placeholder="${j === 0 ? '이 사진에서 무엇을 했나요?' : '이어서 하고 싶은 말을 써요'}">${esc(l.ko)}</textarea>
     </div>
     ${AI_ON ? aiBoxHTML(l) : ''}
     <div class="field">
-      <label class="lab" for="en-${l.id}">${AI_ON ? '영상에 들어갈 영어 문장' : '영어로 써 보기'}</label>
+      <div class="lab-row">
+        <label class="lab" for="en-${l.id}">${AI_ON ? '영상에 들어갈 영어 문장' : '영어로 써 보기'}</label>
+        ${AI_ON ? '' : dictButtonHTML(l, 'en')}
+      </div>
       <textarea id="en-${l.id}" data-field="en" rows="2" placeholder="Today I ..." lang="en" autocapitalize="sentences" spellcheck="true">${esc(l.en)}</textarea>
       <div class="row helpers">
         <button class="btn small" type="button" data-act="speak" ${'speechSynthesis' in window ? '' : 'hidden'}>${ICON.speaker} 발음 들어 보기</button>
@@ -475,30 +489,37 @@ async function toggleRecord(s, l) {
 /* ---------- 말로 쓰기(음성 입력) ---------- */
 const joinText = (base, add) => (base && add ? base + ' ' + add : base || add);
 function stopDictation() { if (dict.handle) dict.handle.stop(); }
-function toggleDictation(s, l) {
-  if (dict.lineId === l.id) { stopDictation(); return; }
+function toggleDictation(s, l, field) {
+  const F = DICT_FIELDS[field];
+  if (!F) return;
+  if (dict.lineId === l.id && dict.field === field) { stopDictation(); return; }
   if (rec.lineId) { toast('녹음하는 동안에는 말로 쓰기를 할 수 없어요. 녹음을 먼저 끝내 주세요.'); return; }
   if (dict.lineId) stopDictation();
-  const base = l.ko.trim();
+  const base = String(l[field] || '').trim();
+  const tidy = field === 'ko' ? tidyKorean : tidyEnglish;
   try {
     dict.handle = startDictation({
-      lang: 'ko-KR',
+      lang: F.lang,
       onText: (text) => {
-        const ta = document.getElementById('ko-' + l.id);
+        const ta = document.getElementById(F.id + l.id);
         if (ta) ta.value = joinText(base, text);
       },
-      onError: (code) => toast(dictationMessage(code)),
+      onError: (code) => toast(dictationMessage(code, F.lang)),
       onEnd: (finalText) => {
-        dict.lineId = null; dict.sceneId = null; dict.handle = null;
-        if (finalText) { l.ko = joinText(base, tidyKorean(finalText)); s.example = false; save(); }
+        dict.lineId = null; dict.sceneId = null; dict.field = null; dict.handle = null;
+        if (finalText) {
+          l[field] = joinText(base, tidy(finalText));
+          if (field === 'attempt') l.feedback = null;   // 글이 바뀌었으니 예전 확인 결과는 지운다
+          s.example = false; save();
+        }
         const now = sceneOfLine(l);
         if (now) rerenderCard(now.id);
       }
     });
-    dict.lineId = l.id; dict.sceneId = s.id;
+    dict.lineId = l.id; dict.sceneId = s.id; dict.field = field;
     rerenderCard(s.id);
   } catch (e) {
-    dict.lineId = null; dict.handle = null;
+    dict.lineId = null; dict.field = null; dict.handle = null;
     toast(dictationMessage('unknown'));
   }
 }
@@ -725,7 +746,7 @@ scenesEl.addEventListener('click', async (e) => {
   else if (act === 'papago') openPapago(l.ko);
   else if (act === 'audio-remove') { l.audio = null; l.audioName = ''; l.audioDur = 0; save(); rerenderCard(s.id); }
   else if (act === 'rec') toggleRecord(s, l);
-  else if (act === 'dictate') toggleDictation(s, l);
+  else if (act === 'dictate') toggleDictation(s, l, b.dataset.dfield || 'ko');
 });
 
 /* ---------- 이벤트: 프로젝트 ---------- */

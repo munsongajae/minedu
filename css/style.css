@@ -156,6 +156,20 @@ input[type=text] { width: 100%; font-family: var(--f-kid); font-size: 18px; }
 .line-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin: -10px -12px 0; padding: 6px 12px; background: var(--panel-2); border-bottom: 2px solid var(--line); }
 .line-name { font-family: var(--f-display); font-size: 19px; }
 
+/* 발음 들어 보기 */
+.listen-box { display: grid; gap: 8px; margin-top: 6px; }
+.listen-box .helpers { margin-top: 0; }
+.btn.listen.on { background: var(--helper-edge); color: var(--on-color); }
+.speed { display: inline-flex; border: 2px solid var(--edge); }
+.speed button { font: inherit; font-size: 14px; border: 0; padding: 6px 10px; min-height: 38px; background: var(--panel-2); color: var(--muted); cursor: pointer; }
+.speed button + button { border-left: 2px solid var(--edge); }
+.speed button[aria-pressed="true"] { background: var(--gold); color: var(--gold-ink); }
+@media (pointer: coarse) { .speed button { min-height: 46px; } }
+.follow { margin: 0; padding: 10px 12px; background: var(--panel); border: 2px solid var(--helper-edge); font-family: var(--f-kid); font-size: 24px; line-height: 1.6; display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.follow span { padding: 0 4px; border-bottom: 3px solid transparent; transition: background-color .12s; }
+.follow span.now { background: var(--gold); color: var(--gold-ink); border-bottom-color: var(--edge); }
+@media (prefers-reduced-motion: reduce) { .follow span { transition: none; } }
+
 /* 배경 음악 */
 .music { border: 2px dashed var(--line); padding: 12px; display: grid; gap: 8px; background: var(--panel); }
 .music.has { border-style: solid; border-color: var(--gold); }

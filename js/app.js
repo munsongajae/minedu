@@ -6,6 +6,7 @@ import { canRecord, startRecording, micErrorMessage } from './recorder.js';
 import { aiEnabled, coach, aiMessage, getFamilyCode, setFamilyCode } from './ai.js';
 import { importPortfolioPdf, isPdf } from './pdf-import.js';
 import { canDictate, startDictation, tidyKorean, tidyEnglish, dictationMessage } from './dictation.js';
+import { canSpeak, speak as say, SPEEDS, getSpeed, setSpeed, wordsOf } from './speech.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
@@ -23,6 +24,7 @@ const AI_ON = aiEnabled();
 
 const MIC_OK = canRecord();
 const DICT_OK = canDictate();
+const SPEAK_OK = canSpeak();
 const TOUCH = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
 
 /* ---------- 상태 ---------- */
@@ -34,7 +36,8 @@ let rendering = false;
 let cancelRequested = false;
 let result = null; // { blob, ext, total, url }
 const rec = { lineId: null, sceneId: null, handle: null, timer: null };
-const dict = { lineId: null, sceneId: null, field: null, handle: null };   // 말로 쓰기(음성 입력) 중인 문장과 칸
+const dict = { lineId: null, sceneId: null, field: null, handle: null };
+const talk = { lineId: null, mode: null, handle: null };   // 발음 들어 보기 중인 문장과 방식('all'|'word')   // 말로 쓰기(음성 입력) 중인 문장과 칸
 const busy = new Map();      // 문장 id → { kind: 'translate'|'check', ctl: AbortController }
 const statusMsg = new Map(); // 문장 id → { text, err }
 
@@ -263,6 +266,31 @@ function dictButtonHTML(l, field) {
   return `<button class="btn small mic ${on ? 'on' : ''}" type="button" data-act="dictate" data-dfield="${field}" aria-pressed="${on}">${ICON.mic} ${on ? F.on : F.idle}</button>`;
 }
 
+// 발음 들어 보기: 문장 통째로 / 한 단어씩, 빠르기 고르기, 읽는 낱말 표시
+function speedChipsHTML() {
+  const cur = getSpeed();
+  return `<div class="speed" role="group" aria-label="읽는 빠르기">${Object.entries(SPEEDS).map(([k, v]) =>
+    `<button type="button" data-act="speed" data-speed="${k}" aria-pressed="${k === cur}">${v.label}</button>`).join('')}</div>`;
+}
+function listenHTML(l) {
+  if (!SPEAK_OK) return '';
+  const on = talk.lineId === l.id;
+  const btn = (mode, icon, label) => (on && talk.mode === mode)
+    ? `<button class="btn small listen on" type="button" data-act="speak" data-mode="${mode}">■ 멈추기</button>`
+    : `<button class="btn small listen" type="button" data-act="speak" data-mode="${mode}">${icon} ${label}</button>`;
+  const follow = on
+    ? `<p class="follow" data-follow lang="en">${wordsOf(l.en).map((w, i) => `<span data-w="${i}">${esc(w)}</span>`).join(' ')}</p>`
+    : '';
+  return `<div class="listen-box">
+      <div class="row helpers">
+        ${btn('all', ICON.speaker, '발음 들어 보기')}
+        ${btn('word', ICON.speaker, '한 단어씩')}
+        ${speedChipsHTML()}
+      </div>
+      ${follow}
+    </div>`;
+}
+
 function lineHTML(l, j, n) {
   const many = n > 1;
   return `<section class="line" data-line="${l.id}">
@@ -288,10 +316,8 @@ function lineHTML(l, j, n) {
         ${AI_ON ? '' : dictButtonHTML(l, 'en')}
       </div>
       <textarea id="en-${l.id}" data-field="en" rows="2" placeholder="Today I ..." lang="en" autocapitalize="sentences" spellcheck="true">${esc(l.en)}</textarea>
-      <div class="row helpers">
-        <button class="btn small" type="button" data-act="speak" ${'speechSynthesis' in window ? '' : 'hidden'}>${ICON.speaker} 발음 들어 보기</button>
-        ${AI_ON ? '' : '<button class="btn small" type="button" data-act="papago">파파고로 도움 받기</button>'}
-      </div>
+      ${listenHTML(l)}
+      ${AI_ON ? '' : '<div class="row helpers"><button class="btn small" type="button" data-act="papago">파파고로 도움 받기</button></div>'}
     </div>
     <div class="field">
       <div class="lab">내 목소리 (이 문장 읽기)</div>
@@ -496,6 +522,7 @@ async function toggleRecord(s, l) {
   }
   if (rec.lineId) { toast('다른 문장을 녹음하고 있어요. 먼저 녹음을 끝내 주세요.'); return; }
   if (dict.lineId) { toast('말로 쓰기가 끝나면 녹음해 주세요.'); return; }
+  stopTalk();
   if (!l.en.trim()) toast('영어 문장을 먼저 써 두면 보면서 읽을 수 있어요');
   try {
     rec.handle = await startRecording();
@@ -520,6 +547,7 @@ function toggleDictation(s, l, field) {
   if (dict.lineId === l.id && dict.field === field) { stopDictation(); return; }
   if (rec.lineId) { toast('녹음하는 동안에는 말로 쓰기를 할 수 없어요. 녹음을 먼저 끝내 주세요.'); return; }
   if (dict.lineId) stopDictation();
+  stopTalk();
   const base = String(l[field] || '').trim();
   const tidy = field === 'ko' ? tidyKorean : tidyEnglish;
   try {
@@ -550,18 +578,35 @@ function toggleDictation(s, l, field) {
 }
 
 /* ---------- 발음 듣기와 파파고 ---------- */
-function speak(text) {
-  if (!text.trim()) { toast('먼저 영어 문장을 써 주세요'); return; }
-  if (!('speechSynthesis' in window)) { toast('이 브라우저에서는 발음 듣기가 안 돼요'); return; }
+function stopTalk() { if (talk.handle) talk.handle.stop(); }
+async function listen(s, l, mode) {
+  if (talk.lineId === l.id && talk.mode === mode) { stopTalk(); return; }
+  if (!l.en.trim()) { toast('먼저 영어 문장을 써 주세요'); return; }
+  if (rec.lineId || dict.lineId) { toast('녹음이나 말로 쓰기가 끝나면 들어 봐요'); return; }
+  stopTalk();
+  talk.lineId = l.id; talk.mode = mode;
+  rerenderCard(s.id);
+  const mark = (i) => {
+    document.querySelectorAll(`[data-line="${l.id}"] [data-follow] span`).forEach(el => el.classList.toggle('now', Number(el.dataset.w) === i));
+  };
   try {
-    speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'en-US';
-    u.rate = 0.85;
-    const v = speechSynthesis.getVoices().find(v => /^en[-_]US/i.test(v.lang));
-    if (v) u.voice = v;
-    speechSynthesis.speak(u);
-  } catch (e) { toast('이 브라우저에서는 발음 듣기가 안 돼요'); }
+    const h = await say(l.en, {
+      speed: getSpeed(),
+      wordByWord: mode === 'word',
+      onWord: mark,
+      onEnd: () => {
+        if (talk.handle !== h && talk.handle) return;   // 새로 시작한 읽기가 있으면 그대로 둔다
+        talk.lineId = null; talk.mode = null; talk.handle = null;
+        const now = sceneOfLine(l);
+        if (now) rerenderCard(now.id);
+      }
+    });
+    if (talk.lineId === l.id && talk.mode === mode) talk.handle = h; else h.stop();
+  } catch (e) {
+    talk.lineId = null; talk.mode = null; talk.handle = null;
+    rerenderCard(s.id);
+    toast('이 브라우저에서는 발음 듣기가 안 돼요');
+  }
 }
 function openPapago(ko) {
   const url = 'https://papago.naver.com/?sk=ko&tk=en' + (ko.trim() ? '&st=' + encodeURIComponent(ko.trim()) : '');
@@ -767,7 +812,11 @@ scenesEl.addEventListener('click', async (e) => {
   else if (act === 'stop-ai') abortLine(l);
   else if (act === 'use-fix') {
     if (l.feedback) { l.en = l.feedback.corrected || l.attempt; save(); rerenderCard(s.id); toast('영상에 들어갈 문장으로 정했어요'); }
-  } else if (act === 'speak') speak(l.en);
+  } else if (act === 'speak') listen(s, l, b.dataset.mode || 'all');
+  else if (act === 'speed') {
+    setSpeed(b.dataset.speed);
+    document.querySelectorAll('[data-act="speed"]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.speed === b.dataset.speed)));
+  }
   else if (act === 'papago') openPapago(l.ko);
   else if (act === 'audio-remove') { l.audio = null; l.audioName = ''; l.audioDur = 0; save(); rerenderCard(s.id); }
   else if (act === 'rec') toggleRecord(s, l);

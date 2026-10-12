@@ -136,6 +136,16 @@ input[type=text] { width: 100%; font-family: var(--f-kid); font-size: 18px; }
 @media (prefers-reduced-motion: reduce) { .btn.red.on .rec-dot { animation: none; } }
 .rectime { font-variant-numeric: tabular-nums; }
 
+/* 장면 안의 문장 줄 */
+.shot-col { display: grid; gap: 8px; align-content: start; min-width: 0; }
+.shot-col .shot-tools { margin-top: 0; }
+@media (min-width: 821px) { .shot-col { position: sticky; top: calc(12px + env(safe-area-inset-top, 0px)); align-self: start; } }
+.lines { gap: 12px; }
+.line { border: 2px solid var(--line); background: var(--panel); padding: 10px 12px 12px; display: grid; gap: 12px; min-width: 0; }
+.line + .line { border-top-width: 2px; }
+.line-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin: -10px -12px 0; padding: 6px 12px; background: var(--panel-2); border-bottom: 2px solid var(--line); }
+.line-name { font-family: var(--f-display); font-size: 19px; }
+
 /* AI 영어 도우미 */
 .btn.diamond { background: var(--helper-edge); color: var(--on-color); }
 .tabs { display: flex; border: 2px solid var(--edge); width: fit-content; max-width: 100%; }

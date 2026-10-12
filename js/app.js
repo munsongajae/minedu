@@ -23,29 +23,46 @@ const MIC_OK = canRecord();
 const TOUCH = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
 
 /* ---------- 상태 ---------- */
+// 장면 = 사진 한 장 + 문장 줄 여러 개. 문장 줄마다 한글·영어·녹음이 따로 있다.
 let projects = [];
 let project = null;
 let saveTimer = null;
 let rendering = false;
 let cancelRequested = false;
 let result = null; // { blob, ext, total, url }
-const rec = { id: null, handle: null, timer: null };
-const busy = new Map();      // 장면 id → { kind: 'translate'|'check', ctl: AbortController }
-const statusMsg = new Map(); // 장면 id → { text, err }
+const rec = { lineId: null, sceneId: null, handle: null, timer: null };
+const busy = new Map();      // 문장 id → { kind: 'translate'|'check', ctl: AbortController }
+const statusMsg = new Map(); // 문장 id → { text, err }
 
-function newScene(blob, extra) {
+function newLine(extra) {
   return Object.assign({
-    id: uid(), image: blob, ko: '', en: '',
+    id: uid(), ko: '', en: '',
     mode: 'self', attempt: '', feedback: null, words: [],
     audio: null, audioName: '', audioDur: 0
   }, extra || {});
 }
-// 예전 버전에서 저장한 장면에 새 칸을 채워 넣는다.
+function newScene(blob, firstLine) {
+  return { id: uid(), image: blob, lines: [newLine(firstLine)] };
+}
+function fixLine(l) {
+  if (!l.id) l.id = uid();
+  for (const k of ['ko', 'en', 'attempt', 'audioName']) if (typeof l[k] !== 'string') l[k] = '';
+  if (l.mode !== 'ai' && l.mode !== 'self') l.mode = 'self';
+  if (!Array.isArray(l.words)) l.words = [];
+  if (l.feedback === undefined) l.feedback = null;
+  if (!l.audio) { l.audio = null; l.audioDur = 0; }
+  return l;
+}
+// 예전 버전(장면 하나에 문장 하나)으로 저장한 장면을 새 모양으로 바꾼다.
+const OLD_KEYS = ['ko', 'en', 'mode', 'attempt', 'feedback', 'words', 'audio', 'audioName', 'audioDur'];
 function fixScene(s) {
-  if (s.mode !== 'ai' && s.mode !== 'self') s.mode = 'self';
-  if (typeof s.attempt !== 'string') s.attempt = '';
-  if (!Array.isArray(s.words)) s.words = [];
-  if (s.feedback === undefined) s.feedback = null;
+  if (!Array.isArray(s.lines) || !s.lines.length) {
+    const l = {};
+    OLD_KEYS.forEach(k => { if (k in s) l[k] = s[k]; });
+    s.lines = [l];
+  }
+  OLD_KEYS.forEach(k => { delete s[k]; });
+  s.lines.forEach(fixLine);
   return s;
 }
 function newProject() {
@@ -53,16 +70,23 @@ function newProject() {
 }
 async function makeExampleProject() {
   const img = await makeExampleImage();
+  const scene = newScene(img, {
+    ko: '오늘은 강가에 작은 나무집을 지었어요.',
+    en: 'Today I built a small wooden house by the river.',
+    mode: 'ai',
+    words: [{ en: 'wooden', ko: '나무로 된' }, { en: 'river', ko: '강' }]
+  });
+  scene.example = true;
+  scene.lines.push(newLine({
+    ko: '옆에는 나무도 한 그루 심었어요.',
+    en: 'I also planted a tree next to it.',
+    mode: 'ai',
+    words: [{ en: 'planted', ko: '심었다' }]
+  }));
   return {
     id: uid(), title: '예시: 강가의 나무집', makers: '곰이 · 난이', createdAt: Date.now(), updatedAt: Date.now(),
     opts: { title: true, ko: true, end: true },
-    scenes: [newScene(img, {
-      example: true,
-      ko: '오늘은 강가에 작은 나무집을 지었어요. 옆에는 나무도 한 그루 심었어요.',
-      en: 'Today I built a small wooden house by the river. I also planted a tree next to it.',
-      mode: 'ai',
-      words: [{ en: 'wooden', ko: '나무로 된' }, { en: 'river', ko: '강' }, { en: 'planted', ko: '심었다' }]
-    })]
+    scenes: [scene]
   };
 }
 
@@ -127,58 +151,63 @@ function renderMeta() {
 /* ---------- 그리기: 장면 카드 ---------- */
 function chipsHTML(s) {
   const c = (ok, t) => `<span class="chip ${ok ? 'ok' : ''}">${ok ? '✓ ' : ''}${t}</span>`;
-  return c(!!s.image, '사진') + c(s.ko.trim().length > 0, '한글') + c(s.en.trim().length > 0, '영어') + c(!!s.audio, '목소리');
+  const L = s.lines;
+  const voiced = L.filter(l => l.audio).length;
+  return c(!!s.image, '사진')
+    + c(L.every(l => l.ko.trim()), '한글')
+    + c(L.every(l => l.en.trim()), '영어')
+    + c(voiced === L.length, L.length > 1 ? `목소리 ${voiced}/${L.length}` : '목소리');
 }
 
-function audioHTML(s) {
-  const isRec = rec.id === s.id;
+function audioHTML(l) {
+  const isRec = rec.lineId === l.id;
   const recBtn = MIC_OK
-    ? `<button class="btn red ${isRec ? 'on' : ''}" type="button" data-act="rec"><span class="rec-dot"></span>${isRec ? '녹음 끝내기 <span class="rectime" data-rectime>0:00</span>' : (s.audio ? '다시 녹음' : '녹음 시작')}</button>`
+    ? `<button class="btn red ${isRec ? 'on' : ''}" type="button" data-act="rec"><span class="rec-dot"></span>${isRec ? '녹음 끝내기 <span class="rectime" data-rectime>0:00</span>' : (l.audio ? '다시 녹음' : '녹음 시작')}</button>`
     : '';
-  if (s.audio && !isRec) {
-    return `<audio controls preload="metadata" src="${blobURL('aud-' + s.id, s.audio)}"></audio>
-      <div class="row"><span class="note">${esc(s.audioName || '내 목소리')} · ${fmtTime(s.audioDur)}</span></div>
+  if (l.audio && !isRec) {
+    return `<audio controls preload="metadata" src="${blobURL('aud-' + l.id, l.audio)}"></audio>
+      <div class="row"><span class="note">${esc(l.audioName || '내 목소리')} · ${fmtTime(l.audioDur)}</span></div>
       <div class="row">${recBtn}
-        <label class="btn small" for="af-${s.id}">파일로 바꾸기</label>
+        <label class="btn small" for="af-${l.id}">파일로 바꾸기</label>
         <button class="btn small" type="button" data-act="audio-remove">지우기</button></div>`;
   }
-  return `<div class="note">${isRec ? '영어 문장을 또박또박 읽어요. 다 읽으면 <b>녹음 끝내기</b>!' : (MIC_OK ? '녹음 시작을 누르고 영어 문장을 읽어요.' : '녹음 파일을 골라 넣어요.')}</div>
-    <div class="row">${recBtn}${isRec ? '' : `<label class="btn small" for="af-${s.id}">녹음 파일 고르기</label>`}</div>`;
+  return `<div class="note">${isRec ? '이 문장을 또박또박 읽어요. 다 읽으면 <b>녹음 끝내기</b>!' : (MIC_OK ? '녹음 시작을 누르고 이 문장을 읽어요.' : '녹음 파일을 골라 넣어요.')}</div>
+    <div class="row">${recBtn}${isRec ? '' : `<label class="btn small" for="af-${l.id}">녹음 파일 고르기</label>`}</div>`;
 }
 
-function aiBoxHTML(s) {
-  const b = busy.get(s.id);
-  const st = statusMsg.get(s.id);
+function aiBoxHTML(l) {
+  const b = busy.get(l.id);
+  const st = statusMsg.get(l.id);
   const stText = b ? (b.kind === 'translate' ? '영어로 바꾸는 중이에요…' : '선생님이 읽어 보는 중이에요…') : (st ? st.text : '');
   const stopBtn = b ? '<button class="btn small" type="button" data-act="stop-ai">멈추기</button>' : '';
   const tabs = `<div class="tabs" role="group" aria-label="영어 만드는 방법">
-      <button type="button" data-act="mode" data-mode="self" aria-pressed="${s.mode === 'self'}">내가 먼저 써 보기</button>
-      <button type="button" data-act="mode" data-mode="ai" aria-pressed="${s.mode === 'ai'}">AI가 번역</button>
+      <button type="button" data-act="mode" data-mode="self" aria-pressed="${l.mode === 'self'}">내가 먼저 써 보기</button>
+      <button type="button" data-act="mode" data-mode="ai" aria-pressed="${l.mode === 'ai'}">AI가 번역</button>
     </div>`;
   let inner;
-  if (s.mode === 'ai') {
-    const vocab = s.words && s.words.length
-      ? `<div><div class="lab">새로 나온 낱말</div><div class="vocab">${s.words.map(w => `<span><b>${esc(w.en)}</b> · ${esc(w.ko)}</span>`).join('')}</div></div>`
+  if (l.mode === 'ai') {
+    const vocab = l.words && l.words.length
+      ? `<div><div class="lab">새로 나온 낱말</div><div class="vocab">${l.words.map(w => `<span><b>${esc(w.en)}</b> · ${esc(w.ko)}</span>`).join('')}</div></div>`
       : '';
     inner = `<div class="row">
-        <button class="btn diamond" type="button" data-act="translate" ${b || !s.ko.trim() ? 'disabled' : ''}>${ICON.spark} ${s.en.trim() ? '다시 번역하기' : '영어로 바꾸기'}</button>${stopBtn}
+        <button class="btn diamond" type="button" data-act="translate" ${b || !l.ko.trim() ? 'disabled' : ''}>${ICON.spark} ${l.en.trim() ? '다시 번역하기' : '영어로 바꾸기'}</button>${stopBtn}
       </div>
-      <p class="status ${st && st.err && !b ? 'err' : ''}" data-status>${esc(stText || (s.ko.trim() ? '' : '먼저 한글 설명을 써 주세요.'))}</p>
+      <p class="status ${st && st.err && !b ? 'err' : ''}" data-status>${esc(stText || (l.ko.trim() ? '' : '먼저 한글 문장을 써 주세요.'))}</p>
       ${vocab}`;
   } else {
-    const f = s.feedback;
+    const f = l.feedback;
     const fb = f ? `<div class="feedback">
         <div class="praise">${esc(f.praise)}</div>
-        ${f.corrected && f.corrected !== s.attempt.trim() ? `<div><div class="lab">이렇게 고치면 더 좋아요</div><div class="fixed">${esc(f.corrected)}</div></div>` : ''}
+        ${f.corrected && f.corrected !== l.attempt.trim() ? `<div><div class="lab">이렇게 고치면 더 좋아요</div><div class="fixed">${esc(f.corrected)}</div></div>` : ''}
         ${(f.fixes || []).map(x => `<div class="fix"><div class="ba"><s>${esc(x.before)}</s> → <ins>${esc(x.after)}</ins></div><div class="why">${esc(x.why)}</div></div>`).join('')}
         <div class="row"><button class="btn small grass" type="button" data-act="use-fix">이 문장으로 정하기</button></div>
       </div>` : '';
     inner = `<div class="field">
-        <label class="lab" for="att-${s.id}">내가 먼저 영어로 써 보기</label>
-        <textarea id="att-${s.id}" data-field="attempt" rows="2" placeholder="Today I ..." lang="en" autocapitalize="sentences">${esc(s.attempt)}</textarea>
+        <label class="lab" for="att-${l.id}">내가 먼저 영어로 써 보기</label>
+        <textarea id="att-${l.id}" data-field="attempt" rows="2" placeholder="Today I ..." lang="en" autocapitalize="sentences">${esc(l.attempt)}</textarea>
       </div>
       <div class="row">
-        <button class="btn diamond" type="button" data-act="check" ${b || !s.attempt.trim() ? 'disabled' : ''}>${ICON.spark} 선생님 확인받기</button>${stopBtn}
+        <button class="btn diamond" type="button" data-act="check" ${b || !l.attempt.trim() ? 'disabled' : ''}>${ICON.spark} 선생님 확인받기</button>${stopBtn}
       </div>
       <p class="status ${st && st.err && !b ? 'err' : ''}" data-status>${esc(stText)}</p>
       ${fb}`;
@@ -186,48 +215,66 @@ function aiBoxHTML(s) {
   return `${tabs}<div class="ai-box">${inner}</div>`;
 }
 
+function lineHTML(l, j, n) {
+  const many = n > 1;
+  return `<section class="line" data-line="${l.id}">
+    <div class="line-head">
+      <div class="line-name">문장 ${j + 1}</div>
+      ${many ? `<div class="head-tools">
+        <button class="btn small" type="button" data-act="line-up" ${j === 0 ? 'disabled' : ''} aria-label="문장 ${j + 1} 앞으로">${ICON.up}</button>
+        <button class="btn small" type="button" data-act="line-down" ${j === n - 1 ? 'disabled' : ''} aria-label="문장 ${j + 1} 뒤로">${ICON.down}</button>
+        <span data-linedelwrap><button class="btn small" type="button" data-act="line-del">문장 지우기</button></span>
+      </div>` : ''}
+    </div>
+    <div class="field">
+      <label class="lab" for="ko-${l.id}">한글로 쓰기</label>
+      <textarea id="ko-${l.id}" data-field="ko" rows="2" placeholder="${j === 0 ? '이 사진에서 무엇을 했나요?' : '이어서 하고 싶은 말을 써요'}">${esc(l.ko)}</textarea>
+    </div>
+    ${AI_ON ? aiBoxHTML(l) : ''}
+    <div class="field">
+      <label class="lab" for="en-${l.id}">${AI_ON ? '영상에 들어갈 영어 문장' : '영어로 써 보기'}</label>
+      <textarea id="en-${l.id}" data-field="en" rows="2" placeholder="Today I ..." lang="en" autocapitalize="sentences" spellcheck="true">${esc(l.en)}</textarea>
+      <div class="row helpers">
+        <button class="btn small" type="button" data-act="speak" ${'speechSynthesis' in window ? '' : 'hidden'}>${ICON.speaker} 발음 들어 보기</button>
+        ${AI_ON ? '' : '<button class="btn small" type="button" data-act="papago">파파고로 도움 받기</button>'}
+      </div>
+    </div>
+    <div class="field">
+      <div class="lab">내 목소리 (이 문장 읽기)</div>
+      <div class="audio-drop ${l.audio ? 'has' : ''}" data-audiodrop>
+        ${audioHTML(l)}
+        <input type="file" id="af-${l.id}" accept="audio/*,.m4a,.mp3,.wav,.webm,.ogg" data-act="audio-file" hidden>
+      </div>
+    </div>
+  </section>`;
+}
+
 function cardHTML(s, i, n) {
   const img = s.image ? `<img src="${blobURL('img-' + s.id, s.image)}" alt="장면 ${i + 1} 게임 화면">` : '';
+  const L = s.lines;
   return `<article class="card" data-id="${s.id}">
     <div class="card-head">
       <div class="name">장면 ${i + 1} ${s.example ? '<span class="badge">예시</span>' : ''}</div>
       <div class="chips" data-chips>${chipsHTML(s)}</div>
       <div class="head-tools">
-        <button class="btn small" type="button" data-act="up" ${i === 0 ? 'disabled' : ''} aria-label="앞으로 옮기기">${ICON.up}</button>
-        <button class="btn small" type="button" data-act="down" ${i === n - 1 ? 'disabled' : ''} aria-label="뒤로 옮기기">${ICON.down}</button>
+        <button class="btn small" type="button" data-act="up" ${i === 0 ? 'disabled' : ''} aria-label="장면 앞으로 옮기기">${ICON.up}</button>
+        <button class="btn small" type="button" data-act="down" ${i === n - 1 ? 'disabled' : ''} aria-label="장면 뒤로 옮기기">${ICON.down}</button>
         <span data-delwrap><button class="btn small" type="button" data-act="del">장면 지우기</button></span>
       </div>
     </div>
     <div class="card-body">
-      <div>
+      <div class="shot-col">
         <div class="shot">${img}</div>
         <div class="shot-tools">
           <label class="btn small" for="if-${s.id}">사진 바꾸기</label>
           <input type="file" id="if-${s.id}" accept="image/*" data-act="img-file" hidden>
         </div>
+        <p class="hint">${L.length > 1 ? `영상에서 이 사진이 나오는 동안 문장 ${L.length}개가 차례대로 나와요.` : '할 말이 더 있으면 아래 <b>문장 더하기</b>를 눌러요.'}</p>
       </div>
-      <div class="col">
-        <div class="field">
-          <label class="lab" for="ko-${s.id}">한글로 설명하기</label>
-          <textarea id="ko-${s.id}" data-field="ko" rows="2" placeholder="이 사진에서 무엇을 했나요?">${esc(s.ko)}</textarea>
-        </div>
-        ${AI_ON ? aiBoxHTML(s) : ''}
-        <div class="field">
-          <label class="lab" for="en-${s.id}">${AI_ON ? '영상에 들어갈 영어 문장' : '영어로 써 보기'}</label>
-          <textarea id="en-${s.id}" data-field="en" rows="2" placeholder="Today I ..." lang="en" autocapitalize="sentences" spellcheck="true">${esc(s.en)}</textarea>
-          <div class="row helpers">
-            <button class="btn small" type="button" data-act="speak" ${'speechSynthesis' in window ? '' : 'hidden'}>${ICON.speaker} 발음 들어 보기</button>
-            ${AI_ON ? '' : '<button class="btn small" type="button" data-act="papago">파파고로 도움 받기</button>'}
-          </div>
-          <p class="hint">${AI_ON ? '자막으로 들어가는 문장이에요. 직접 고쳐도 돼요. 발음 듣기는 연습용이에요.' : '먼저 혼자 써 보고, 막히면 파파고에서 한글 설명을 바꿔 봐요. 발음 듣기는 연습용이에요.'}</p>
-        </div>
-        <div class="field">
-          <div class="lab">내 목소리 (영어로 읽기)</div>
-          <div class="audio-drop ${s.audio ? 'has' : ''}" data-audiodrop>
-            ${audioHTML(s)}
-            <input type="file" id="af-${s.id}" accept="audio/*,.m4a,.mp3,.wav,.webm,.ogg" data-act="audio-file" hidden>
-          </div>
-        </div>
+      <div class="col lines">
+        ${L.map((l, j) => lineHTML(l, j, L.length)).join('')}
+        <button class="btn grass" type="button" data-act="line-add">+ 문장 더하기</button>
+        <p class="hint">${AI_ON ? '영어 문장은 자막으로 들어가요. 직접 고쳐도 돼요. 발음 듣기는 연습용이에요.' : '먼저 혼자 써 보고, 막히면 파파고에서 한글 문장을 바꿔 봐요. 발음 듣기는 연습용이에요.'}</p>
       </div>
     </div>
   </article>`;
@@ -255,16 +302,19 @@ function updateChips(s) {
 
 function renderSummary() {
   const sc = project.scenes;
-  const voiced = sc.filter(s => s.audio).length;
+  const lines = sc.flatMap(s => s.lines);
+  const voiced = lines.filter(l => l.audio).length;
   $('#summary').textContent = sc.length
-    ? `장면 ${sc.length}개 · 목소리 ${voiced}/${sc.length} · 예상 길이 ${fmtTime(totalDur(project))}`
+    ? `장면 ${sc.length}개 · 문장 ${lines.length}개 · 목소리 ${voiced}/${lines.length} · 예상 길이 ${fmtTime(totalDur(project))}`
     : '아직 장면이 없어요';
   const todo = [];
   sc.forEach((s, i) => {
-    const miss = [];
-    if (!s.en.trim()) miss.push('영어 문장');
-    if (!s.audio) miss.push('목소리');
-    if (miss.length) todo.push(`장면 ${i + 1}: ${miss.join(', ')}이 아직 없어요`);
+    s.lines.forEach((l, j) => {
+      const miss = [];
+      if (!l.en.trim()) miss.push('영어 문장');
+      if (!l.audio) miss.push('목소리');
+      if (miss.length) todo.push(`장면 ${i + 1}${s.lines.length > 1 ? ` 문장 ${j + 1}` : ''}: ${miss.join(', ')}이 아직 없어요`);
+    });
   });
   $('#todo').innerHTML = todo.slice(0, 5).map(t => `<li>${esc(t)}</li>`).join('') + (todo.length > 5 ? `<li>그 밖에 ${todo.length - 5}개 더</li>` : '');
   $('#makeBtn').disabled = !sc.length || rendering;
@@ -298,9 +348,9 @@ async function addPdfs(files) {
       catch (e) { console.error(e); out = { title: '', images: [] }; }
       if (!out.images.length) continue;
       out.images.forEach(({ blob, caption }) => {
-        const extra = {};
-        if (caption) { if (/[가-힣]/.test(caption)) extra.ko = caption; else extra.attempt = caption; }
-        project.scenes.push(newScene(blob, extra));
+        const first = {};
+        if (caption) { if (/[가-힣]/.test(caption)) first.ko = caption; else first.attempt = caption; }
+        project.scenes.push(newScene(blob, first));
       });
       total += out.images.length;
       if (out.title && !(project.title || '').trim()) { project.title = out.title; $('#title').value = out.title; }
@@ -329,44 +379,51 @@ async function audioDuration(blob) {
 }
 const isAudio = (f) => f && ((f.type && f.type.startsWith('audio/')) || /\.(m4a|mp3|wav|ogg|webm|aac)$/i.test(f.name || ''));
 
-async function setAudio(s, blob, name) {
+async function setAudio(s, l, blob, name) {
   const d = await audioDuration(blob);
   if (!d) { toast('이 녹음 파일은 열 수 없어요. m4a, mp3, wav 파일을 넣어 주세요.'); return false; }
-  s.audio = blob; s.audioName = name || '내 목소리'; s.audioDur = d;
+  l.audio = blob; l.audioName = name || '내 목소리'; l.audioDur = d;
   save(); rerenderCard(s.id);
   return true;
 }
+// 녹음 파일 여러 개를 끌어다 놓으면 파일 이름 순서대로 빈 문장 칸에 넣는다.
 async function addAudiosInOrder(files) {
   const auds = [...files].filter(isAudio).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ko', { numeric: true }));
   let k = 0;
   for (const s of project.scenes) {
-    if (k >= auds.length) break;
-    if (!s.audio) { await setAudio(s, auds[k], auds[k].name); k++; }
+    for (const l of s.lines) {
+      if (k >= auds.length) break;
+      if (!l.audio) { await setAudio(s, l, auds[k], auds[k].name); k++; }
+    }
   }
-  if (auds.length) toast(k ? '녹음 파일을 목소리 칸에 차례대로 넣었어요' : '목소리가 빈 장면이 없어요');
+  if (auds.length) toast(k ? '녹음 파일을 목소리 칸에 차례대로 넣었어요' : '목소리가 빈 문장이 없어요');
 }
 
 /* ---------- 녹음 ---------- */
-async function toggleRecord(s) {
-  if (rec.id === s.id) {
-    const id = rec.id;
-    clearInterval(rec.timer);
-    const blob = await rec.handle.stop();
-    rec.id = null; rec.handle = null;
-    keepAwake(false);
-    if (blob.size < 500) { toast('녹음이 너무 짧아요. 다시 해 볼까요?'); rerenderCard(id); return; }
-    await setAudio(s, blob, '내 목소리 녹음');
+async function stopRecordingNow() {
+  if (!rec.lineId) return null;
+  clearInterval(rec.timer);
+  const blob = await rec.handle.stop();
+  rec.lineId = null; rec.sceneId = null; rec.handle = null;
+  keepAwake(false);
+  return blob;
+}
+async function toggleRecord(s, l) {
+  if (rec.lineId === l.id) {
+    const blob = await stopRecordingNow();
+    if (!blob || blob.size < 500) { toast('녹음이 너무 짧아요. 다시 해 볼까요?'); rerenderCard(s.id); return; }
+    await setAudio(s, l, blob, '내 목소리 녹음');
     return;
   }
-  if (rec.id) { toast('다른 장면에서 녹음 중이에요. 먼저 녹음을 끝내 주세요.'); return; }
-  if (!s.en.trim()) toast('영어 문장을 먼저 써 두면 보면서 읽을 수 있어요');
+  if (rec.lineId) { toast('다른 문장을 녹음하고 있어요. 먼저 녹음을 끝내 주세요.'); return; }
+  if (!l.en.trim()) toast('영어 문장을 먼저 써 두면 보면서 읽을 수 있어요');
   try {
     rec.handle = await startRecording();
-    rec.id = s.id;
+    rec.lineId = l.id; rec.sceneId = s.id;
     keepAwake(true);
     rerenderCard(s.id);
     rec.timer = setInterval(() => {
-      const el = document.querySelector(`.card[data-id="${s.id}"] [data-rectime]`);
+      const el = document.querySelector(`[data-line="${l.id}"] [data-rectime]`);
       if (el) el.textContent = fmtTime((Date.now() - rec.handle.startedAt) / 1000);
     }, 250);
   } catch (e) {
@@ -394,38 +451,40 @@ function openPapago(ko) {
 }
 
 /* ---------- AI 영어 도우미 ---------- */
-async function runAI(s, kind, work) {
+const sceneOfLine = (l) => project.scenes.find(s => s.lines.includes(l));
+async function runAI(s, l, kind, work) {
   const ctl = new AbortController();
-  busy.set(s.id, { kind, ctl });
-  statusMsg.delete(s.id);
+  busy.set(l.id, { kind, ctl });
+  statusMsg.delete(l.id);
   rerenderCard(s.id);
   try {
     await work(ctl.signal);
   } catch (e) {
     const msg = aiMessage(e);
-    if (msg) statusMsg.set(s.id, { text: msg, err: true });
+    if (msg) statusMsg.set(l.id, { text: msg, err: true });
   } finally {
-    busy.delete(s.id);
-    if (project.scenes.includes(s)) rerenderCard(s.id);
+    busy.delete(l.id);
+    const now = sceneOfLine(l);
+    if (now) rerenderCard(now.id);
   }
 }
-function aiTranslate(s) {
-  if (!s.ko.trim()) return;
-  return runAI(s, 'translate', async (signal) => {
-    const r = await coach('translate', { ko: s.ko.trim() }, signal);
-    s.en = String(r.english || '').trim();
-    s.words = Array.isArray(r.words) ? r.words.slice(0, 4) : [];
-    statusMsg.set(s.id, { text: '다 됐어요! 아래 영어 문장을 소리 내어 읽어 보세요.', err: false });
+function aiTranslate(s, l) {
+  if (!l.ko.trim()) return;
+  return runAI(s, l, 'translate', async (signal) => {
+    const r = await coach('translate', { ko: l.ko.trim() }, signal);
+    l.en = String(r.english || '').trim();
+    l.words = Array.isArray(r.words) ? r.words.slice(0, 4) : [];
+    statusMsg.set(l.id, { text: '다 됐어요! 아래 영어 문장을 소리 내어 읽어 보세요.', err: false });
     save();
   });
 }
-function aiCheck(s) {
-  if (!s.attempt.trim()) return;
-  s.feedback = null;
-  return runAI(s, 'check', async (signal) => {
-    const r = await coach('check', { ko: s.ko.trim(), attempt: s.attempt.trim() }, signal);
-    s.feedback = {
-      corrected: String(r.corrected || s.attempt).trim(),
+function aiCheck(s, l) {
+  if (!l.attempt.trim()) return;
+  l.feedback = null;
+  return runAI(s, l, 'check', async (signal) => {
+    const r = await coach('check', { ko: l.ko.trim(), attempt: l.attempt.trim() }, signal);
+    l.feedback = {
+      corrected: String(r.corrected || l.attempt).trim(),
       praise: String(r.praise || '잘 썼어요!'),
       fixes: Array.isArray(r.fixes) ? r.fixes.slice(0, 4) : []
     };
@@ -460,23 +519,29 @@ const findScene = (el) => {
   const c = el.closest('.card');
   return c ? project.scenes.find(s => s.id === c.dataset.id) : null;
 };
+const findLine = (s, el) => {
+  const box = el.closest('[data-line]');
+  return s && box ? s.lines.find(l => l.id === box.dataset.line) : null;
+};
+const abortLine = (l) => { const job = busy.get(l.id); if (job) job.ctl.abort(); };
 
 scenesEl.addEventListener('input', (e) => {
   const f = e.target.dataset.field;
   if (!f) return;
   const s = findScene(e.target);
-  if (!s) return;
-  s[f] = e.target.value;
+  const l = findLine(s, e.target);
+  if (!l) return;
+  l[f] = e.target.value;
   if (s.example) s.example = false;
   save(); updateChips(s);
   // 글을 쓰면 AI 버튼을 켜거나 끈다(카드를 다시 그리지 않아 글쓰기가 끊기지 않게).
-  if (AI_ON && (f === 'ko' || f === 'attempt') && !busy.get(s.id)) {
-    const card = e.target.closest('.card');
-    const btn = card.querySelector(f === 'ko' ? '[data-act="translate"]' : '[data-act="check"]');
+  if (AI_ON && (f === 'ko' || f === 'attempt') && !busy.get(l.id)) {
+    const box = e.target.closest('[data-line]');
+    const btn = box.querySelector(f === 'ko' ? '[data-act="translate"]' : '[data-act="check"]');
     if (btn) btn.disabled = !e.target.value.trim();
-    if (f === 'ko' && s.mode === 'ai' && !statusMsg.get(s.id)) {
-      const st = card.querySelector('[data-status]');
-      if (st) st.textContent = e.target.value.trim() ? '' : '먼저 한글 설명을 써 주세요.';
+    if (f === 'ko' && l.mode === 'ai' && !statusMsg.get(l.id)) {
+      const st = box.querySelector('[data-status]');
+      if (st) st.textContent = e.target.value.trim() ? '' : '먼저 한글 문장을 써 주세요.';
     }
   }
 });
@@ -487,7 +552,7 @@ scenesEl.addEventListener('change', async (e) => {
   const file = e.target.files && e.target.files[0];
   if (!s || !file) return;
   if (act === 'img-file' && file.type.startsWith('image/')) { s.image = file; save(); rerenderCard(s.id); }
-  if (act === 'audio-file') await setAudio(s, file, file.name);
+  if (act === 'audio-file') { const l = findLine(s, e.target); if (l) await setAudio(s, l, file, file.name); }
   e.target.value = '';
 });
 
@@ -497,7 +562,11 @@ scenesEl.addEventListener('click', async (e) => {
   const s = findScene(b);
   if (!s) return;
   const i = project.scenes.indexOf(s);
+  const l = findLine(s, b);
+  const j = l ? s.lines.indexOf(l) : -1;
   const act = b.dataset.act;
+
+  // 장면
   if (act === 'up' && i > 0) {
     [project.scenes[i - 1], project.scenes[i]] = [project.scenes[i], project.scenes[i - 1]];
     save(); renderScenes();
@@ -509,20 +578,49 @@ scenesEl.addEventListener('click', async (e) => {
   } else if (act === 'del-no') {
     b.parentElement.innerHTML = '<button class="btn small" type="button" data-act="del">장면 지우기</button>';
   } else if (act === 'del-yes') {
-    if (rec.id === s.id) { clearInterval(rec.timer); await rec.handle.stop(); rec.id = null; rec.handle = null; keepAwake(false); }
-    const job = busy.get(s.id); if (job) job.ctl.abort();
+    if (rec.sceneId === s.id) await stopRecordingNow();
+    s.lines.forEach(abortLine);
     project.scenes.splice(i, 1);
     save(); renderScenes(); renderProjectBar();
-  } else if (act === 'mode') { s.mode = b.dataset.mode; statusMsg.delete(s.id); save(); rerenderCard(s.id); }
-  else if (act === 'translate') aiTranslate(s);
-  else if (act === 'check') aiCheck(s);
-  else if (act === 'stop-ai') { const x = busy.get(s.id); if (x) x.ctl.abort(); }
+  }
+
+  // 문장 줄
+  else if (act === 'line-add') {
+    const nl = newLine();
+    s.lines.push(nl);
+    s.example = false;
+    save(); rerenderCard(s.id);
+    const ta = document.getElementById('ko-' + nl.id);
+    if (ta) { ta.focus({ preventScroll: true }); ta.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+  } else if (!l) {
+    return;
+  } else if (act === 'line-up' && j > 0) {
+    [s.lines[j - 1], s.lines[j]] = [s.lines[j], s.lines[j - 1]];
+    save(); rerenderCard(s.id);
+  } else if (act === 'line-down' && j < s.lines.length - 1) {
+    [s.lines[j + 1], s.lines[j]] = [s.lines[j], s.lines[j + 1]];
+    save(); rerenderCard(s.id);
+  } else if (act === 'line-del') {
+    b.parentElement.innerHTML = '<button class="btn small red" type="button" data-act="line-del-yes">정말 지울까요?</button> <button class="btn small" type="button" data-act="line-del-no">아니요</button>';
+  } else if (act === 'line-del-no') {
+    b.parentElement.innerHTML = '<button class="btn small" type="button" data-act="line-del">문장 지우기</button>';
+  } else if (act === 'line-del-yes') {
+    if (s.lines.length <= 1) return;
+    if (rec.lineId === l.id) await stopRecordingNow();
+    abortLine(l);
+    s.lines.splice(j, 1);
+    save(); rerenderCard(s.id);
+  }
+  else if (act === 'mode') { l.mode = b.dataset.mode; statusMsg.delete(l.id); save(); rerenderCard(s.id); }
+  else if (act === 'translate') aiTranslate(s, l);
+  else if (act === 'check') aiCheck(s, l);
+  else if (act === 'stop-ai') abortLine(l);
   else if (act === 'use-fix') {
-    if (s.feedback) { s.en = s.feedback.corrected || s.attempt; save(); rerenderCard(s.id); toast('영상에 들어갈 문장으로 정했어요'); }
-  } else if (act === 'speak') speak(s.en);
-  else if (act === 'papago') openPapago(s.ko);
-  else if (act === 'audio-remove') { s.audio = null; s.audioName = ''; s.audioDur = 0; save(); rerenderCard(s.id); }
-  else if (act === 'rec') toggleRecord(s);
+    if (l.feedback) { l.en = l.feedback.corrected || l.attempt; save(); rerenderCard(s.id); toast('영상에 들어갈 문장으로 정했어요'); }
+  } else if (act === 'speak') speak(l.en);
+  else if (act === 'papago') openPapago(l.ko);
+  else if (act === 'audio-remove') { l.audio = null; l.audioName = ''; l.audioDur = 0; save(); rerenderCard(s.id); }
+  else if (act === 'rec') toggleRecord(s, l);
 });
 
 /* ---------- 이벤트: 프로젝트 ---------- */
@@ -549,7 +647,7 @@ $('#projSelect').addEventListener('change', (e) => {
   if (p) openProject(p);
 });
 $('#newProj').addEventListener('click', () => {
-  if (rendering || rec.id) { toast('녹음이나 영상 만들기를 먼저 끝내 주세요'); return; }
+  if (rendering || rec.lineId) { toast('녹음이나 영상 만들기를 먼저 끝내 주세요'); return; }
   const p = newProject();
   projects.push(p);
   openProject(p);
@@ -563,7 +661,7 @@ $('.projbar').addEventListener('click', async (e) => {
     $('#delProjWrap').innerHTML = '<button class="btn small red" id="delYes" type="button">정말 지울까요?</button> <button class="btn small" id="delNo" type="button">아니요</button>';
   } else if (b.id === 'delNo') renderProjectBar();
   else if (b.id === 'delYes') {
-    if (rendering || rec.id) { toast('녹음이나 영상 만들기를 먼저 끝내 주세요'); renderProjectBar(); return; }
+    if (rendering || rec.lineId) { toast('녹음이나 영상 만들기를 먼저 끝내 주세요'); renderProjectBar(); return; }
     await store.remove(project.id);
     projects = projects.filter(p => p.id !== project.id);
     if (!projects.length) { const p = newProject(); projects.push(p); openProject(p); save(true); }
@@ -572,7 +670,7 @@ $('.projbar').addEventListener('click', async (e) => {
   }
 });
 function openProject(p) {
-  if (rendering || rec.id) { toast('녹음이나 영상 만들기를 먼저 끝내 주세요'); renderProjectBar(); return; }
+  if (rendering || rec.lineId) { toast('녹음이나 영상 만들기를 먼저 끝내 주세요'); renderProjectBar(); return; }
   clearURLs();
   busy.forEach(x => x.ctl.abort());
   busy.clear(); statusMsg.clear();
@@ -610,7 +708,7 @@ document.addEventListener('drop', async (e) => {
   const files = [...e.dataTransfer.files];
   const zone = e.target.closest && e.target.closest('[data-audiodrop]');
   const auds = files.filter(isAudio);
-  if (zone && auds.length) { const s = findScene(zone); if (s) await setAudio(s, auds[0], auds[0].name); }
+  if (zone && auds.length) { const s = findScene(zone); const l = findLine(s, zone); if (l) await setAudio(s, l, auds[0], auds[0].name); }
   else if (auds.length) await addAudiosInOrder(auds);
   const n = addImages(files);
   const p = await addPdfs(files);
@@ -630,7 +728,7 @@ function resetResult() {
 
 async function makeVideo() {
   if (rendering || !project.scenes.some(s => s.image)) return;
-  if (rec.id) { toast('녹음을 먼저 끝내 주세요'); return; }
+  if (rec.lineId) { toast('녹음을 먼저 끝내 주세요'); return; }
   if (!canMakeVideo()) { $('#makeNote').textContent = '이 브라우저에서는 영상을 만들 수 없어요. 크롬이나 엣지에서 열어 주세요.'; return; }
   rendering = true; cancelRequested = false;
   resetResult();
@@ -717,7 +815,7 @@ async function init() {
 init();
 
 window.addEventListener('beforeunload', (e) => {
-  if (rendering || rec.id) { e.preventDefault(); e.returnValue = ''; }
+  if (rendering || rec.lineId) { e.preventDefault(); e.returnValue = ''; }
 });
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
@@ -730,7 +828,7 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (!hadController || reloaded) return;
     const go = () => {
-      if (rendering || rec.id || importing) { setTimeout(go, 2000); return; }
+      if (rendering || rec.lineId || importing) { setTimeout(go, 2000); return; }
       reloaded = true;
       location.reload();
     };

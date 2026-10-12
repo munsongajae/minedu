@@ -46,19 +46,27 @@
 
 ## 데이터 모양
 
+장면 = 사진 한 장 + 문장 줄 여러 개. 녹음·AI·자막은 모두 문장 줄 단위.
+
 ```js
 project = {
   id, title, makers, createdAt, updatedAt,
   opts: { title: bool, ko: bool, end: bool },   // 제목 화면, 한글 자막, The End 화면
   scenes: [{
-    id, image: Blob, ko, en,                 // en = 자막에 들어가는 최종 영어 문장
-    mode: 'self'|'ai', attempt,              // 영어 만드는 방법, 아이가 먼저 쓴 영어
-    feedback: {corrected, praise, fixes[]}|null, words: [{en, ko}],
-    audio: Blob|null, audioName, audioDur, example?
+    id, image: Blob, example?,
+    lines: [{
+      id, ko, en,                            // en = 자막에 들어가는 최종 영어 문장
+      mode: 'self'|'ai', attempt,            // 영어 만드는 방법, 아이가 먼저 쓴 영어
+      feedback: {corrected, praise, fixes[]}|null, words: [{en, ko}],
+      audio: Blob|null, audioName, audioDur
+    }]
   }]
-  // 예전에 저장된 장면은 app.js의 fixScene()이 새 칸을 채운다.
 }
+// 예전 모양(장면에 ko/en/audio가 바로 있던 것)은 app.js의 fixScene()이 lines 하나로 바꾼다.
 ```
+
+영상 타이밍(`video.js`): 장면 길이 = LEAD + 문장들 길이 합 + 문장 사이 GAP + TAIL. 문장 길이는 녹음 길이,
+녹음이 없으면 `textDur(en)`(낱말 수로 2.5~7초). 자막은 지금 읽는 문장 하나만 보여준다.
 
 ## 실행과 확인
 
@@ -66,7 +74,7 @@ project = {
 python3 -m http.server 8080   # http://localhost:8080
 ```
 
-바꾼 뒤에는 최소한: 예시 장면으로 영상 만들기 → 재생 → 저장, 새 영상에서 사진 넣기 → 녹음 → 영상 만들기.
+바꾼 뒤에는 최소한: 예시 장면으로 영상 만들기 → 재생 → 저장, 새 영상에서 사진 넣기 → 문장 더하기 → 문장마다 녹음 → 영상 만들기.
 
 ## 다음에 하면 좋은 것 (아직 안 함)
 

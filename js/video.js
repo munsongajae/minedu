@@ -4,9 +4,9 @@ import { drawBlockWorld } from './world.js';
 
 export const W = 1280;
 export const H = 720;
-export const LEAD = 0.5;     // 장면이 시작되고 목소리가 나오기까지
-export const TAIL = 0.7;     // 목소리가 끝나고 다음 장면까지
-export const NO_AUDIO = 4;   // 목소리가 없는 장면 길이
+export const LEAD = 0.5;     // 장면이 시작되고 첫 문장 목소리가 나오기까지
+export const TAIL = 0.7;     // 마지막 문장 목소리가 끝나고 다음 장면까지
+export const GAP = 0.35;     // 같은 장면 안에서 문장과 문장 사이
 export const TITLE_DUR = 3.2;
 export const END_DUR = 2.8;
 const FADE = 0.35;
@@ -14,8 +14,18 @@ const FADE = 0.35;
 const KID = '"Jua", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif';
 const DISP = '"Do Hyeon", "Jua", "Malgun Gothic", sans-serif';
 
+// 녹음이 없는 문장은 글 길이로 보여 줄 시간을 정한다.
+export function textDur(en) {
+  const words = String(en || '').trim().split(/\s+/).filter(Boolean).length;
+  return words ? Math.min(7, Math.max(2.5, 1.2 + words * 0.4)) : 2.5;
+}
+function lineDur(l, buf) {
+  if (buf) return buf.duration;
+  return l.audio && l.audioDur ? l.audioDur : textDur(l.en);
+}
 export function sceneDur(s) {
-  return s.audio && s.audioDur ? s.audioDur + LEAD + TAIL : NO_AUDIO;
+  const ds = s.lines.map(l => lineDur(l));
+  return LEAD + ds.reduce((a, b) => a + b, 0) + GAP * Math.max(0, ds.length - 1) + TAIL;
 }
 
 export function totalDur(project) {
@@ -96,11 +106,13 @@ function outlined(ctx, text, x, y, fill, stroke, lw) {
   ctx.fillText(text, x, y);
 }
 
-function drawSubtitle(ctx, en, ko) {
+function drawSubtitle(ctx, en, ko, alpha = 1) {
   const maxW = W - 180;
   const E = en && en.trim() ? fitLines(ctx, en, maxW, 46, 30, 3, KID) : { size: 0, lines: [] };
   const K = ko && ko.trim() ? fitLines(ctx, ko, maxW, 30, 22, 2, KID) : { size: 0, lines: [] };
   if (!E.lines.length && !K.lines.length) return;
+  ctx.save();
+  ctx.globalAlpha = alpha;
   const eh = E.lines.length * E.size * 1.22;
   const kh = K.lines.length * K.size * 1.25;
   const gap = E.lines.length && K.lines.length ? 10 : 0;
@@ -118,6 +130,7 @@ function drawSubtitle(ctx, en, ko) {
   y += gap;
   ctx.font = `${K.size}px ${KID}`;
   K.lines.forEach(l => { outlined(ctx, l, W / 2, y, '#ffe08a', 'rgba(0,0,0,.6)', 4); y += K.size * 1.25; });
+  ctx.restore();
 }
 
 // 사진을 아주 작게 줄였다가 다시 키워서 흐린 배경을 한 번만 만들어 둔다(매 프레임 흐리게 하면 태블릿이 느려짐).
@@ -184,7 +197,12 @@ export function drawFrame(ctx, plan, t) {
       const [x, y, w, h] = coverRect(seg.bmp.width, seg.bmp.height, zoom);
       ctx.drawImage(seg.bmp, x, y, w, h);
     }
-    drawSubtitle(ctx, seg.en, plan.ko ? seg.ko : '');
+    // 지금 읽는 문장의 자막만 보여준다. 첫 문장 목소리 전에는 첫 문장을 미리 띄운다.
+    let k = 0;
+    for (let i = 0; i < seg.lines.length; i++) if (t >= seg.lines[i].start) k = i;
+    const ln = seg.lines[k];
+    const alpha = k > 0 ? Math.min(1, (t - ln.start) / 0.2 + 0.15) : 1;
+    drawSubtitle(ctx, ln.en, plan.ko ? ln.ko : '', alpha);
   }
   const a = Math.min(1, tl / FADE, (seg.dur - tl) / FADE);
   if (a < 1) {
@@ -209,10 +227,11 @@ export async function renderVideo(project, io) {
   const ac = new (window.AudioContext || window.webkitAudioContext)();
   try {
     await ac.resume();
-    const bufs = await Promise.all(scenes.map(async s => {
-      if (!s.audio) return null;
-      try { return await ac.decodeAudioData(await s.audio.arrayBuffer()); } catch (e) { return null; }
-    }));
+    const decode = async (blob) => {
+      if (!blob) return null;
+      try { return await ac.decodeAudioData(await blob.arrayBuffer()); } catch (e) { return null; }
+    };
+    const bufs = await Promise.all(scenes.map(s => Promise.all(s.lines.map(l => decode(l.audio)))));
 
     const d = new Date();
     const plan = {
@@ -227,9 +246,17 @@ export async function renderVideo(project, io) {
     let t = 0;
     if (project.opts.title) { plan.segs.push({ type: 'title', start: t, dur: TITLE_DUR }); t += TITLE_DUR; }
     scenes.forEach((s, i) => {
-      const dur = bufs[i] ? bufs[i].duration + LEAD + TAIL : NO_AUDIO;
+      const lines = [];
+      let lt = t + LEAD;
+      s.lines.forEach((l, j) => {
+        const buf = bufs[i][j];
+        const dur = lineDur(l, buf);
+        lines.push({ start: lt, dur, en: l.en, ko: l.ko, buf });
+        lt += dur + GAP;
+      });
+      const dur = (lt - GAP) - t + TAIL;
       const bg = needsBackdrop(bmps[i]) ? makeBackdrop(bmps[i], 0.35) : null;
-      plan.segs.push({ type: 'scene', start: t, dur, bmp: bmps[i], bg, en: s.en, ko: s.ko, buf: bufs[i] });
+      plan.segs.push({ type: 'scene', start: t, dur, bmp: bmps[i], bg, lines });
       t += dur;
     });
     if (project.opts.end) { plan.segs.push({ type: 'end', start: t, dur: END_DUR }); t += END_DUR; }
@@ -261,14 +288,14 @@ export async function renderVideo(project, io) {
 
     const t0 = ac.currentTime + 0.2;
     const sources = [];
-    plan.segs.forEach(sg => {
-      if (!sg.buf) return;
+    plan.segs.forEach(sg => (sg.lines || []).forEach(ln => {
+      if (!ln.buf) return;
       const src = ac.createBufferSource();
-      src.buffer = sg.buf;
+      src.buffer = ln.buf;
       src.connect(dest);
-      src.start(t0 + sg.start + LEAD);
+      src.start(t0 + ln.start);
       sources.push(src);
-    });
+    }));
     io.onStatus('영상을 만드는 중이에요. 이 화면을 켜 두세요!');
 
     let cancelled = false;

@@ -721,5 +721,19 @@ window.addEventListener('beforeunload', (e) => {
 });
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
-  navigator.serviceWorker.register('sw.js').catch(() => { /* 오프라인 기능 없이 계속 */ });
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
+    .then(reg => reg.update())
+    .catch(() => { /* 오프라인 기능 없이 계속 */ });
+  // 새 버전이 들어오면 한 번 새로 고침해서 바로 새 화면을 쓴다(녹음·영상 만들기 중이면 끝난 뒤에).
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || reloaded) return;
+    const go = () => {
+      if (rendering || rec.id || importing) { setTimeout(go, 2000); return; }
+      reloaded = true;
+      location.reload();
+    };
+    go();
+  });
 }

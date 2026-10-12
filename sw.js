@@ -1,6 +1,6 @@
 // 오프라인에서도 앱 화면이 열리도록 파일을 저장해 둔다.
 // 앱 파일을 고치면 CACHE 이름의 숫자를 올려야 기기에 새 버전이 들어간다.
-const CACHE = 'block-studio-v6';
+const CACHE = 'block-studio-v8';
 const ASSETS = [
   './',
   './index.html',
@@ -19,7 +19,9 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE)
+    .then(c => c.addAll(ASSETS.map(u => new Request(u, { cache: 'reload' }))))
+    .then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (e) => {
@@ -47,8 +49,9 @@ self.addEventListener('fetch', (e) => {
     })));
     return;
   }
-  e.respondWith(fetch(req).then(res => {
+  // cache: 'no-cache' — 브라우저 캐시(GitHub Pages는 10분)에 묵은 파일이 있어도 서버에 새 버전이 있는지 꼭 확인한다.
+  e.respondWith(fetch(req.url, { cache: 'no-cache', credentials: 'same-origin' }).then(res => {
     if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); }
     return res;
-  }).catch(() => caches.match(req).then(hit => hit || caches.match('./index.html'))));
+  }).catch(() => caches.match(req, { ignoreSearch: true }).then(hit => hit || caches.match('./index.html'))));
 });

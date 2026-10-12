@@ -242,6 +242,13 @@ export async function renderVideo(project, io) {
     drawFrame(ctx, plan, 0);
 
     const dest = ac.createMediaStreamDestination();
+    // 목소리가 없는 구간에도 소리 트랙에 (들리지 않는) 소리가 계속 흐르게 한다.
+    // 소리가 끊기면 mp4 녹화가 앞부분만 저장되고 잘리는 문제가 있다.
+    const hum = ac.createOscillator();
+    const mute = ac.createGain();
+    mute.gain.value = 0.00001;
+    hum.connect(mute).connect(dest);
+    hum.start();
     const vs = canvas.captureStream(30);
     const stream = new MediaStream([...vs.getVideoTracks(), ...dest.stream.getAudioTracks()]);
     const mime = pickMime();
@@ -267,8 +274,11 @@ export async function renderVideo(project, io) {
     let cancelled = false;
     await new Promise(resolve => {
       let finished = false;
-      const tick = () => {
+      let lastStep = 0;
+      // 한 번 그리고, 끝났는지 확인한다.
+      const step = () => {
         if (finished) return;
+        lastStep = performance.now();
         const now = ac.currentTime - t0;
         drawFrame(ctx, plan, Math.max(0, Math.min(now, total - 0.001)));
         io.onProgress(Math.min(1, Math.max(0, now / total)));
@@ -277,16 +287,17 @@ export async function renderVideo(project, io) {
           finished = true;
           clearInterval(watch);
           resolve();
-          return;
         }
-        requestAnimationFrame(tick);
       };
-      // 화면이 잠깐 가려져도 끝은 감지하도록 느린 타이머를 같이 돈다.
-      const watch = setInterval(tick, 400);
-      requestAnimationFrame(tick);
+      // 화면 그리기 흐름은 하나만 돈다.
+      const loop = () => { step(); if (!finished) requestAnimationFrame(loop); };
+      // 화면이 가려져 그리기가 멈춰도 끝은 감지하도록, 느린 타이머가 대신 한 번씩 그린다.
+      const watch = setInterval(() => { if (performance.now() - lastStep > 300) step(); }, 400);
+      requestAnimationFrame(loop);
     });
 
     sources.forEach(s => { try { s.stop(); } catch (e) { /* 이미 끝남 */ } });
+    try { hum.stop(); } catch (e) { /* 이미 끝남 */ }
     rec.stop();
     await stopped;
     stream.getTracks().forEach(tr => tr.stop());

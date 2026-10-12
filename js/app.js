@@ -4,6 +4,7 @@ import { makeExampleImage } from './world.js';
 import { renderVideo, totalDur, canMakeVideo } from './video.js';
 import { canRecord, startRecording, micErrorMessage } from './recorder.js';
 import { aiEnabled, coach, aiMessage, getFamilyCode, setFamilyCode } from './ai.js';
+import { importPortfolioPdf, isPdf } from './pdf-import.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
@@ -279,6 +280,45 @@ function addImages(files) {
   return imgs.length;
 }
 
+// 마인크래프트 포트폴리오 PDF → 사진마다 장면 하나
+let importing = false;
+async function addPdfs(files) {
+  const pdfs = [...files].filter(isPdf);
+  if (!pdfs.length) return 0;
+  if (importing) { toast('PDF를 꺼내는 중이에요. 잠깐만 기다려 주세요.'); return pdfs.length; }
+  importing = true;
+  const note = $('#importNote');
+  note.classList.remove('err');
+  note.textContent = 'PDF에서 사진을 꺼내는 중이에요…';
+  let total = 0;
+  try {
+    for (const f of pdfs) {
+      let out;
+      try { out = await importPortfolioPdf(f); }
+      catch (e) { console.error(e); out = { title: '', images: [] }; }
+      if (!out.images.length) continue;
+      out.images.forEach(({ blob, caption }) => {
+        const extra = {};
+        if (caption) { if (/[가-힣]/.test(caption)) extra.ko = caption; else extra.attempt = caption; }
+        project.scenes.push(newScene(blob, extra));
+      });
+      total += out.images.length;
+      if (out.title && !(project.title || '').trim()) { project.title = out.title; $('#title').value = out.title; }
+    }
+  } finally {
+    importing = false;
+  }
+  if (total) {
+    renderScenes(); renderProjectBar(); save();
+    note.textContent = '';
+    toast(`포트폴리오에서 사진 ${total}장을 꺼냈어요`);
+  } else {
+    note.classList.add('err');
+    note.textContent = '이 PDF에서는 사진을 찾지 못했어요. 마인크래프트에서 내보낸 포트폴리오 PDF인지 확인해 주세요.';
+  }
+  return pdfs.length;
+}
+
 let decodeCtx = null;
 async function audioDuration(blob) {
   try {
@@ -498,7 +538,12 @@ document.querySelectorAll('[data-maker]').forEach(b => b.addEventListener('click
 ['Title', 'Ko', 'End'].forEach(k => $('#opt' + k).addEventListener('change', (e) => {
   project.opts[k.toLowerCase()] = e.target.checked; save(); renderSummary();
 }));
-$('#pickImages').addEventListener('change', (e) => { addImages(e.target.files); e.target.value = ''; });
+$('#pickImages').addEventListener('change', (e) => {
+  const files = [...e.target.files];
+  e.target.value = '';
+  addImages(files);
+  addPdfs(files);
+});
 $('#projSelect').addEventListener('change', (e) => {
   const p = projects.find(p => p.id === e.target.value);
   if (p) openProject(p);
@@ -568,7 +613,8 @@ document.addEventListener('drop', async (e) => {
   if (zone && auds.length) { const s = findScene(zone); if (s) await setAudio(s, auds[0], auds[0].name); }
   else if (auds.length) await addAudiosInOrder(auds);
   const n = addImages(files);
-  if (!n && !auds.length) toast('사진이나 녹음 파일만 넣을 수 있어요');
+  const p = await addPdfs(files);
+  if (!n && !p && !auds.length) toast('사진, 포트폴리오 PDF, 녹음 파일만 넣을 수 있어요');
 });
 
 /* ---------- 영상 만들기 ---------- */

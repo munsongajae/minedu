@@ -120,18 +120,38 @@ function drawSubtitle(ctx, en, ko) {
   K.lines.forEach(l => { outlined(ctx, l, W / 2, y, '#ffe08a', 'rgba(0,0,0,.6)', 4); y += K.size * 1.25; });
 }
 
-function drawCard(ctx, bmp, big, small, small2) {
-  if (bmp) {
-    ctx.save();
-    ctx.filter = 'blur(14px) brightness(0.55)';
-    const [x, y, w, h] = coverRect(bmp.width, bmp.height, 1.08);
-    ctx.drawImage(bmp, x, y, w, h);
-    ctx.restore();
-  } else {
-    drawBlockWorld(ctx, W, H, false);
-  }
-  ctx.fillStyle = 'rgba(0,0,0,.25)';
+// 사진을 아주 작게 줄였다가 다시 키워서 흐린 배경을 한 번만 만들어 둔다(매 프레임 흐리게 하면 태블릿이 느려짐).
+function makeBackdrop(bmp, darkness) {
+  const tiny = document.createElement('canvas');
+  tiny.width = 48; tiny.height = 27;
+  const tctx = tiny.getContext('2d');
+  const r = Math.max(48 / bmp.width, 27 / bmp.height) * 1.1;
+  const w = bmp.width * r, h = bmp.height * r;
+  tctx.drawImage(bmp, (48 - w) / 2, (27 - h) / 2, w, h);
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const ctx = c.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(tiny, 0, 0, W, H);
+  ctx.fillStyle = `rgba(0,0,0,${darkness})`;
   ctx.fillRect(0, 0, W, H);
+  return c;
+}
+
+// 16:9에서 많이 벗어난 사진인가(위아래나 양옆이 많이 잘리는가)
+function needsBackdrop(bmp) {
+  const a = bmp.width / bmp.height;
+  return Math.abs(a - W / H) > 0.2;
+}
+
+function drawCard(ctx, bg, big, small, small2) {
+  if (bg) ctx.drawImage(bg, 0, 0, W, H);
+  else {
+    drawBlockWorld(ctx, W, H, false);
+    ctx.fillStyle = 'rgba(0,0,0,.25)';
+    ctx.fillRect(0, 0, W, H);
+  }
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   const T = fitLines(ctx, big, W - 200, 92, 52, 2, DISP);
@@ -149,12 +169,21 @@ export function drawFrame(ctx, plan, t) {
   const seg = plan.segs.find(s => t >= s.start && t < s.start + s.dur) || plan.segs[plan.segs.length - 1];
   const tl = Math.min(seg.dur, Math.max(0, t - seg.start));
   const by = plan.makers ? '만든 사람 · ' + plan.makers : '';
-  if (seg.type === 'title') drawCard(ctx, plan.firstBmp, plan.title, by, plan.date);
-  else if (seg.type === 'end') drawCard(ctx, plan.lastBmp, 'The End', by, 'Thank you for watching!');
+  if (seg.type === 'title') drawCard(ctx, plan.firstBg, plan.title, by, plan.date);
+  else if (seg.type === 'end') drawCard(ctx, plan.lastBg, 'The End', by, 'Thank you for watching!');
   else {
     const p = tl / seg.dur;
-    const [x, y, w, h] = coverRect(seg.bmp.width, seg.bmp.height, 1 + 0.05 * p);
-    ctx.drawImage(seg.bmp, x, y, w, h);
+    const zoom = 1 + 0.05 * p;
+    if (seg.bg) {
+      // 16:9가 아닌 사진(포트폴리오 사진 등): 흐린 배경 위에 사진 전체를 보여준다.
+      ctx.drawImage(seg.bg, 0, 0, W, H);
+      const r = Math.min(W / seg.bmp.width, H / seg.bmp.height) * zoom;
+      const w = seg.bmp.width * r, h = seg.bmp.height * r;
+      ctx.drawImage(seg.bmp, (W - w) / 2, (H - h) / 2, w, h);
+    } else {
+      const [x, y, w, h] = coverRect(seg.bmp.width, seg.bmp.height, zoom);
+      ctx.drawImage(seg.bmp, x, y, w, h);
+    }
     drawSubtitle(ctx, seg.en, plan.ko ? seg.ko : '');
   }
   const a = Math.min(1, tl / FADE, (seg.dur - tl) / FADE);
@@ -192,14 +221,15 @@ export async function renderVideo(project, io) {
       title: (project.title || '').trim() || '나의 마인크래프트 이야기',
       makers: (project.makers || '').trim(),
       date: `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일`,
-      firstBmp: bmps[0],
-      lastBmp: bmps[bmps.length - 1]
+      firstBg: project.opts.title ? makeBackdrop(bmps[0], 0.55) : null,
+      lastBg: project.opts.end ? makeBackdrop(bmps[bmps.length - 1], 0.55) : null
     };
     let t = 0;
     if (project.opts.title) { plan.segs.push({ type: 'title', start: t, dur: TITLE_DUR }); t += TITLE_DUR; }
     scenes.forEach((s, i) => {
       const dur = bufs[i] ? bufs[i].duration + LEAD + TAIL : NO_AUDIO;
-      plan.segs.push({ type: 'scene', start: t, dur, bmp: bmps[i], en: s.en, ko: s.ko, buf: bufs[i] });
+      const bg = needsBackdrop(bmps[i]) ? makeBackdrop(bmps[i], 0.35) : null;
+      plan.segs.push({ type: 'scene', start: t, dur, bmp: bmps[i], bg, en: s.en, ko: s.ko, buf: bufs[i] });
       t += dur;
     });
     if (project.opts.end) { plan.segs.push({ type: 'end', start: t, dur: END_DUR }); t += END_DUR; }

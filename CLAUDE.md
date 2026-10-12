@@ -12,7 +12,7 @@
 
 - Windows PC의 크롬·엣지, 갤럭시탭의 크롬(안드로이드). 둘 다에서 확인할 것.
 - GitHub Pages(https)로 배포하는 정적 사이트(https://munsongajae.github.io/minedu/).
-- 서버 쪽은 Supabase Edge Function 하나뿐. 코드는 `supabase/functions/coach/index.ts`(Deno)지만, 실제 배포된 함수 이름(slug)은 **`quick-function`**이다(대시보드에서 만들 때 붙은 이름, 바꿀 수 없음). 앱은 `js/config.js`의 `COACH_URL`로 부른다. Gemini API(`generateContent`, JSON 스키마 출력)를 부른다. 프로젝트 ref: `uwqakkbwaqtrrqvhzzvz`.
+- 서버 쪽은 Supabase Edge Function `coach` 하나뿐(`supabase/functions/coach/index.ts`, Deno). 앱은 `js/config.js`의 `COACH_URL`로 부른다. Gemini API(`generateContent`, JSON 스키마 출력)를 부른다. 프로젝트 ref: `uwqakkbwaqtrrqvhzzvz`.
 - 마이크(getUserMedia)는 https나 localhost에서만 된다.
 
 ## AI 영어 도우미
@@ -22,7 +22,7 @@
 - 함수는 `verify_jwt = false`. 대신 Secret `APP_PASSCODE`와 비교하고, CORS는 `ALLOWED_ORIGINS`(기본 GitHub Pages 주소) + localhost만 허용, 글 600자 제한, 간단한 분당 횟수 제한.
 - Gemini 키(`GEMINI_API_KEY`)는 Supabase Secret에만 둔다. 브라우저 코드나 저장소에 절대 넣지 않는다.
 - 모델은 Secret `GEMINI_MODEL`(기본 `gemini-3.5-flash-lite`). 모델 이름은 바뀔 수 있으니 바꿀 때 Google 문서에서 현재 안정판을 확인한다.
-- 함수 코드를 고치면 Supabase에 다시 배포해야 반영된다(대시보드에서 quick-function 편집기에 붙여 넣고 Deploy updates).
+- 함수 코드를 고치면 Supabase에 다시 배포해야 반영된다(대시보드에서 coach 함수 편집기에 붙여 넣고 Deploy updates).
 - 아이에게 보이는 AI 글(칭찬, 고친 이유)은 쉬운 해요체 한국어. 프롬프트는 함수 안 `STYLE`, `translatePrompt`, `checkPrompt`.
 
 ## 기술 원칙

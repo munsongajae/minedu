@@ -88,6 +88,46 @@
           <label><input type="checkbox" id="optKo"> 영어 자막 아래에 한글 자막도 넣기</label>
           <label><input type="checkbox" id="optEnd"> 마지막에 'The End' 화면 넣기</label>
         </div>
+
+        <div class="music" id="music" data-musicdrop>
+          <div class="lab">배경 음악</div>
+          <div id="musicEmpty">
+            <p class="note">무료 음악 사이트에서 받은 mp3 파일을 넣으면 영상 뒤에 깔려요. 목소리가 나올 때는 음악이 저절로 작아져요.</p>
+            <div class="row">
+              <label class="btn small gold" for="musicFile">음악 파일 고르기</label>
+            </div>
+          </div>
+          <div id="musicSet" hidden>
+            <p class="music-name" id="musicName"></p>
+            <audio id="musicPlayer" controls preload="metadata"></audio>
+            <div class="row music-vol">
+              <label for="musicVol">음악 크기</label>
+              <span class="note">작게</span>
+              <input type="range" id="musicVol" min="5" max="100" step="5">
+              <span class="note">크게</span>
+            </div>
+            <div class="field">
+              <label class="lab small-lab" for="musicCredit">음악 출처 (사이트에서 출처를 적으라고 할 때만)</label>
+              <input type="text" id="musicCredit" maxlength="120" placeholder="예: Music by ○○ (CC BY 4.0)">
+              <p class="hint">적어 두면 영상 마지막 화면에 작게 나와요.</p>
+            </div>
+            <div class="row">
+              <label class="btn small" for="musicFile">다른 음악으로 바꾸기</label>
+              <button class="btn small" id="musicRemove" type="button">음악 빼기</button>
+            </div>
+          </div>
+          <input type="file" id="musicFile" accept="audio/*,.mp3,.m4a,.wav,.ogg" hidden>
+          <details class="music-help">
+            <summary>무료 음악은 어디서 받나요?</summary>
+            <ul>
+              <li><a href="https://pixabay.com/music/" target="_blank" rel="noopener">Pixabay Music</a> — 무료, 출처를 안 적어도 돼요.</li>
+              <li>YouTube 오디오 보관함 — YouTube 스튜디오에 로그인해서 받아요. '저작자 표시 필요 없음'으로 걸러 보면 편해요. CC BY 표시가 있는 곡은 출처를 적어야 해요.</li>
+              <li><a href="https://gongu.copyright.or.kr/gongu/main/main.do" target="_blank" rel="noopener">공유마당</a> — 한국저작권위원회. 곡마다 이용 조건(출처 표시 등)이 달라요.</li>
+            </ul>
+            <p class="hint">곡마다 조건이 다를 수 있으니, 받을 때 이용 조건을 꼭 확인해 주세요.</p>
+          </details>
+        </div>
+
         <ul class="todo" id="todo"></ul>
         <div class="row">
           <button class="btn big grass" id="makeBtn" type="button">영상 만들기</button>

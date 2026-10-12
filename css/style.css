@@ -156,6 +156,22 @@ input[type=text] { width: 100%; font-family: var(--f-kid); font-size: 18px; }
 .line-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin: -10px -12px 0; padding: 6px 12px; background: var(--panel-2); border-bottom: 2px solid var(--line); }
 .line-name { font-family: var(--f-display); font-size: 19px; }
 
+/* 배경 음악 */
+.music { border: 2px dashed var(--line); padding: 12px; display: grid; gap: 8px; background: var(--panel); }
+.music.has { border-style: solid; border-color: var(--gold); }
+.music.drag { border-color: var(--redstone); background: var(--gold-soft); }
+.music > div { display: grid; gap: 8px; }
+.music audio { width: 100%; }
+.music-name { margin: 0; font-family: var(--f-kid); font-size: 17px; overflow-wrap: anywhere; }
+.music-vol { gap: 10px; }
+.music-vol label { font-family: var(--f-display); font-size: 16px; }
+.music-vol input[type=range] { flex: 1; min-width: 120px; accent-color: var(--gold); height: 28px; }
+.music input[type=text] { font-size: 15px; font-family: var(--f-body); }
+.small-lab { font-size: 15px; }
+.music-help summary { cursor: pointer; font-size: 14px; color: var(--muted); }
+.music-help ul { margin: 6px 0; padding-left: 18px; font-size: 14px; display: grid; gap: 4px; }
+.music-help a { color: var(--helper-edge); }
+
 /* 말로 쓰기 */
 .lab-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
 .lab-row .lab { margin-bottom: 0; }

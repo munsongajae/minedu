@@ -158,6 +158,17 @@ function needsBackdrop(bmp) {
   return Math.abs(a - W / H) > 0.2;
 }
 
+function drawCredit(ctx, credit, y) {
+  if (!credit) return;
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const T = fitLines(ctx, '♪ ' + credit, W - 160, 22, 16, 1, KID);
+  ctx.font = `${T.size}px ${KID}`;
+  outlined(ctx, T.lines[0] || '', W / 2, y, '#e7eef3', 'rgba(0,0,0,.7)', 4);
+  ctx.restore();
+}
+
 function drawCard(ctx, bg, big, small, small2) {
   if (bg) ctx.drawImage(bg, 0, 0, W, H);
   else {
@@ -177,6 +188,37 @@ function drawCard(ctx, bg, big, small, small2) {
 }
 
 const XFADE = 0.5; // 같은 장면 안에서 사진이 넘어갈 때 겹치는 시간
+
+// 배경 음악 크기 곡선: 처음 1.5초 동안 커지고, 끝 2초 동안 작아지고,
+// 목소리가 나오는 동안에는 30%로 줄인다(문장 사이 짧은 틈은 이어서 줄인 채로).
+export const MUSIC_DUCK = 0.3;
+export function musicEnvelope(vol, total, voice, step = 0.05) {
+  const merged = [];
+  [...voice].sort((a, b) => a[0] - b[0]).forEach(([a, b]) => {
+    const last = merged[merged.length - 1];
+    if (last && a - last[1] < 0.8) last[1] = Math.max(last[1], b); else merged.push([a, b]);
+  });
+  const IN = 0.3, OUT = 0.5; // 줄어들 때, 다시 커질 때 걸리는 시간
+  const duckAt = (t) => {
+    let g = 1;
+    for (const [a, b] of merged) {
+      let d = 1;
+      if (t >= a && t <= b) d = 0;
+      else if (t < a && t > a - IN) d = (a - t) / IN;
+      else if (t > b && t < b + OUT) d = (t - b) / OUT;
+      g = Math.min(g, MUSIC_DUCK + (1 - MUSIC_DUCK) * d);
+    }
+    return g;
+  };
+  const n = Math.max(2, Math.ceil(total / step) + 1);
+  const out = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const t = Math.min(total, i * step);
+    const fade = Math.min(1, t / 1.5, (total - t) / 2);
+    out[i] = Math.max(0, vol * Math.max(0, fade) * duckAt(t));
+  }
+  return out;
+}
 
 function drawPhoto(ctx, ph, zoom, alpha) {
   ctx.save();
@@ -201,7 +243,7 @@ export function drawFrame(ctx, plan, t) {
   const tl = Math.min(seg.dur, Math.max(0, t - seg.start));
   const by = plan.makers ? '만든 사람 · ' + plan.makers : '';
   if (seg.type === 'title') drawCard(ctx, plan.firstBg, plan.title, by, plan.date);
-  else if (seg.type === 'end') drawCard(ctx, plan.lastBg, 'The End', by, 'Thank you for watching!');
+  else if (seg.type === 'end') { drawCard(ctx, plan.lastBg, 'The End', by, 'Thank you for watching!'); drawCredit(ctx, plan.credit, H - 40); }
   else {
     // 사진이 여러 장이면 장면 시간을 똑같이 나눠 차례로 보여주고, 넘어갈 때 살짝 겹친다.
     const P = seg.photos.length;
@@ -221,6 +263,8 @@ export function drawFrame(ctx, plan, t) {
     const alpha = li > 0 ? Math.min(1, (t - ln.start) / 0.2 + 0.15) : 1;
     drawSubtitle(ctx, ln.en, plan.ko ? ln.ko : '', alpha);
   }
+  // 끝 화면이 없으면 마지막 장면의 끝 3초 동안 위쪽에 음악 출처를 작게 보여준다.
+  if (seg.type === 'scene' && seg === plan.segs[plan.segs.length - 1] && seg.dur - tl < 3) drawCredit(ctx, plan.credit, 40);
   const a = Math.min(1, tl / FADE, (seg.dur - tl) / FADE);
   if (a < 1) {
     ctx.fillStyle = `rgba(0,0,0,${(1 - Math.max(0, a)).toFixed(3)})`;
@@ -249,6 +293,7 @@ export async function renderVideo(project, io) {
       try { return await ac.decodeAudioData(await blob.arrayBuffer()); } catch (e) { return null; }
     };
     const bufs = await Promise.all(scenes.map(s => Promise.all(s.lines.map(l => decode(l.audio)))));
+    const music = project.music && project.music.blob ? await decode(project.music.blob) : null;
 
     const d = new Date();
     const plan = {
@@ -258,7 +303,8 @@ export async function renderVideo(project, io) {
       makers: (project.makers || '').trim(),
       date: `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일`,
       firstBg: project.opts.title ? makeBackdrop(bmps[0][0], 0.55) : null,
-      lastBg: project.opts.end ? makeBackdrop(bmps.at(-1).at(-1), 0.55) : null
+      lastBg: project.opts.end ? makeBackdrop(bmps.at(-1).at(-1), 0.55) : null,
+      credit: music ? String(project.music.credit || '').trim() : ''
     };
     let t = 0;
     if (project.opts.title) { plan.segs.push({ type: 'title', start: t, dur: TITLE_DUR }); t += TITLE_DUR; }
@@ -313,6 +359,20 @@ export async function renderVideo(project, io) {
       src.start(t0 + ln.start);
       sources.push(src);
     }));
+    if (music) {
+      const voice = [];
+      plan.segs.forEach(sg => (sg.lines || []).forEach(ln => { if (ln.buf) voice.push([ln.start, ln.start + ln.buf.duration]); }));
+      const vol = Math.min(1, Math.max(0, Number(project.music.vol) || 0.3));
+      const gain = ac.createGain();
+      gain.gain.value = 0;
+      gain.gain.setValueCurveAtTime(musicEnvelope(vol, total, voice), t0, total);
+      const src = ac.createBufferSource();
+      src.buffer = music;
+      src.loop = music.duration < total;   // 음악이 영상보다 짧으면 반복
+      src.connect(gain).connect(dest);
+      src.start(t0);
+      sources.push(src);
+    }
     io.onStatus('영상을 만드는 중이에요. 이 화면을 켜 두세요!');
 
     let cancelled = false;

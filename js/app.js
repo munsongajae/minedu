@@ -105,7 +105,7 @@ function save(now) {
     const ok = await store.put(project);
     if (!ok) $('#storageNote').textContent = '이 브라우저에서는 자동 저장이 되지 않아요. 창을 닫기 전에 영상을 먼저 저장하세요.';
   };
-  if (now) go(); else saveTimer = setTimeout(go, 500);
+  if (now) go(); else saveTimer = setTimeout(() => { saveTimer = null; go(); }, 500);
 }
 
 /* ---------- 파일 주소 캐시 ---------- */
@@ -153,6 +153,31 @@ function renderMeta() {
   $('#optTitle').checked = !!project.opts.title;
   $('#optKo').checked = !!project.opts.ko;
   $('#optEnd').checked = !!project.opts.end;
+  renderMusic();
+}
+
+/* ---------- 배경 음악 ---------- */
+// project.music = null | { blob, name, dur, vol(0~1), credit }
+function renderMusic() {
+  const m = project.music;
+  $('#music').classList.toggle('has', !!m);
+  $('#musicEmpty').hidden = !!m;
+  $('#musicSet').hidden = !m;
+  const player = $('#musicPlayer');
+  if (!m) { player.removeAttribute('src'); return; }
+  $('#musicName').textContent = `♪ ${m.name || '배경 음악'} · ${fmtTime(m.dur)}`;
+  const url = blobURL('music', m.blob);
+  if (player.getAttribute('src') !== url) player.src = url;
+  player.volume = Math.min(1, Math.max(0, m.vol));
+  $('#musicVol').value = Math.round(m.vol * 100);
+  $('#musicCredit').value = m.credit || '';
+}
+async function setMusic(file) {
+  const d = await audioDuration(file);
+  if (!d) { toast('이 음악 파일은 열 수 없어요. mp3, m4a, wav 파일을 넣어 주세요.'); return; }
+  project.music = { blob: file, name: file.name || '배경 음악', dur: d, vol: project.music ? project.music.vol : 0.3, credit: '' };
+  save(); renderMusic(); renderSummary();
+  toast('배경 음악을 넣었어요');
 }
 
 /* ---------- 그리기: 장면 카드 ---------- */
@@ -359,7 +384,7 @@ function renderSummary() {
   const lines = sc.flatMap(s => s.lines);
   const voiced = lines.filter(l => l.audio).length;
   $('#summary').textContent = sc.length
-    ? `장면 ${sc.length}개 · 문장 ${lines.length}개 · 목소리 ${voiced}/${lines.length} · 예상 길이 ${fmtTime(totalDur(project))}`
+    ? `장면 ${sc.length}개 · 문장 ${lines.length}개 · 목소리 ${voiced}/${lines.length}${project.music ? ' · 배경 음악' : ''} · 예상 길이 ${fmtTime(totalDur(project))}`
     : '아직 장면이 없어요';
   const todo = [];
   sc.forEach((s, i) => {
@@ -762,6 +787,28 @@ document.querySelectorAll('[data-maker]').forEach(b => b.addEventListener('click
 ['Title', 'Ko', 'End'].forEach(k => $('#opt' + k).addEventListener('change', (e) => {
   project.opts[k.toLowerCase()] = e.target.checked; save(); renderSummary();
 }));
+$('#musicFile').addEventListener('change', (e) => {
+  const f = e.target.files && e.target.files[0];
+  e.target.value = '';
+  if (f) setMusic(f);
+});
+$('#musicVol').addEventListener('input', (e) => {
+  if (!project.music) return;
+  project.music.vol = Number(e.target.value) / 100;
+  $('#musicPlayer').volume = project.music.vol;
+  save();
+});
+$('#musicCredit').addEventListener('input', (e) => {
+  if (!project.music) return;
+  project.music.credit = e.target.value;
+  save();
+});
+$('#musicRemove').addEventListener('click', () => {
+  $('#musicPlayer').pause();
+  project.music = null;
+  save(); renderMusic(); renderSummary();
+  toast('배경 음악을 뺐어요');
+});
 $('#pickImages').addEventListener('change', (e) => {
   const files = [...e.target.files];
   e.target.value = '';
@@ -822,16 +869,22 @@ document.addEventListener('dragleave', (e) => {
 document.addEventListener('dragover', (e) => {
   if (!hasFiles(e)) return;
   e.preventDefault();
-  document.querySelectorAll('.audio-drop.drag').forEach(el => el.classList.remove('drag'));
-  const z = e.target.closest && e.target.closest('[data-audiodrop]');
+  document.querySelectorAll('.audio-drop.drag, .music.drag').forEach(el => el.classList.remove('drag'));
+  const z = e.target.closest && (e.target.closest('[data-audiodrop]') || e.target.closest('[data-musicdrop]'));
   if (z) z.classList.add('drag');
 });
 document.addEventListener('drop', async (e) => {
   if (!hasFiles(e)) return;
   e.preventDefault();
   dragDepth = 0; $('#dropOverlay').hidden = true;
-  document.querySelectorAll('.audio-drop.drag').forEach(el => el.classList.remove('drag'));
+  document.querySelectorAll('.audio-drop.drag, .music.drag').forEach(el => el.classList.remove('drag'));
   const files = [...e.dataTransfer.files];
+  const mzone = e.target.closest && e.target.closest('[data-musicdrop]');
+  if (mzone) {
+    const a = files.find(isAudio);
+    if (a) setMusic(a); else toast('음악 칸에는 음악 파일만 넣을 수 있어요');
+    return;
+  }
   const zone = e.target.closest && e.target.closest('[data-audiodrop]');
   const auds = files.filter(isAudio);
   if (zone && auds.length) { const s = findScene(zone); const l = findLine(s, zone); if (l) await setAudio(s, l, auds[0], auds[0].name); }
@@ -940,6 +993,11 @@ async function init() {
   renderProjectBar(); renderMeta(); renderScenes();
 }
 init();
+
+// 창을 닫거나 다른 앱으로 넘어갈 때, 모아 두던 저장을 바로 한다.
+const flushSave = () => { if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; save(true); } };
+window.addEventListener('pagehide', flushSave);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushSave(); });
 
 window.addEventListener('beforeunload', (e) => {
   if (rendering || rec.lineId) { e.preventDefault(); e.returnValue = ''; }

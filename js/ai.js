@@ -32,7 +32,13 @@ export async function coach(action, payload, signal) {
   }
   let data = null;
   try { data = await res.json(); } catch (e) { /* 아래에서 처리 */ }
-  if (!res.ok || !data) throw { code: (data && data.error) || 'ai_error' };
+  if (!res.ok || !data) {
+    let code = data && typeof data.error === 'string' ? data.error : '';
+    // 우리 함수가 아니라 Supabase가 먼저 막은 경우를 구분한다.
+    if (!code && res.status === 401) code = 'jwt_on';
+    if (!code && res.status === 404) code = 'no_function';
+    throw { code: code || 'ai_error' };
+  }
   return data;
 }
 
@@ -46,6 +52,8 @@ const MESSAGES = {
   network: 'AI 도우미에 연결하지 못했어요. 잠깐 뒤에 다시 눌러 봐요.',
   not_configured: 'AI 도우미 준비가 아직 안 됐어요. 부모님께 알려 주세요.',
   origin: '이 주소에서는 AI 도우미를 쓸 수 없어요.',
+  jwt_on: 'AI 도우미 준비가 덜 됐어요. (부모님: Supabase coach 함수의 JWT 검증을 꺼 주세요)',
+  no_function: 'AI 도우미를 찾지 못했어요. (부모님: Supabase 함수 이름이 coach인지 확인해 주세요)',
   off: 'AI 도우미가 꺼져 있어요.'
 };
 export function aiMessage(e) {

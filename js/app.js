@@ -42,7 +42,7 @@ function newLine(extra) {
   }, extra || {});
 }
 function newScene(blob, firstLine) {
-  return { id: uid(), image: blob, lines: [newLine(firstLine)] };
+  return { id: uid(), images: [blob], lines: [newLine(firstLine)] };
 }
 function fixLine(l) {
   if (!l.id) l.id = uid();
@@ -56,6 +56,9 @@ function fixLine(l) {
 // 예전 버전(장면 하나에 문장 하나)으로 저장한 장면을 새 모양으로 바꾼다.
 const OLD_KEYS = ['ko', 'en', 'mode', 'attempt', 'feedback', 'words', 'audio', 'audioName', 'audioDur'];
 function fixScene(s) {
+  // 사진 한 장(image) → 여러 장(images)
+  if (!Array.isArray(s.images)) s.images = s.image ? [s.image] : [];
+  delete s.image;
   if (!Array.isArray(s.lines) || !s.lines.length) {
     const l = {};
     OLD_KEYS.forEach(k => { if (k in s) l[k] = s[k]; });
@@ -153,7 +156,7 @@ function chipsHTML(s) {
   const c = (ok, t) => `<span class="chip ${ok ? 'ok' : ''}">${ok ? '✓ ' : ''}${t}</span>`;
   const L = s.lines;
   const voiced = L.filter(l => l.audio).length;
-  return c(!!s.image, '사진')
+  return c(s.images.length > 0, s.images.length > 1 ? `사진 ${s.images.length}장` : '사진')
     + c(L.every(l => l.ko.trim()), '한글')
     + c(L.every(l => l.en.trim()), '영어')
     + c(voiced === L.length, L.length > 1 ? `목소리 ${voiced}/${L.length}` : '목소리');
@@ -249,8 +252,32 @@ function lineHTML(l, j, n) {
   </section>`;
 }
 
+function sceneHint(s) {
+  const P = s.images.length, L = s.lines.length;
+  if (P > 1 && L > 1) return `영상에서 사진 ${P}장이 차례로 넘어가는 동안 문장 ${L}개가 나와요.`;
+  if (P > 1) return `영상에서 이 문장이 나오는 동안 사진 ${P}장이 차례로 넘어가요.`;
+  if (L > 1) return `영상에서 이 사진이 나오는 동안 문장 ${L}개가 차례대로 나와요.`;
+  return '할 말이 더 있으면 <b>문장 더하기</b>, 같은 문장에 사진을 더 보여주려면 <b>사진 더하기</b>를 눌러요.';
+}
+
+function photosHTML(s, i) {
+  const P = s.images.length;
+  if (!P) return '<div class="shot"></div>';
+  const main = `<div class="shot"><img src="${blobURL(`img-${s.id}-0`, s.images[0])}" alt="장면 ${i + 1} 게임 화면"></div>`;
+  if (P === 1) return main;
+  const thumbs = s.images.map((b, k) => `<figure class="thumb" data-photo="${k}">
+      <img src="${blobURL(`img-${s.id}-${k}`, b)}" alt="장면 ${i + 1} 사진 ${k + 1}">
+      <figcaption>${k + 1}</figcaption>
+      <div class="thumb-tools">
+        <button class="btn tiny" type="button" data-act="photo-left" ${k === 0 ? 'disabled' : ''} aria-label="사진 ${k + 1} 앞으로">◀</button>
+        <button class="btn tiny" type="button" data-act="photo-right" ${k === P - 1 ? 'disabled' : ''} aria-label="사진 ${k + 1} 뒤로">▶</button>
+        <button class="btn tiny" type="button" data-act="photo-del" aria-label="사진 ${k + 1} 빼기">✕</button>
+      </div>
+    </figure>`).join('');
+  return `${main}<div class="thumbs">${thumbs}</div>`;
+}
+
 function cardHTML(s, i, n) {
-  const img = s.image ? `<img src="${blobURL('img-' + s.id, s.image)}" alt="장면 ${i + 1} 게임 화면">` : '';
   const L = s.lines;
   return `<article class="card" data-id="${s.id}">
     <div class="card-head">
@@ -264,12 +291,13 @@ function cardHTML(s, i, n) {
     </div>
     <div class="card-body">
       <div class="shot-col">
-        <div class="shot">${img}</div>
+        ${photosHTML(s, i)}
         <div class="shot-tools">
-          <label class="btn small" for="if-${s.id}">사진 바꾸기</label>
-          <input type="file" id="if-${s.id}" accept="image/*" data-act="img-file" hidden>
+          <label class="btn small" for="if-${s.id}">+ 사진 더하기</label>
+          <input type="file" id="if-${s.id}" accept="image/*" multiple data-act="img-file" hidden>
+          ${i < n - 1 ? `<span data-mergewrap><button class="btn small" type="button" data-act="merge">아래 장면과 합치기</button></span>` : ''}
         </div>
-        <p class="hint">${L.length > 1 ? `영상에서 이 사진이 나오는 동안 문장 ${L.length}개가 차례대로 나와요.` : '할 말이 더 있으면 아래 <b>문장 더하기</b>를 눌러요.'}</p>
+        <p class="hint">${sceneHint(s)}</p>
       </div>
       <div class="col lines">
         ${L.map((l, j) => lineHTML(l, j, L.length)).join('')}
@@ -551,7 +579,10 @@ scenesEl.addEventListener('change', async (e) => {
   const s = findScene(e.target);
   const file = e.target.files && e.target.files[0];
   if (!s || !file) return;
-  if (act === 'img-file' && file.type.startsWith('image/')) { s.image = file; save(); rerenderCard(s.id); }
+  if (act === 'img-file') {
+    const imgs = [...e.target.files].filter(f => f.type && f.type.startsWith('image/'));
+    if (imgs.length) { s.images.push(...imgs); s.example = false; save(); rerenderCard(s.id); toast(`사진 ${imgs.length}장을 이 장면에 더했어요`); }
+  }
   if (act === 'audio-file') { const l = findLine(s, e.target); if (l) await setAudio(s, l, file, file.name); }
   e.target.value = '';
 });
@@ -582,6 +613,33 @@ scenesEl.addEventListener('click', async (e) => {
     s.lines.forEach(abortLine);
     project.scenes.splice(i, 1);
     save(); renderScenes(); renderProjectBar();
+  }
+
+  // 사진
+  else if (act === 'photo-left' || act === 'photo-right' || act === 'photo-del') {
+    const k = Number(b.closest('[data-photo]').dataset.photo);
+    if (act === 'photo-del') { if (s.images.length > 1) s.images.splice(k, 1); }
+    else {
+      const m = act === 'photo-left' ? k - 1 : k + 1;
+      if (m >= 0 && m < s.images.length) [s.images[k], s.images[m]] = [s.images[m], s.images[k]];
+    }
+    save(); rerenderCard(s.id);
+  } else if (act === 'merge') {
+    b.parentElement.innerHTML = '<button class="btn small red" type="button" data-act="merge-yes">아래 장면을 합칠까요?</button> <button class="btn small" type="button" data-act="merge-no">아니요</button>';
+  } else if (act === 'merge-no') {
+    b.parentElement.innerHTML = '<button class="btn small" type="button" data-act="merge">아래 장면과 합치기</button>';
+  } else if (act === 'merge-yes') {
+    const next = project.scenes[i + 1];
+    if (!next) return;
+    if (rec.sceneId === next.id) await stopRecordingNow();
+    s.images.push(...next.images);
+    // 아래 장면의 문장 중 무언가 쓴 것만 이어 붙인다.
+    const used = next.lines.filter(l => l.ko.trim() || l.en.trim() || l.attempt.trim() || l.audio);
+    s.lines.push(...used);
+    project.scenes.splice(i + 1, 1);
+    s.example = false;
+    save(); renderScenes(); renderProjectBar();
+    toast(`장면 ${i + 2}의 사진을 이 장면에 합쳤어요`);
   }
 
   // 문장 줄
@@ -727,7 +785,7 @@ function resetResult() {
 }
 
 async function makeVideo() {
-  if (rendering || !project.scenes.some(s => s.image)) return;
+  if (rendering || !project.scenes.some(s => s.images.length)) return;
   if (rec.lineId) { toast('녹음을 먼저 끝내 주세요'); return; }
   if (!canMakeVideo()) { $('#makeNote').textContent = '이 브라우저에서는 영상을 만들 수 없어요. 크롬이나 엣지에서 열어 주세요.'; return; }
   rendering = true; cancelRequested = false;

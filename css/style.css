@@ -136,6 +136,16 @@ input[type=text] { width: 100%; font-family: var(--f-kid); font-size: 18px; }
 @media (prefers-reduced-motion: reduce) { .btn.red.on .rec-dot { animation: none; } }
 .rectime { font-variant-numeric: tabular-nums; }
 
+/* 장면 안의 사진 여러 장 */
+.thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; }
+.thumb { margin: 0; position: relative; border: 2px solid var(--edge); background: #0d1014; min-width: 0; }
+.thumb img { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; }
+.thumb figcaption { position: absolute; top: 4px; left: 4px; font-family: var(--f-pixel); font-size: 11px; background: var(--gold); color: var(--gold-ink); border: 2px solid var(--edge); padding: 0 5px; }
+.thumb-tools { display: flex; background: var(--panel-2); border-top: 2px solid var(--edge); }
+.btn.tiny { flex: 1; min-height: 34px; padding: 2px 0 5px; font-size: 13px; font-family: var(--f-body); border-width: 0 2px 0 0; box-shadow: inset 0 -3px 0 var(--shade); }
+.btn.tiny:last-child { border-right: 0; }
+@media (pointer: coarse) { .btn.tiny { min-height: 44px; } }
+
 /* 장면 안의 문장 줄 */
 .shot-col { display: grid; gap: 8px; align-content: start; min-width: 0; }
 .shot-col .shot-tools { margin-top: 0; }

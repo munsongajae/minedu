@@ -29,7 +29,7 @@ export function sceneDur(s) {
 }
 
 export function totalDur(project) {
-  const sc = project.scenes.filter(s => s.image);
+  const sc = project.scenes.filter(s => s.images && s.images.length);
   let t = sc.reduce((a, s) => a + sceneDur(s), 0);
   if (sc.length && project.opts.title) t += TITLE_DUR;
   if (sc.length && project.opts.end) t += END_DUR;
@@ -176,6 +176,24 @@ function drawCard(ctx, bg, big, small, small2) {
   if (small2) { ctx.font = `26px ${KID}`; outlined(ctx, small2, W / 2, y + 74, '#e7eef3', '#1d1a14', 5); }
 }
 
+const XFADE = 0.5; // 같은 장면 안에서 사진이 넘어갈 때 겹치는 시간
+
+function drawPhoto(ctx, ph, zoom, alpha) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  if (ph.bg) {
+    // 16:9가 아닌 사진(포트폴리오 사진 등): 흐린 배경 위에 사진 전체를 보여준다.
+    ctx.drawImage(ph.bg, 0, 0, W, H);
+    const r = Math.min(W / ph.bmp.width, H / ph.bmp.height) * zoom;
+    const w = ph.bmp.width * r, h = ph.bmp.height * r;
+    ctx.drawImage(ph.bmp, (W - w) / 2, (H - h) / 2, w, h);
+  } else {
+    const [x, y, w, h] = coverRect(ph.bmp.width, ph.bmp.height, zoom);
+    ctx.drawImage(ph.bmp, x, y, w, h);
+  }
+  ctx.restore();
+}
+
 export function drawFrame(ctx, plan, t) {
   ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, W, H);
@@ -185,23 +203,22 @@ export function drawFrame(ctx, plan, t) {
   if (seg.type === 'title') drawCard(ctx, plan.firstBg, plan.title, by, plan.date);
   else if (seg.type === 'end') drawCard(ctx, plan.lastBg, 'The End', by, 'Thank you for watching!');
   else {
-    const p = tl / seg.dur;
-    const zoom = 1 + 0.05 * p;
-    if (seg.bg) {
-      // 16:9가 아닌 사진(포트폴리오 사진 등): 흐린 배경 위에 사진 전체를 보여준다.
-      ctx.drawImage(seg.bg, 0, 0, W, H);
-      const r = Math.min(W / seg.bmp.width, H / seg.bmp.height) * zoom;
-      const w = seg.bmp.width * r, h = seg.bmp.height * r;
-      ctx.drawImage(seg.bmp, (W - w) / 2, (H - h) / 2, w, h);
+    // 사진이 여러 장이면 장면 시간을 똑같이 나눠 차례로 보여주고, 넘어갈 때 살짝 겹친다.
+    const P = seg.photos.length;
+    const slot = seg.dur / P;
+    const k = Math.min(P - 1, Math.floor(tl / slot));
+    const u = tl - k * slot;
+    if (k > 0 && u < XFADE) {
+      drawPhoto(ctx, seg.photos[k - 1], 1 + 0.05 * Math.min(1, (slot + u) / slot), 1);
+      drawPhoto(ctx, seg.photos[k], 1 + 0.05 * (u / slot), u / XFADE);
     } else {
-      const [x, y, w, h] = coverRect(seg.bmp.width, seg.bmp.height, zoom);
-      ctx.drawImage(seg.bmp, x, y, w, h);
+      drawPhoto(ctx, seg.photos[k], 1 + 0.05 * (u / slot), 1);
     }
     // 지금 읽는 문장의 자막만 보여준다. 첫 문장 목소리 전에는 첫 문장을 미리 띄운다.
-    let k = 0;
-    for (let i = 0; i < seg.lines.length; i++) if (t >= seg.lines[i].start) k = i;
-    const ln = seg.lines[k];
-    const alpha = k > 0 ? Math.min(1, (t - ln.start) / 0.2 + 0.15) : 1;
+    let li = 0;
+    for (let i = 0; i < seg.lines.length; i++) if (t >= seg.lines[i].start) li = i;
+    const ln = seg.lines[li];
+    const alpha = li > 0 ? Math.min(1, (t - ln.start) / 0.2 + 0.15) : 1;
     drawSubtitle(ctx, ln.en, plan.ko ? ln.ko : '', alpha);
   }
   const a = Math.min(1, tl / FADE, (seg.dur - tl) / FADE);
@@ -218,12 +235,12 @@ export function drawFrame(ctx, plan, t) {
  * @returns {Promise<{blob: Blob, ext: string, total: number} | null>} 멈추면 null
  */
 export async function renderVideo(project, io) {
-  const scenes = project.scenes.filter(s => s.image);
+  const scenes = project.scenes.filter(s => s.images && s.images.length);
   try {
     await Promise.all([document.fonts.load('46px "Jua"'), document.fonts.load('92px "Do Hyeon"')]);
   } catch (e) { /* 글꼴이 없으면 기본 글꼴로 */ }
 
-  const bmps = await Promise.all(scenes.map(s => createImageBitmap(s.image)));
+  const bmps = await Promise.all(scenes.map(s => Promise.all(s.images.map(b => createImageBitmap(b)))));
   const ac = new (window.AudioContext || window.webkitAudioContext)();
   try {
     await ac.resume();
@@ -240,8 +257,8 @@ export async function renderVideo(project, io) {
       title: (project.title || '').trim() || '나의 마인크래프트 이야기',
       makers: (project.makers || '').trim(),
       date: `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일`,
-      firstBg: project.opts.title ? makeBackdrop(bmps[0], 0.55) : null,
-      lastBg: project.opts.end ? makeBackdrop(bmps[bmps.length - 1], 0.55) : null
+      firstBg: project.opts.title ? makeBackdrop(bmps[0][0], 0.55) : null,
+      lastBg: project.opts.end ? makeBackdrop(bmps.at(-1).at(-1), 0.55) : null
     };
     let t = 0;
     if (project.opts.title) { plan.segs.push({ type: 'title', start: t, dur: TITLE_DUR }); t += TITLE_DUR; }
@@ -255,8 +272,8 @@ export async function renderVideo(project, io) {
         lt += dur + GAP;
       });
       const dur = (lt - GAP) - t + TAIL;
-      const bg = needsBackdrop(bmps[i]) ? makeBackdrop(bmps[i], 0.35) : null;
-      plan.segs.push({ type: 'scene', start: t, dur, bmp: bmps[i], bg, lines });
+      const photos = bmps[i].map(bmp => ({ bmp, bg: needsBackdrop(bmp) ? makeBackdrop(bmp, 0.35) : null }));
+      plan.segs.push({ type: 'scene', start: t, dur, photos, lines });
       t += dur;
     });
     if (project.opts.end) { plan.segs.push({ type: 'end', start: t, dur: END_DUR }); t += END_DUR; }

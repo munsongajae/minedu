@@ -1,5 +1,5 @@
 // 이 기기·이 브라우저 안에만 저장하는 IndexedDB 래퍼.
-// 프로젝트 하나 = { id, title, makers, opts, scenes: [{ image: Blob, audio: Blob, ... }] }
+// 프로젝트 하나 = { id, title, makers, opts, scenes: [{ images: [Blob], lines: [{ audio: Blob, ... }] }] }
 
 const DB_NAME = 'block-studio';
 const STORE = 'projects';

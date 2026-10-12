@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>곰이난이 블록 스튜디오</title>
+<meta name="description" content="게임 화면 사진에 한글 설명, 영어 문장, 내 목소리를 더해 영상으로 만드는 앱">
+<meta name="theme-color" content="#4c8a2c">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=Gowun+Dodum&family=Jua&family=Silkscreen&display=swap">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="turf" aria-hidden="true"></div>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <div class="eyebrow">Block Studio · for 곰이 &amp; 난이</div>
+      <h1>곰이난이 블록 스튜디오</h1>
+    </div>
+    <div class="projbar">
+      <label class="sr" for="projSelect">내 영상 목록</label>
+      <select id="projSelect"></select>
+      <button class="btn small grass" id="newProj" type="button">새 영상</button>
+      <span id="delProjWrap"><button class="btn small" id="delProj" type="button">이 영상 지우기</button></span>
+    </div>
+  </header>
+
+  <ol class="steps" aria-label="만드는 순서">
+    <li><div class="n">STEP 1</div><div class="t">사진 넣기</div><div class="d">게임 화면을 캡처해요</div></li>
+    <li><div class="n">STEP 2</div><div class="t">한글로 설명</div><div class="d">무엇을 했는지 써요</div></li>
+    <li><div class="n">STEP 3</div><div class="t">영어로 바꾸기</div><div class="d">내가 직접 영어로 써요</div></li>
+    <li><div class="n">STEP 4</div><div class="t">목소리 녹음</div><div class="d">영어로 읽고 녹음해요</div></li>
+    <li><div class="n">STEP 5</div><div class="t">영상 만들기</div><div class="d">한 번에 영상으로</div></li>
+  </ol>
+
+  <section class="meta" aria-label="영상 정보">
+    <div class="field">
+      <label for="title">영상 제목</label>
+      <input type="text" id="title" placeholder="예: 우리 마을 다리 만들기" maxlength="60">
+    </div>
+    <div class="field">
+      <label for="makers">만든 사람</label>
+      <input type="text" id="makers" placeholder="예: 곰이" maxlength="40">
+      <div class="makers-quick">
+        <button class="btn small" type="button" data-maker="곰이">곰이</button>
+        <button class="btn small" type="button" data-maker="난이">난이</button>
+        <button class="btn small" type="button" data-maker="곰이 · 난이">둘이 같이</button>
+      </div>
+    </div>
+  </section>
+
+  <div id="scenes"></div>
+
+  <section class="adder" id="adder" aria-label="사진 넣기">
+    <h2 id="adderTitle">게임 화면 사진을 넣어요</h2>
+    <div class="keys" id="howPC">
+      <span><kbd>Win</kbd> + <kbd>Shift</kbd> + <kbd>S</kbd> 로 화면을 찍고</span>
+      <span>여기서 <kbd>Ctrl</kbd> + <kbd>V</kbd></span>
+      <span>또는 사진 파일을 끌어다 놓기</span>
+    </div>
+    <div class="keys" id="howTab" hidden>
+      <span>태블릿에서 화면을 캡처한 다음</span>
+      <span><b>사진 고르기</b>를 눌러 갤러리에서 골라요</span>
+    </div>
+    <div class="row">
+      <label class="btn grass big" for="pickImages">사진 고르기</label>
+      <input type="file" id="pickImages" accept="image/*" multiple hidden>
+    </div>
+    <p class="hint">사진 한 장이 영상의 한 장면이 돼요. 여러 장을 한꺼번에 골라도 돼요.</p>
+  </section>
+
+  <section class="studio" aria-label="영상 만들기">
+    <div class="studio-head">
+      <h2>영상 만들기</h2>
+      <div class="sum" id="summary"></div>
+    </div>
+    <div class="studio-body">
+      <div class="col">
+        <div class="opts">
+          <label><input type="checkbox" id="optTitle"> 첫 화면에 제목 넣기</label>
+          <label><input type="checkbox" id="optKo"> 영어 자막 아래에 한글 자막도 넣기</label>
+          <label><input type="checkbox" id="optEnd"> 마지막에 'The End' 화면 넣기</label>
+        </div>
+        <ul class="todo" id="todo"></ul>
+        <div class="row">
+          <button class="btn big grass" id="makeBtn" type="button">영상 만들기</button>
+          <button class="btn" id="cancelBtn" type="button" hidden>멈추기</button>
+        </div>
+        <p class="note" id="makeNote">영상은 실제 길이만큼 시간이 걸려요. 만드는 동안 이 화면을 켜 두세요.</p>
+        <div class="row" id="resultRow" hidden>
+          <button class="btn big gold" id="saveBtn" type="button">영상 저장하기</button>
+          <button class="btn big" id="shareBtn" type="button" hidden>보내기</button>
+        </div>
+        <p class="status" id="saveStatus"></p>
+      </div>
+      <div>
+        <div class="screen" id="screen"><div class="idle">여기에 영상이 나와요</div></div>
+        <div class="bar" aria-hidden="true"><i id="barFill"></i></div>
+      </div>
+    </div>
+  </section>
+  <p class="storage-note" id="storageNote">만든 내용은 이 기기의 이 브라우저에 자동으로 저장돼요.</p>
+</div>
+
+<div class="drop-overlay" id="dropOverlay" hidden><div>여기에 놓으면 들어가요<br><small>사진은 새 장면, 녹음 파일은 목소리 칸으로</small></div></div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

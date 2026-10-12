@@ -1,0 +1,17 @@
+{
+  "name": "곰이난이 블록 스튜디오",
+  "short_name": "블록 스튜디오",
+  "description": "게임 화면 사진에 한글 설명, 영어 문장, 내 목소리를 더해 영상으로 만드는 앱",
+  "lang": "ko",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#dcebf3",
+  "theme_color": "#4c8a2c",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

@@ -3,6 +3,7 @@ import * as store from './storage.js';
 import { makeExampleImage } from './world.js';
 import { renderVideo, totalDur, canMakeVideo } from './video.js';
 import { canRecord, startRecording, micErrorMessage } from './recorder.js';
+import { aiEnabled, coach, aiMessage, getFamilyCode, setFamilyCode } from './ai.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
@@ -12,8 +13,10 @@ const fmtTime = (sec) => { sec = Math.max(0, Math.round(sec)); return Math.floor
 const ICON = {
   speaker: '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M2 6h3l4-3v10l-4-3H2zM11 5h1v6h-1zM13 3h1v10h-1z"/></svg>',
   up: '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M7 3h2v2h2v2h2v2H9v5H7V9H3V7h2V5h2z"/></svg>',
-  down: '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M7 2h2v5h4v2h-2v2H9v2H7v-2H5V9H3V7h4z"/></svg>'
+  down: '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M7 2h2v5h4v2h-2v2H9v2H7v-2H5V9H3V7h4z"/></svg>',
+  spark: '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M7 1h2v5h5v2H9v5H7V8H2V6h5z"/></svg>'
 };
+const AI_ON = aiEnabled();
 
 const MIC_OK = canRecord();
 const TOUCH = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
@@ -26,9 +29,23 @@ let rendering = false;
 let cancelRequested = false;
 let result = null; // { blob, ext, total, url }
 const rec = { id: null, handle: null, timer: null };
+const busy = new Map();      // 장면 id → { kind: 'translate'|'check', ctl: AbortController }
+const statusMsg = new Map(); // 장면 id → { text, err }
 
 function newScene(blob, extra) {
-  return Object.assign({ id: uid(), image: blob, ko: '', en: '', audio: null, audioName: '', audioDur: 0 }, extra || {});
+  return Object.assign({
+    id: uid(), image: blob, ko: '', en: '',
+    mode: 'self', attempt: '', feedback: null, words: [],
+    audio: null, audioName: '', audioDur: 0
+  }, extra || {});
+}
+// 예전 버전에서 저장한 장면에 새 칸을 채워 넣는다.
+function fixScene(s) {
+  if (s.mode !== 'ai' && s.mode !== 'self') s.mode = 'self';
+  if (typeof s.attempt !== 'string') s.attempt = '';
+  if (!Array.isArray(s.words)) s.words = [];
+  if (s.feedback === undefined) s.feedback = null;
+  return s;
 }
 function newProject() {
   return { id: uid(), title: '', makers: project ? project.makers : '', createdAt: Date.now(), updatedAt: Date.now(), opts: { title: true, ko: true, end: true }, scenes: [] };
@@ -41,7 +58,9 @@ async function makeExampleProject() {
     scenes: [newScene(img, {
       example: true,
       ko: '오늘은 강가에 작은 나무집을 지었어요. 옆에는 나무도 한 그루 심었어요.',
-      en: 'Today I built a small wooden house by the river. I also planted a tree next to it.'
+      en: 'Today I built a small wooden house by the river. I also planted a tree next to it.',
+      mode: 'ai',
+      words: [{ en: 'wooden', ko: '나무로 된' }, { en: 'river', ko: '강' }, { en: 'planted', ko: '심었다' }]
     })]
   };
 }
@@ -126,6 +145,46 @@ function audioHTML(s) {
     <div class="row">${recBtn}${isRec ? '' : `<label class="btn small" for="af-${s.id}">녹음 파일 고르기</label>`}</div>`;
 }
 
+function aiBoxHTML(s) {
+  const b = busy.get(s.id);
+  const st = statusMsg.get(s.id);
+  const stText = b ? (b.kind === 'translate' ? '영어로 바꾸는 중이에요…' : '선생님이 읽어 보는 중이에요…') : (st ? st.text : '');
+  const stopBtn = b ? '<button class="btn small" type="button" data-act="stop-ai">멈추기</button>' : '';
+  const tabs = `<div class="tabs" role="group" aria-label="영어 만드는 방법">
+      <button type="button" data-act="mode" data-mode="self" aria-pressed="${s.mode === 'self'}">내가 먼저 써 보기</button>
+      <button type="button" data-act="mode" data-mode="ai" aria-pressed="${s.mode === 'ai'}">AI가 번역</button>
+    </div>`;
+  let inner;
+  if (s.mode === 'ai') {
+    const vocab = s.words && s.words.length
+      ? `<div><div class="lab">새로 나온 낱말</div><div class="vocab">${s.words.map(w => `<span><b>${esc(w.en)}</b> · ${esc(w.ko)}</span>`).join('')}</div></div>`
+      : '';
+    inner = `<div class="row">
+        <button class="btn diamond" type="button" data-act="translate" ${b || !s.ko.trim() ? 'disabled' : ''}>${ICON.spark} ${s.en.trim() ? '다시 번역하기' : '영어로 바꾸기'}</button>${stopBtn}
+      </div>
+      <p class="status ${st && st.err && !b ? 'err' : ''}" data-status>${esc(stText || (s.ko.trim() ? '' : '먼저 한글 설명을 써 주세요.'))}</p>
+      ${vocab}`;
+  } else {
+    const f = s.feedback;
+    const fb = f ? `<div class="feedback">
+        <div class="praise">${esc(f.praise)}</div>
+        ${f.corrected && f.corrected !== s.attempt.trim() ? `<div><div class="lab">이렇게 고치면 더 좋아요</div><div class="fixed">${esc(f.corrected)}</div></div>` : ''}
+        ${(f.fixes || []).map(x => `<div class="fix"><div class="ba"><s>${esc(x.before)}</s> → <ins>${esc(x.after)}</ins></div><div class="why">${esc(x.why)}</div></div>`).join('')}
+        <div class="row"><button class="btn small grass" type="button" data-act="use-fix">이 문장으로 정하기</button></div>
+      </div>` : '';
+    inner = `<div class="field">
+        <label class="lab" for="att-${s.id}">내가 먼저 영어로 써 보기</label>
+        <textarea id="att-${s.id}" data-field="attempt" rows="2" placeholder="Today I ..." lang="en" autocapitalize="sentences">${esc(s.attempt)}</textarea>
+      </div>
+      <div class="row">
+        <button class="btn diamond" type="button" data-act="check" ${b || !s.attempt.trim() ? 'disabled' : ''}>${ICON.spark} 선생님 확인받기</button>${stopBtn}
+      </div>
+      <p class="status ${st && st.err && !b ? 'err' : ''}" data-status>${esc(stText)}</p>
+      ${fb}`;
+  }
+  return `${tabs}<div class="ai-box">${inner}</div>`;
+}
+
 function cardHTML(s, i, n) {
   const img = s.image ? `<img src="${blobURL('img-' + s.id, s.image)}" alt="장면 ${i + 1} 게임 화면">` : '';
   return `<article class="card" data-id="${s.id}">
@@ -151,14 +210,15 @@ function cardHTML(s, i, n) {
           <label class="lab" for="ko-${s.id}">한글로 설명하기</label>
           <textarea id="ko-${s.id}" data-field="ko" rows="2" placeholder="이 사진에서 무엇을 했나요?">${esc(s.ko)}</textarea>
         </div>
+        ${AI_ON ? aiBoxHTML(s) : ''}
         <div class="field">
-          <label class="lab" for="en-${s.id}">영어로 써 보기</label>
+          <label class="lab" for="en-${s.id}">${AI_ON ? '영상에 들어갈 영어 문장' : '영어로 써 보기'}</label>
           <textarea id="en-${s.id}" data-field="en" rows="2" placeholder="Today I ..." lang="en" autocapitalize="sentences" spellcheck="true">${esc(s.en)}</textarea>
           <div class="row helpers">
             <button class="btn small" type="button" data-act="speak" ${'speechSynthesis' in window ? '' : 'hidden'}>${ICON.speaker} 발음 들어 보기</button>
-            <button class="btn small" type="button" data-act="papago">파파고로 도움 받기</button>
+            ${AI_ON ? '' : '<button class="btn small" type="button" data-act="papago">파파고로 도움 받기</button>'}
           </div>
-          <p class="hint">먼저 혼자 써 보고, 막히면 파파고에서 한글 설명을 바꿔 봐요. 발음 듣기는 연습용이에요.</p>
+          <p class="hint">${AI_ON ? '자막으로 들어가는 문장이에요. 직접 고쳐도 돼요. 발음 듣기는 연습용이에요.' : '먼저 혼자 써 보고, 막히면 파파고에서 한글 설명을 바꿔 봐요. 발음 듣기는 연습용이에요.'}</p>
         </div>
         <div class="field">
           <div class="lab">내 목소리 (영어로 읽기)</div>
@@ -293,6 +353,67 @@ function openPapago(ko) {
   window.open(url, '_blank', 'noopener');
 }
 
+/* ---------- AI 영어 도우미 ---------- */
+async function runAI(s, kind, work) {
+  const ctl = new AbortController();
+  busy.set(s.id, { kind, ctl });
+  statusMsg.delete(s.id);
+  rerenderCard(s.id);
+  try {
+    await work(ctl.signal);
+  } catch (e) {
+    const msg = aiMessage(e);
+    if (msg) statusMsg.set(s.id, { text: msg, err: true });
+  } finally {
+    busy.delete(s.id);
+    if (project.scenes.includes(s)) rerenderCard(s.id);
+  }
+}
+function aiTranslate(s) {
+  if (!s.ko.trim()) return;
+  return runAI(s, 'translate', async (signal) => {
+    const r = await coach('translate', { ko: s.ko.trim() }, signal);
+    s.en = String(r.english || '').trim();
+    s.words = Array.isArray(r.words) ? r.words.slice(0, 4) : [];
+    statusMsg.set(s.id, { text: '다 됐어요! 아래 영어 문장을 소리 내어 읽어 보세요.', err: false });
+    save();
+  });
+}
+function aiCheck(s) {
+  if (!s.attempt.trim()) return;
+  s.feedback = null;
+  return runAI(s, 'check', async (signal) => {
+    const r = await coach('check', { ko: s.ko.trim(), attempt: s.attempt.trim() }, signal);
+    s.feedback = {
+      corrected: String(r.corrected || s.attempt).trim(),
+      praise: String(r.praise || '잘 썼어요!'),
+      fixes: Array.isArray(r.fixes) ? r.fixes.slice(0, 4) : []
+    };
+    save();
+  });
+}
+
+/* ---------- 부모님 설정 ---------- */
+function initParentPanel() {
+  const panel = $('#parent');
+  if (!AI_ON) { panel.hidden = true; return; }
+  const input = $('#familyCode');
+  input.value = getFamilyCode();
+  const status = $('#parentStatus');
+  $('#saveCode').addEventListener('click', async () => {
+    setFamilyCode(input.value.trim());
+    status.classList.remove('err');
+    status.textContent = '확인하는 중이에요…';
+    try {
+      await coach('ping', {});
+      status.textContent = 'AI 도우미와 연결됐어요.';
+    } catch (e) {
+      status.classList.add('err');
+      status.textContent = aiMessage(e);
+    }
+  });
+}
+
 /* ---------- 이벤트: 카드 ---------- */
 const scenesEl = $('#scenes');
 const findScene = (el) => {
@@ -308,6 +429,16 @@ scenesEl.addEventListener('input', (e) => {
   s[f] = e.target.value;
   if (s.example) s.example = false;
   save(); updateChips(s);
+  // 글을 쓰면 AI 버튼을 켜거나 끈다(카드를 다시 그리지 않아 글쓰기가 끊기지 않게).
+  if (AI_ON && (f === 'ko' || f === 'attempt') && !busy.get(s.id)) {
+    const card = e.target.closest('.card');
+    const btn = card.querySelector(f === 'ko' ? '[data-act="translate"]' : '[data-act="check"]');
+    if (btn) btn.disabled = !e.target.value.trim();
+    if (f === 'ko' && s.mode === 'ai' && !statusMsg.get(s.id)) {
+      const st = card.querySelector('[data-status]');
+      if (st) st.textContent = e.target.value.trim() ? '' : '먼저 한글 설명을 써 주세요.';
+    }
+  }
 });
 
 scenesEl.addEventListener('change', async (e) => {
@@ -339,8 +470,15 @@ scenesEl.addEventListener('click', async (e) => {
     b.parentElement.innerHTML = '<button class="btn small" type="button" data-act="del">장면 지우기</button>';
   } else if (act === 'del-yes') {
     if (rec.id === s.id) { clearInterval(rec.timer); await rec.handle.stop(); rec.id = null; rec.handle = null; keepAwake(false); }
+    const job = busy.get(s.id); if (job) job.ctl.abort();
     project.scenes.splice(i, 1);
     save(); renderScenes(); renderProjectBar();
+  } else if (act === 'mode') { s.mode = b.dataset.mode; statusMsg.delete(s.id); save(); rerenderCard(s.id); }
+  else if (act === 'translate') aiTranslate(s);
+  else if (act === 'check') aiCheck(s);
+  else if (act === 'stop-ai') { const x = busy.get(s.id); if (x) x.ctl.abort(); }
+  else if (act === 'use-fix') {
+    if (s.feedback) { s.en = s.feedback.corrected || s.attempt; save(); rerenderCard(s.id); toast('영상에 들어갈 문장으로 정했어요'); }
   } else if (act === 'speak') speak(s.en);
   else if (act === 'papago') openPapago(s.ko);
   else if (act === 'audio-remove') { s.audio = null; s.audioName = ''; s.audioDur = 0; save(); rerenderCard(s.id); }
@@ -391,6 +529,8 @@ $('.projbar').addEventListener('click', async (e) => {
 function openProject(p) {
   if (rendering || rec.id) { toast('녹음이나 영상 만들기를 먼저 끝내 주세요'); renderProjectBar(); return; }
   clearURLs();
+  busy.forEach(x => x.ctl.abort());
+  busy.clear(); statusMsg.clear();
   project = p;
   resetResult();
   renderProjectBar(); renderMeta(); renderScenes();
@@ -513,10 +653,12 @@ $('#shareBtn').addEventListener('click', async () => {
 /* ---------- 시작 ---------- */
 async function init() {
   if (TOUCH) { $('#howPC').hidden = true; $('#howTab').hidden = false; }
+  initParentPanel();
   store.askPersist();
   const all = await store.loadAll();
   if (all === null) $('#storageNote').textContent = '이 브라우저에서는 자동 저장이 되지 않아요. 창을 닫기 전에 영상을 먼저 저장하세요.';
   if (all && all.length) {
+    all.forEach(p => p.scenes.forEach(fixScene));
     projects = all;
     project = [...all].sort((a, b) => b.updatedAt - a.updatedAt)[0];
   } else {

@@ -1,0 +1,6 @@
+# Supabase CLI로 배포할 때 쓰는 설정 (대시보드에서 배포하면 같은 값을 화면에서 고른다)
+project_id = "uwqakkbwaqtrrqvhzzvz"
+
+[functions.coach]
+# 앱은 로그인 없이 부르므로 JWT 검증을 끈다. 접근은 함수 안의 가족 암호(APP_PASSCODE)로 막는다.
+verify_jwt = false

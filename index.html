@@ -33,7 +33,7 @@
   <ol class="steps" aria-label="만드는 순서">
     <li><div class="n">STEP 1</div><div class="t">사진 넣기</div><div class="d">게임 화면을 캡처해요</div></li>
     <li><div class="n">STEP 2</div><div class="t">한글로 설명</div><div class="d">무엇을 했는지 써요</div></li>
-    <li><div class="n">STEP 3</div><div class="t">영어로 바꾸기</div><div class="d">내가 직접 영어로 써요</div></li>
+    <li><div class="n">STEP 3</div><div class="t">영어로 바꾸기</div><div class="d">직접 써 보고 선생님 확인</div></li>
     <li><div class="n">STEP 4</div><div class="t">목소리 녹음</div><div class="d">영어로 읽고 녹음해요</div></li>
     <li><div class="n">STEP 5</div><div class="t">영상 만들기</div><div class="d">한 번에 영상으로</div></li>
   </ol>
@@ -105,6 +105,19 @@
     </div>
   </section>
   <p class="storage-note" id="storageNote">만든 내용은 이 기기의 이 브라우저에 자동으로 저장돼요.</p>
+
+  <details class="parent" id="parent">
+    <summary>부모님 설정</summary>
+    <div class="parent-body">
+      <label class="lab" for="familyCode">가족 암호</label>
+      <p class="hint">AI 영어 도우미를 쓰려면 Supabase에 정해 둔 가족 암호(APP_PASSCODE)를 이 기기에 한 번 넣어 주세요.</p>
+      <div class="row">
+        <input type="password" id="familyCode" autocomplete="off" maxlength="64">
+        <button class="btn small grass" id="saveCode" type="button">저장하고 연결 확인</button>
+      </div>
+      <p class="status" id="parentStatus"></p>
+    </div>
+  </details>
 </div>
 
 <div class="drop-overlay" id="dropOverlay" hidden><div>여기에 놓으면 들어가요<br><small>사진은 새 장면, 녹음 파일은 목소리 칸으로</small></div></div>

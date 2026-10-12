@@ -136,6 +136,30 @@ input[type=text] { width: 100%; font-family: var(--f-kid); font-size: 18px; }
 @media (prefers-reduced-motion: reduce) { .btn.red.on .rec-dot { animation: none; } }
 .rectime { font-variant-numeric: tabular-nums; }
 
+/* AI 영어 도우미 */
+.btn.diamond { background: var(--helper-edge); color: var(--on-color); }
+.tabs { display: flex; border: 2px solid var(--edge); width: fit-content; max-width: 100%; }
+.tabs button { font-family: var(--f-display); font-size: 16px; border: 0; padding: 8px 14px; min-height: 42px; background: var(--panel-2); color: var(--muted); cursor: pointer; }
+.tabs button + button { border-left: 2px solid var(--edge); }
+.tabs button[aria-pressed="true"] { background: var(--helper-edge); color: var(--on-color); }
+.ai-box { border: 2px dashed var(--helper-edge); background: var(--helper); padding: 12px; display: grid; gap: 10px; }
+.vocab { display: flex; gap: 6px; flex-wrap: wrap; }
+.vocab span { font-size: 14px; background: var(--panel); border: 2px solid var(--helper-edge); padding: 1px 8px; }
+.vocab b { font-family: var(--f-kid); font-weight: 400; }
+.feedback { background: var(--panel); border: 2px solid var(--edge); padding: 10px 12px; display: grid; gap: 8px; }
+.feedback .praise { font-family: var(--f-kid); font-size: 18px; }
+.feedback .fixed { font-family: var(--f-kid); font-size: 19px; background: var(--gold-soft); padding: 6px 10px; border-left: 5px solid var(--gold); }
+.fix { font-size: 15px; display: grid; gap: 2px; }
+.fix .ba { font-family: var(--f-kid); }
+.fix .ba s { color: var(--redstone); }
+.fix .ba ins { text-decoration: none; color: var(--grass); }
+.fix .why { color: var(--muted); }
+
+.parent { margin-top: 18px; border: 2px solid var(--line); background: var(--panel); }
+.parent summary { cursor: pointer; padding: 10px 14px; font-family: var(--f-display); font-size: 17px; color: var(--muted); }
+.parent-body { padding: 0 14px 14px; display: grid; gap: 6px; }
+.parent input { font: inherit; color: var(--ink); background: var(--panel); border: 2px solid var(--edge); padding: 8px 10px; min-height: 44px; max-width: 240px; border-radius: 0; }
+
 .adder { margin-top: 18px; border: 3px dashed var(--dirt); background: var(--panel); padding: 22px 18px; display: grid; gap: 12px; justify-items: center; text-align: center; }
 .adder h2 { font-family: var(--f-display); font-weight: 400; font-size: 26px; margin: 0; }
 .keys { display: flex; flex-wrap: wrap; gap: 6px 14px; justify-content: center; font-size: 15px; }

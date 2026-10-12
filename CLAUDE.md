@@ -5,14 +5,25 @@
 ## 무엇을 만드는가
 
 10살 쌍둥이(곰이, 난이)가 마인크래프트 에듀케이션 게임 화면으로 영어 영상을 만드는 웹앱.
-흐름: 캡처 사진 → 한글 설명 → 영어 문장(아이가 직접 씀) → 아이 목소리 녹음 → 자막 영상 파일.
+흐름: 캡처 사진 → 한글 설명 → 영어 문장(아이가 먼저 쓰고 AI 선생님이 확인, 또는 AI 번역) → 아이 목소리 녹음 → 자막 영상 파일.
 아이가 혼자 쓸 수 있어야 한다. 화면 글은 쉬운 해요체 한국어, 버튼은 크게.
 
 ## 대상 환경
 
 - Windows PC의 크롬·엣지, 갤럭시탭의 크롬(안드로이드). 둘 다에서 확인할 것.
-- GitHub Pages(https)로 배포하는 정적 사이트. 서버 없음.
+- GitHub Pages(https)로 배포하는 정적 사이트(https://munsongajae.github.io/minedu/).
+- 서버 쪽은 Supabase Edge Function `coach` 하나뿐(`supabase/functions/coach/index.ts`, Deno). Gemini API(`generateContent`, JSON 스키마 출력)를 부른다. 프로젝트 ref: `uwqakkbwaqtrrqvhzzvz`.
 - 마이크(getUserMedia)는 https나 localhost에서만 된다.
+
+## AI 영어 도우미
+
+- 앱 → `js/ai.js`의 `coach(action, payload)` → POST `COACH_URL`(`js/config.js`). 헤더 `x-family-code`에 가족 암호(기기 localStorage).
+- action: `ping`, `translate {ko}` → `{english, words[]}`, `check {ko, attempt}` → `{corrected, praise, fixes[]}`.
+- 함수는 `verify_jwt = false`. 대신 Secret `APP_PASSCODE`와 비교하고, CORS는 `ALLOWED_ORIGINS`(기본 GitHub Pages 주소) + localhost만 허용, 글 600자 제한, 간단한 분당 횟수 제한.
+- Gemini 키(`GEMINI_API_KEY`)는 Supabase Secret에만 둔다. 브라우저 코드나 저장소에 절대 넣지 않는다.
+- 모델은 Secret `GEMINI_MODEL`(기본 `gemini-3.5-flash-lite`). 모델 이름은 바뀔 수 있으니 바꿀 때 Google 문서에서 현재 안정판을 확인한다.
+- 함수 코드를 고치면 Supabase에 다시 배포해야 반영된다(대시보드 편집기에 붙여 넣기, 또는 `supabase functions deploy coach --no-verify-jwt`).
+- 아이에게 보이는 AI 글(칭찬, 고친 이유)은 쉬운 해요체 한국어. 프롬프트는 함수 안 `STYLE`, `translatePrompt`, `checkPrompt`.
 
 ## 기술 원칙
 
@@ -29,7 +40,13 @@
 project = {
   id, title, makers, createdAt, updatedAt,
   opts: { title: bool, ko: bool, end: bool },   // 제목 화면, 한글 자막, The End 화면
-  scenes: [{ id, image: Blob, ko, en, audio: Blob|null, audioName, audioDur, example? }]
+  scenes: [{
+    id, image: Blob, ko, en,                 // en = 자막에 들어가는 최종 영어 문장
+    mode: 'self'|'ai', attempt,              // 영어 만드는 방법, 아이가 먼저 쓴 영어
+    feedback: {corrected, praise, fixes[]}|null, words: [{en, ko}],
+    audio: Blob|null, audioName, audioDur, example?
+  }]
+  // 예전에 저장된 장면은 app.js의 fixScene()이 새 칸을 채운다.
 }
 ```
 
@@ -43,6 +60,5 @@ python3 -m http.server 8080   # http://localhost:8080
 
 ## 다음에 하면 좋은 것 (아직 안 함)
 
-- AI 번역·교정: Claude API를 쓰려면 API 키를 숨길 작은 서버(예: Cloudflare Workers, Vercel 함수)가 필요하다. 키를 브라우저 코드에 넣지 말 것.
 - 프로젝트 백업·옮기기: 프로젝트를 zip 하나로 내보내고 다른 기기에서 불러오기(PC ↔ 태블릿).
 - 장면 순서 끌어서 바꾸기, 장면별 길이 조절, 배경 음악.

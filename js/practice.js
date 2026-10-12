@@ -3,6 +3,7 @@
 //   2번 상자: 블록 쌓기
 //   3번 상자: 빈칸 채우기
 //   4·5번 상자: 한글 보고 말해 보기(정답을 보고 스스로 맞았는지 고르기)
+// 말하며 외우기(언제든): 보면서 말하기 → 반쯤 가리고 말하기 → 다 가리고 한글만 보고 말하기 → 정답 보고 스스로 확인
 import { $, esc, shuffle, getChild, setChild, childPickerHTML, loadSentences, loadProgress, saveProgress, syncProgress,
   grade, todayQueue, mastered, markToday, streak, tokens, wordKey, blobURL } from './learn.js';
 import { canSpeak, speak, getSpeed, wordsOf } from './speech.js';
@@ -15,7 +16,7 @@ let progress = null;
 let all = { sentences: [], projects: [] };
 let pool = [];          // 지금 고른 영상의 문장
 let queue = [], idx = 0, retried = new Set();
-let session = { right: 0, wrong: 0, gems: 0 };
+let session = { right: 0, wrong: 0, gems: 0, kind: 'review' };
 let talk = null, voice = null;
 
 let toastTimer;
@@ -51,12 +52,13 @@ function renderHome() {
   const start = $('#start');
   if (!all.sentences.length) {
     who.textContent = '아직 연습할 문장이 없어요. 만들기에서 영어 문장을 먼저 써 주세요.';
-    start.disabled = true; $('#stats').innerHTML = ''; return;
+    start.disabled = true; $('#memorize').disabled = true; $('#stats').innerHTML = ''; return;
   }
   if (!child || !progress) {
     who.textContent = '누가 연습하나요? 위에서 이름을 눌러 주세요.';
-    start.disabled = true; $('#stats').innerHTML = ''; renderList(); return;
+    start.disabled = true; $('#memorize').disabled = true; $('#stats').innerHTML = ''; renderList(); return;
   }
+  $('#memorize').disabled = !pool.length;
   who.textContent = `${child}의 연습`;
   const q = todayQueue(pool, progress);
   const m = mastered(pool, progress);
@@ -82,7 +84,8 @@ function renderList() {
 
 $('#proj').addEventListener('change', renderHome);
 $('#start').addEventListener('click', () => startSession());
-$('#again').addEventListener('click', () => startSession());
+$('#memorize').addEventListener('click', () => startMemorize());
+$('#again').addEventListener('click', () => (session.kind === 'memorize' ? startMemorize() : startSession()));
 $('#home2').addEventListener('click', () => { show('home'); renderHome(); });
 $('#quit').addEventListener('click', () => { stopAudio(); finish(); });
 
@@ -96,7 +99,17 @@ function show(which) {
 function startSession() {
   queue = todayQueue(pool, progress);
   if (!queue.length) { toast('오늘 연습할 문장을 다 했어요!'); show('home'); renderHome(); return; }
-  idx = 0; retried = new Set(); session = { right: 0, wrong: 0, gems: 0 };
+  idx = 0; retried = new Set(); session = { right: 0, wrong: 0, gems: 0, kind: 'review' };
+  show('session');
+  nextCard();
+}
+
+// 말하며 외우기: 아직 덜 외운 문장부터 10개까지.
+function startMemorize() {
+  const boxOf = (s) => (progress.sentences[s.key] ? progress.sentences[s.key].box : 0);
+  queue = shuffle(pool).sort((a, b) => boxOf(a) - boxOf(b)).slice(0, 10);
+  if (!queue.length) { toast('외울 문장이 없어요.'); return; }
+  idx = 0; retried = new Set(); session = { right: 0, wrong: 0, gems: 0, kind: 'memorize' };
   show('session');
   nextCard();
 }
@@ -113,6 +126,7 @@ function modeFor(s) {
 function nextCard() {
   stopAudio();
   bindActivity(null);
+  $('#controls').onclick = null;
   if (idx >= queue.length) return finish();
   const s = queue[idx];
   $('#count').textContent = `${idx + 1} / ${queue.length}`;
@@ -120,6 +134,7 @@ function nextCard() {
   $('#pshot').innerHTML = s.image ? `<img src="${blobURL(s.image)}" alt="">` : '';
   $('#pko').textContent = s.ko || '';
   $('#pfb').textContent = ''; $('#pfb').className = 'pfb';
+  if (session.kind === 'memorize') return runMemorize(s);
   const mode = modeFor(s);
   if (mode === 'listen') runListen(s);
   else if (mode === 'build') runBuild(s);
@@ -321,6 +336,86 @@ function runRecall(s) {
   });
 }
 
+/* ---------- 말하며 외우기 ---------- */
+const MEMO_STEPS = ['1단계 · 보면서 말하기', '2단계 · 반쯤 가리고 말하기', '3단계 · 한글 뜻만 보고 말하기'];
+
+// 가릴 낱말 고르기: 반쯤 단계는 세 글자 이상인 낱말을 하나 건너 하나(긴 낱말 먼저), 다 가리기는 모두.
+function maskSet(raw, level) {
+  const letters = raw.map(w => w.replace(/[^A-Za-z']/g, ''));
+  if (level === 2) return new Set(raw.map((_, i) => i).filter(i => letters[i]));
+  const cand = raw.map((_, i) => i).filter(i => letters[i].length >= 3);
+  const pick = cand.filter((_, k) => k % 2 === 0);
+  if (!pick.length && raw.length) pick.push(raw.map((_, i) => i).sort((a, b) => letters[b].length - letters[a].length)[0]);
+  return new Set(pick);
+}
+function maskedHTML(text, level, firstLetters) {
+  const raw = wordsOf(text);
+  const hide = maskSet(raw, level);
+  return `<p class="masked" lang="en">${raw.map((w, i) => {
+    if (!hide.has(i)) return `<span class="mw">${esc(w)}</span>`;
+    const m = /^([^A-Za-z']*)([A-Za-z'’]+)([^A-Za-z']*)$/.exec(w) || ['', '', w, ''];
+    const core = m[2];
+    const showFirst = level === 1 || firstLetters;
+    const shown = showFirst ? core[0] + '_'.repeat(core.length - 1) : '_'.repeat(core.length);
+    return `<span class="mw">${esc(m[1])}<button type="button" class="mask" data-peek="${esc(core)}" data-shown="${esc(shown)}" aria-label="가린 낱말, 눌러서 엿보기">${esc(shown)}</button>${esc(m[3])}</span>`;
+  }).join(' ')}</p>`;
+}
+
+function runMemorize(s) {
+  stopAudio();
+  let stage = 0, hints = false;
+  const draw = () => {
+    $('#stepName').textContent = MEMO_STEPS[stage];
+    feedback('');
+    if (stage === 0) {
+      $('#activity').innerHTML = followHTML(s.en) + `<div class="row">${listenButtons(s)}</div>
+        <p class="hint">듣고 영어 문장을 소리 내어 두세 번 말해 봐요.</p>`;
+      controls('<button class="btn big grass" type="button" data-memo="next">말해 봤어요 →</button>');
+      sayIt(s.en);
+    } else if (stage === 1) {
+      $('#activity').innerHTML = maskedHTML(s.en, 1) + `<div class="row">${listenButtons(s)}</div>
+        <p class="hint">가린 낱말을 떠올리며 문장 전체를 말해 봐요. 가린 낱말을 누르면 잠깐 보여요.</p>`;
+      controls('<button class="btn big grass" type="button" data-memo="next">말해 봤어요 →</button><button class="btn small" type="button" data-memo="back">앞 단계로</button>');
+    } else {
+      $('#activity').innerHTML = maskedHTML(s.en, 2, hints) +
+        `<p class="hint big-hint">사진과 한글 뜻만 보고 영어로 말해 봐요.</p>`;
+      controls(`<button class="btn big gold" type="button" data-memo="reveal">정답 보기</button>
+        ${hints ? '' : '<button class="btn small" type="button" data-memo="hint">첫 글자 힌트</button>'}
+        <button class="btn small" type="button" data-memo="back">앞 단계로</button>`);
+    }
+  };
+  const reveal = () => {
+    $('#activity').innerHTML = followHTML(s.en) + `<div class="row">${listenButtons(s)}</div><p class="hint">내가 말한 것과 같았나요?</p>`;
+    sayIt(s.en);
+    controls('<button class="btn big grass" type="button" data-memo="yes">외웠어요</button><button class="btn big" type="button" data-memo="no">더 연습할래요</button>');
+  };
+  const doneCard = async (ok) => {
+    await record(s, ok);
+    feedback(ok ? '외웠어요! 에메랄드 1개를 얻었어요.' : '괜찮아요. 이번 연습 끝에 한 번 더 나와요.', ok ? 'good' : 'warn');
+    controls('<button class="btn big grass" type="button" data-memo="go">다음 →</button>');
+  };
+  // 가린 낱말 엿보기
+  bindActivity((e) => {
+    const m = e.target.closest('[data-peek]');
+    if (!m) return;
+    m.textContent = m.dataset.peek; m.classList.add('peek');
+    setTimeout(() => { m.textContent = m.dataset.shown; m.classList.remove('peek'); }, 1500);
+  });
+  $('#controls').onclick = async (e) => {
+    const b = e.target.closest('[data-memo]');
+    if (!b) return;
+    const what = b.dataset.memo;
+    if (what === 'next') { stage = Math.min(2, stage + 1); stopAudio(); draw(); }
+    else if (what === 'back') { stage = Math.max(0, stage - 1); draw(); }
+    else if (what === 'hint') { hints = true; draw(); }
+    else if (what === 'reveal') reveal();
+    else if (what === 'yes') doneCard(true);
+    else if (what === 'no') doneCard(false);
+    else if (what === 'go') { $('#controls').onclick = null; idx++; nextCard(); }
+  };
+  draw();
+}
+
 /* ---------- 끝 ---------- */
 function finish() {
   stopAudio();
@@ -331,7 +426,8 @@ function finish() {
   $('#doneText').innerHTML = n
     ? `맞힌 문장 <b>${session.right}</b>개 · 에메랄드 <b>+${session.gems}</b> (모두 ${progress.emeralds}개) · <b>${streak(progress)}</b>일째 연습`
     : '';
-  $('#again').hidden = !todayQueue(pool, progress).length;
+  if (session.kind === 'memorize') { $('#again').hidden = false; $('#again').textContent = '다시 외우기'; }
+  else { $('#again').hidden = !todayQueue(pool, progress).length; $('#again').textContent = '더 연습하기'; }
 }
 
 /* ---------- 시작 ---------- */

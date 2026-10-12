@@ -36,8 +36,15 @@
       <label class="lab" for="proj">어떤 영상 문장으로 할까요?</label>
       <select id="proj"></select>
     </div>
-    <div class="row">
-      <button class="btn big grass" id="start" type="button" disabled>연습 시작</button>
+    <div class="modes">
+      <div class="mode">
+        <button class="btn big grass" id="start" type="button" disabled>오늘의 연습</button>
+        <p class="hint">오늘 볼 차례인 문장을 블록 쌓기·빈칸 채우기 같은 활동으로 연습해요.</p>
+      </div>
+      <div class="mode">
+        <button class="btn big gold" id="memorize" type="button" disabled>말하며 외우기</button>
+        <p class="hint">한글 뜻만 보고 영어로 말할 수 있을 때까지, 영어를 점점 가려 가며 외워요. 언제든 할 수 있어요.</p>
+      </div>
     </div>
     <p class="note" id="homeNote"></p>
     <details class="sent-list">

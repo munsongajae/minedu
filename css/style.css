@@ -372,3 +372,13 @@ kbd { font-family: var(--f-pixel); font-size: 12px; border: 2px solid var(--edge
 .tile.done { border-color: var(--grass); box-shadow: inset 0 0 0 3px var(--grass); cursor: default; opacity: .8; }
 .tile.done::after { content: '✓'; position: absolute; top: 2px; right: 6px; color: var(--grass); font-weight: 700; }
 .tile:active:not(:disabled) { transform: translateY(2px); }
+
+/* 말하며 외우기 */
+.modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.mode { border: 2px solid var(--line); background: var(--panel-2); padding: 12px; display: grid; gap: 6px; align-content: start; }
+.mode .btn { width: 100%; }
+.mode .hint { margin: 0; }
+.masked { margin: 0; font-family: var(--f-kid); font-size: 28px; line-height: 1.7; display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.mask { font: inherit; letter-spacing: .12em; color: var(--muted); background: var(--panel-2); border: 0; border-bottom: 4px solid var(--edge);
+  padding: 0 6px; cursor: pointer; min-height: 44px; }
+.mask.peek { color: var(--gold-ink); background: var(--gold); letter-spacing: 0; }

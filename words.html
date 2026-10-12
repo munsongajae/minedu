@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>단어 짝 맞추기 · 곰이난이 블록 스튜디오</title>
+<title>단어 게임 · 곰이난이 블록 스튜디오</title>
 <meta name="theme-color" content="#4c8a2c">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
@@ -23,8 +23,8 @@
   </nav>
   <header class="top">
     <div class="brand">
-      <div class="eyebrow">Word game · 짝 맞추기</div>
-      <h1>단어 짝 맞추기</h1>
+      <div class="eyebrow">Word games · 내 문장 속 단어</div>
+      <h1>단어 게임</h1>
     </div>
     <div id="kidPick"></div>
   </header>
@@ -36,11 +36,25 @@
       <label class="lab" for="proj">어떤 영상 단어로 할까요?</label>
       <select id="proj"></select>
     </div>
-    <div class="row level" role="group" aria-label="카드 수">
+    <div class="game-pick" role="group" aria-label="게임 고르기">
+      <button type="button" class="gp" data-kind="match">
+        <b>짝 맞추기</b><span>영어 카드와 한글 카드의 짝을 찾아요</span>
+      </button>
+      <button type="button" class="gp" data-kind="quiz">
+        <b>보고 고르기</b><span>뜻이나 단어를 보고 맞는 것을 골라요</span>
+      </button>
+    </div>
+    <div class="row level" role="group" aria-label="카드 수" id="matchOpts">
       <span class="lab">카드</span>
       <button type="button" class="lvl" data-pairs="4">4쌍 (쉬움)</button>
       <button type="button" class="lvl" data-pairs="6">6쌍 (보통)</button>
       <button type="button" class="lvl" data-pairs="8">8쌍 (어려움)</button>
+    </div>
+    <div class="row level" role="group" aria-label="문제 방향" id="quizOpts" hidden>
+      <span class="lab">문제</span>
+      <button type="button" class="lvl" data-dir="ko2en">한글 보고 영어 고르기</button>
+      <button type="button" class="lvl" data-dir="en2ko">영어 보고 한글 고르기</button>
+      <button type="button" class="lvl" data-dir="mix">섞어서</button>
     </div>
     <div class="row">
       <button class="btn big grass" id="start" type="button" disabled>게임 시작</button>
@@ -60,6 +74,25 @@
       <button class="btn small" id="quit" type="button">그만하기</button>
     </div>
     <div class="board" id="board"></div>
+  </section>
+
+  <section class="quiz" id="quiz" hidden>
+    <div class="session-top">
+      <span class="count" id="qCount"></span>
+      <span class="count" id="qScore"></span>
+      <div class="bar" aria-hidden="true"><i id="qFill"></i></div>
+      <button class="btn small" id="qQuit" type="button">그만하기</button>
+    </div>
+    <article class="qcard">
+      <p class="q-label" id="qLabel"></p>
+      <div class="q-prompt-row">
+        <p class="q-prompt" id="qPrompt"></p>
+        <button class="btn small listen" type="button" id="qSay" hidden>다시 듣기</button>
+      </div>
+      <div class="q-opts" id="qOpts"></div>
+      <p class="pfb" id="qFb" role="status"></p>
+      <div class="row" id="qNextRow" hidden><button class="btn big grass" type="button" id="qNext">다음 →</button></div>
+    </article>
   </section>
 
   <section class="done" id="done" hidden>

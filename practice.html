@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>문장 연습 · 곰이난이 블록 스튜디오</title>
+<meta name="theme-color" content="#4c8a2c">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=Gowun+Dodum&family=Jua&family=Silkscreen&display=swap">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="turf" aria-hidden="true"></div>
+<div class="wrap">
+  <nav class="topnav" aria-label="메뉴">
+    <a href="./">만들기</a>
+    <a href="practice.html" aria-current="page">문장 연습</a>
+    <a href="words.html">단어 게임</a>
+  </nav>
+  <header class="top">
+    <div class="brand">
+      <div class="eyebrow">Practice · 내가 만든 영어 문장</div>
+      <h1>문장 연습</h1>
+    </div>
+    <div id="kidPick"></div>
+  </header>
+
+  <section class="learn-home" id="home">
+    <p class="who" id="who">누가 연습하나요? 위에서 이름을 눌러 주세요.</p>
+    <div class="stats" id="stats"></div>
+    <div class="row learn-filter">
+      <label class="lab" for="proj">어떤 영상 문장으로 할까요?</label>
+      <select id="proj"></select>
+    </div>
+    <div class="row">
+      <button class="btn big grass" id="start" type="button" disabled>연습 시작</button>
+    </div>
+    <p class="note" id="homeNote"></p>
+    <details class="sent-list">
+      <summary>내 문장 모두 보기</summary>
+      <ul id="sentList"></ul>
+    </details>
+  </section>
+
+  <section class="session" id="session" hidden>
+    <div class="session-top">
+      <span class="count" id="count"></span>
+      <div class="bar" aria-hidden="true"><i id="progFill"></i></div>
+      <button class="btn small" id="quit" type="button">그만하기</button>
+    </div>
+    <article class="pcard">
+      <div class="pshot" id="pshot"></div>
+      <div class="pbody">
+        <div class="step-name" id="stepName"></div>
+        <p class="pko" id="pko"></p>
+        <div id="activity"></div>
+        <p class="pfb" id="pfb" role="status"></p>
+        <div class="row" id="controls"></div>
+      </div>
+    </article>
+  </section>
+
+  <section class="done" id="done" hidden>
+    <h2 id="doneTitle">오늘 연습 끝!</h2>
+    <p id="doneText"></p>
+    <div class="row">
+      <button class="btn big grass" id="again" type="button">더 연습하기</button>
+      <button class="btn big" id="home2" type="button">처음으로</button>
+    </div>
+  </section>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+<script type="module" src="js/practice.js"></script>
+</body>
+</html>

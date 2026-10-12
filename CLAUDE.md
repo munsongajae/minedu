@@ -28,13 +28,23 @@
 ## 기술 원칙
 
 - 빌드 도구·프레임워크 없이 순수 HTML/CSS/JS(ES 모듈). npm 의존성을 추가하지 않는다.
-- 데이터는 기기의 IndexedDB(`js/storage.js`)가 기본. 프로젝트 객체 안에 이미지·오디오 Blob을 그대로 저장한다. 가족 암호가 있으면 서버(Supabase Storage)에도 자동으로 올린다.
+- 데이터는 기기의 IndexedDB(`js/storage.js`, 저장소 projects·progress·meta)가 기본. 프로젝트 객체 안에 이미지·오디오 Blob을 그대로 저장한다. 가족 암호가 있으면 서버(Supabase Storage)에도 자동으로 올린다.
 - 영상은 `js/video.js`에서 캔버스(1280×720)에 그리고 `canvas.captureStream` + Web Audio(`MediaStreamDestination`) + `MediaRecorder`로 실시간 녹화한다. 그리기 시계는 `AudioContext.currentTime`.
 - 영상 녹화 주의: 소리 트랙에 소리가 끊기면 mp4 녹화가 앞부분(약 1~2초)만 저장되는 문제가 있어서, 들리지 않는 아주 작은 소리(`hum`)를 늘 흘린다. 그리기는 requestAnimationFrame 흐름 하나만 돌리고, 느린 타이머는 그리기가 멈췄을 때만 대신 그린다.
 - 시험: `/opt/pw-browsers`의 Chromium + Python Playwright로 PDF 넣기 → 영상 만들기 → 저장까지 돌릴 수 있다(오픈소스 Chromium이라 mp4가 H.264가 아닌 VP9로 나오는 건 정상).
 - 색과 글꼴은 `css/style.css` 맨 위 `:root` 토큰만 쓴다. 다크 모드 값은 바로 아래 미디어 쿼리.
 - 앱 파일을 바꾸면 `sw.js`의 `CACHE` 이름 숫자를 올린다(안 올리면 기기에 옛 버전이 남을 수 있음). 새 JS 파일을 만들면 `ASSETS`에도 넣는다.
 - 상표 보호: 마인크래프트 로고·캐릭터·공식 블록 텍스처를 그리거나 넣지 않는다. 블록 풍경은 직접 만든 일반 그림만.
+
+## 문장 연습·단어 게임 (practice.html, words.html)
+
+- 세 페이지 위쪽 메뉴(`.topnav`): 만들기(index.html) / 문장 연습 / 단어 게임. 공통 코드는 `js/learn.js`.
+- 아이 고르기: `CHILDREN = ['곰이', '난이']`, 마지막 선택은 localStorage(`block-studio-child`). 연습 기록은 아이별로 따로: IndexedDB `progress` 저장소(DB v2) `{ id: 아이, sentences: {줄id: item}, words: {단어: item}, emeralds, days }`.
+- 문장 모음: 모든 영상의 영어가 있는 문장 줄(`loadSentences`). 예시 영상은 다른 문장이 없을 때만.
+- 복습 상자(라이트너, `grade`/`todayQueue`): 맞히면 다음 상자, 틀리면 1번. 상자별 다시 나오는 간격 `BOX_DAYS` 1:0, 2:1, 3:3, 4:7, 5:14일. 하루 최대 8문장, 새 문장 3개까지.
+- 문장 연습 단계(`practice.js`, 상자에 따라): 1번 듣고 따라 말하기 → 블록 쌓기, 2번 블록 쌓기, 3번 빈칸 채우기, 4·5번 한글 보고 말해 보기(정답 보고 스스로 맞음/어려움). 말하기 채점(음성 인식)은 넣지 않는다. 틀린 문장은 그 연습 끝에 한 번 더.
+- 단어 짝 맞추기(`words.js`): 문장의 AI 낱말(`words`) + 문장 속 단어(쉬운 낱말 제외). 뜻이 없으면 `coach`의 `glossary`(Gemini, 40개씩)로 채워 IndexedDB `meta`의 `glossary`에 둔다. 4/6/8쌍, 잘 모르는 단어 먼저.
+- 연습 기록은 서버에도 `cloud_get`/`cloud_put`(kv/progress-<아이 이름 UTF-8 hex>.json)로 올리고, 기기끼리는 문장·단어마다 더 나중 기록, 에메랄드는 큰 값, 연습한 날은 합쳐서 맞춘다(`mergeProgress`).
 
 ## 서버 저장(다른 기기에서 이어서 하기)
 
@@ -111,4 +121,5 @@ python3 -m http.server 8080   # http://localhost:8080
 
 ## 다음에 하면 좋은 것 (아직 안 함)
 
-- 장면 순서 끌어서 바꾸기, 장면별 길이 조절, 배경 음악.
+- 장면 순서 끌어서 바꾸기, 장면별 길이 조절.
+- 단어 게임 더하기(스펠링 블록, 듣고 고르기, 둘이 대결), 부모님 보기(아이별 연습 현황).

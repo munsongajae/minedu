@@ -105,6 +105,28 @@ Child's English attempt:
 ${attempt}`;
 }
 
+function glossaryPrompt(words, context) {
+  return `${STYLE}
+
+Give a short Korean meaning for each English word, as a 10-year-old Korean child would understand it in this context (1 to 4 Korean words, no explanation).
+For verbs in past tense, give the past-tense Korean meaning (built → 지었다). Use the context sentences to choose the right meaning.
+Return every word exactly as given in "en".
+
+Context sentences:
+${context || '(none)'}
+
+Words:
+${words.join(', ')}`;
+}
+
+const GLOSSARY_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    items: { type: 'ARRAY', items: { type: 'OBJECT', properties: { en: { type: 'STRING' }, ko: { type: 'STRING' } }, required: ['en', 'ko'] } }
+  },
+  required: ['items']
+};
+
 const TRANSLATE_SCHEMA = {
   type: 'OBJECT',
   properties: {
@@ -145,7 +167,7 @@ async function askGemini(prompt, schema) {
         responseMimeType: 'application/json',
         responseSchema: schema,
         temperature: 0.3,
-        maxOutputTokens: 1024
+        maxOutputTokens: 2048
       }
     })
   });
@@ -327,6 +349,17 @@ async function cloud(action, body) {
     Object.entries(urls).forEach(([path, u]) => { byHash[path.replace(/^media\//, '')] = u; });
     return { doc, urls: byHash };
   }
+  // 작은 기록 문서(아이별 연습 기록 등): kv/<key>.json. 합치기는 앱이 한다.
+  if (action === 'cloud_get' || action === 'cloud_put') {
+    const key = String(body?.key ?? '');
+    if (!/^[a-z0-9_-]{1,80}$/.test(key)) throw new HttpError(400, 'bad_request');
+    if (action === 'cloud_get') return { doc: await S.getJSON(`kv/${key}.json`) };
+    const doc = body?.doc;
+    if (!doc || typeof doc !== 'object') throw new HttpError(400, 'bad_request');
+    if (JSON.stringify(doc).length > MAX_DOC) throw new HttpError(413, 'too_big');
+    await S.putJSON(`kv/${key}.json`, doc);
+    return { ok: true };
+  }
   if (action === 'cloud_delete') {
     needId();
     await S.remove([`docs/${id}.json`]);
@@ -378,6 +411,14 @@ Deno.serve(async (req) => {
     if (action === 'translate') {
       if (!ko) return reply(origin, 400, { error: 'empty' });
       return reply(origin, 200, shapeTranslate(await askGemini(translatePrompt(ko), TRANSLATE_SCHEMA)));
+    }
+    if (action === 'glossary') {
+      const words = Array.isArray(body?.words) ? body.words.map((w) => String(w).trim()).filter((w) => /^[A-Za-z][A-Za-z'’-]{0,29}$/.test(w)).slice(0, 40) : [];
+      if (!words.length) return reply(origin, 400, { error: 'empty' });
+      const context = String(body?.context ?? '').slice(0, 1500);
+      const r = await askGemini(glossaryPrompt(words, context), GLOSSARY_SCHEMA);
+      const items = (Array.isArray(r?.items) ? r.items : []).map((it) => ({ en: clean(it?.en), ko: clean(it?.ko).slice(0, 30) })).filter((it) => it.en && it.ko);
+      return reply(origin, 200, { items });
     }
     if (action === 'check') {
       if (!attempt) return reply(origin, 400, { error: 'empty' });

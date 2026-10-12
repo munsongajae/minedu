@@ -343,36 +343,6 @@ kbd { font-family: var(--f-pixel); font-size: 12px; border: 2px solid var(--edge
 .done h2 { font-family: var(--f-display); font-weight: 400; font-size: 34px; margin: 0; }
 .done p { margin: 0; font-size: 18px; }
 
-/* ---------- 단어 짝 맞추기 ---------- */
-.level { gap: 0; }
-.level .lab { margin: 0 10px 0 0; }
-.lvl { font: inherit; font-size: 15px; border: 2px solid var(--edge); padding: 8px 12px; min-height: 44px; background: var(--panel-2); color: var(--muted); cursor: pointer; }
-.lvl + .lvl { border-left: 0; }
-.lvl[aria-pressed="true"] { background: var(--gold); color: var(--gold-ink); }
-.word-list li { grid-template-columns: auto auto minmax(0, 1fr) auto; grid-template-rows: auto; }
-.word-list li b { font-family: var(--f-kid); font-weight: 400; font-size: 18px; }
-.word-list li .ok { font-style: normal; font-size: 12px; background: var(--grass); color: var(--on-color); padding: 1px 6px; }
-.btn.tiny-say { min-height: 34px; padding: 2px 10px 4px; font-size: 13px; }
-.board { display: grid; gap: 10px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.board.n16 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-@media (min-width: 900px) { .board.n12 { grid-template-columns: repeat(6, minmax(0, 1fr)); } .board.n16 { grid-template-columns: repeat(8, minmax(0, 1fr)); } }
-@media (max-width: 520px) { .board, .board.n16 { grid-template-columns: repeat(3, minmax(0, 1fr)); } .board.n8 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-.tile { position: relative; aspect-ratio: 4 / 3; border: 2px solid var(--edge); padding: 0; cursor: pointer; background: var(--dirt); color: var(--ink);
-  box-shadow: inset 0 -5px 0 var(--shade), inset 0 4px 0 var(--shine); font: inherit; overflow: hidden; min-height: 70px; }
-.tile-back { position: absolute; inset: 0;
-  background: linear-gradient(var(--grass) 0 28%, transparent 28%),
-    repeating-linear-gradient(90deg, transparent 0 18px, rgba(0,0,0,.12) 18px 22px),
-    repeating-linear-gradient(0deg, transparent 0 18px, rgba(0,0,0,.12) 18px 22px); }
-.tile.up .tile-back, .tile.done .tile-back { display: none; }
-.tile-face { position: relative; display: grid; place-items: center; height: 100%; padding: 6px; text-align: center; overflow-wrap: anywhere; line-height: 1.2; }
-.tile.en.up, .tile.en.done { background: var(--helper); }
-.tile.en .tile-face { font-family: var(--f-kid); font-size: clamp(18px, 3.2vw, 26px); }
-.tile.ko.up, .tile.ko.done { background: var(--gold-soft); }
-.tile.ko .tile-face { font-family: var(--f-kid); font-size: clamp(16px, 2.8vw, 22px); }
-.tile.done { border-color: var(--grass); box-shadow: inset 0 0 0 3px var(--grass); cursor: default; opacity: .8; }
-.tile.done::after { content: '✓'; position: absolute; top: 2px; right: 6px; color: var(--grass); font-weight: 700; }
-.tile:active:not(:disabled) { transform: translateY(2px); }
-
 /* 말하며 외우기 */
 .modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .mode { border: 2px solid var(--line); background: var(--panel-2); padding: 12px; display: grid; gap: 6px; align-content: start; }
@@ -383,26 +353,142 @@ kbd { font-family: var(--f-pixel); font-size: 12px; border: 2px solid var(--edge
   padding: 0 6px; cursor: pointer; min-height: 44px; }
 .mask.peek { color: var(--gold-ink); background: var(--gold); letter-spacing: 0; }
 
-/* 단어 게임 고르기 */
-.game-pick { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
-.gp { font: inherit; text-align: left; display: grid; gap: 4px; padding: 12px 14px; border: 2px solid var(--edge); background: var(--panel-2); color: var(--ink);
-  cursor: pointer; box-shadow: inset 0 -4px 0 var(--shade); }
-.gp b { font-family: var(--f-display); font-weight: 400; font-size: 22px; }
-.gp span { font-size: 14px; color: var(--muted); }
-.gp[aria-pressed="true"] { background: var(--gold); border-color: var(--edge); }
-.gp[aria-pressed="true"] span { color: var(--gold-ink); }
-.level { flex-wrap: wrap; row-gap: 6px; }
+/* ==========================================================
+   단어 게임 (words.html) — 게임기처럼: 큰 게임 판에서 바로 시작,
+   문제는 간판, 보기는 색이 다른 큰 블록. 색은 위 토큰만 쓴다.
+   ========================================================== */
+.wg-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 20px; padding-block: 18px 16px; }
+.wg-head h1 { font-family: var(--f-display); font-weight: 400; font-size: clamp(34px, 6vw, 48px); line-height: 1; margin: 0; }
+.wg-me { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.wg-badges { margin: 0; display: flex; align-items: center; gap: 6px; }
+.wg-badges b { font-family: var(--f-display); font-weight: 400; font-size: 26px; font-variant-numeric: tabular-nums; }
+.wg-badges .streak { margin-left: 6px; font-size: 14px; padding: 2px 8px; border: 2px solid var(--edge); background: var(--gold-soft); }
+.gem-ico, .wg-gems i { display: inline-block; width: 18px; height: 22px; background: linear-gradient(135deg, var(--grass-hi) 0 45%, var(--grass) 45%);
+  clip-path: polygon(50% 0, 100% 28%, 100% 72%, 50% 100%, 0 72%, 0 28%); }
 
-/* 보고 고르기 */
-.qcard { background: var(--panel); border: 2px solid var(--edge); box-shadow: 0 5px 0 var(--shade); padding: 20px 18px; display: grid; gap: 16px; }
-.q-label { margin: 0; font-family: var(--f-display); font-size: 18px; color: var(--helper-edge); }
-.q-prompt-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-.q-prompt { margin: 0; font-family: var(--f-kid); font-size: clamp(36px, 7vw, 56px); line-height: 1.15; overflow-wrap: anywhere; }
-.q-opts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-@media (max-width: 480px) { .q-opts { grid-template-columns: 1fr; } }
-.btn.q-opt { font-family: var(--f-kid); font-size: 24px; min-height: 72px; padding: 10px 14px 13px; overflow-wrap: anywhere; }
-.btn.q-opt.right { background: var(--grass); color: var(--on-color); opacity: 1; }
-.btn.q-opt.wrong { background: var(--redstone); color: var(--on-color); opacity: 1; }
-.btn.q-opt:disabled:not(.right):not(.wrong) { opacity: .45; }
-.review-words { display: inline-block; margin-top: 8px; font-size: 16px; color: var(--muted); }
-.review-words b { font-family: var(--f-kid); font-weight: 400; color: var(--ink); }
+.wg-msg { margin: 0 0 16px; padding: 12px 16px; font-family: var(--f-kid); font-size: 21px; background: var(--gold-soft); border: 2px solid var(--edge); }
+.wg-msg[hidden] { display: none; }
+
+.wg-games { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+@media (max-width: 900px) { .wg-games { grid-template-columns: 1fr; } }
+.wg-game { background: var(--panel); border: 3px solid var(--edge); box-shadow: 0 6px 0 var(--shade); padding: 16px 16px 18px; display: grid; gap: 10px; align-content: start; }
+.wg-game h2 { margin: 4px 0 0; font-family: var(--f-display); font-weight: 400; font-size: 34px; line-height: 1.1; }
+.wg-game > p { margin: 0; color: var(--muted); font-size: 16px; }
+.wg-games.locked .wg-game { opacity: .55; }
+
+/* 게임 판 그림(블록 하늘 + 잔디 띠 위에 카드 / 간판) */
+.wg-art { height: 132px; border: 2px solid var(--edge); position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; gap: 10px;
+  background: linear-gradient(var(--sky) 0 72%, var(--grass) 72% 80%, var(--dirt) 80%); }
+.wg-art-match i { font-style: normal; width: 58px; height: 76px; display: grid; place-items: center; font-family: var(--f-pixel); font-size: 30px; color: var(--gold-ink);
+  background: var(--gold); border: 3px solid var(--edge); box-shadow: inset 0 -6px 0 var(--shade), inset 0 4px 0 var(--shine); transform: translateY(-8px) rotate(-8deg); }
+.wg-art-match i.b { background: var(--panel); color: var(--helper-edge); transform: translateY(-14px); }
+.wg-art-match i:last-child { transform: translateY(-8px) rotate(8deg); }
+.wg-art-quiz { gap: 14px; }
+.wg-art-quiz .sign { font-family: var(--f-kid); font-size: 32px; padding: 6px 16px 8px; background: var(--panel); border: 3px solid var(--edge); transform: translateY(-10px);
+  box-shadow: 0 5px 0 var(--dirt); }
+.wg-art-quiz .ops { display: grid; grid-template-columns: repeat(2, 26px); gap: 5px; transform: translateY(-10px); }
+.wg-art-quiz .ops i { width: 26px; height: 20px; border: 2px solid var(--edge); background: var(--grass); }
+.wg-art-quiz .ops i:nth-child(2) { background: var(--helper-edge); }
+.wg-art-quiz .ops i:nth-child(3) { background: var(--gold); }
+.wg-art-quiz .ops i:nth-child(4) { background: var(--dirt); }
+
+/* 게임 판의 시작 버튼: 누르면 바로 시작 */
+.wg-go { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.wg-go button { flex: 1 1 0; min-width: 118px; white-space: nowrap; min-height: 58px; padding: 8px 10px 12px; font-family: var(--f-display); font-size: 21px; cursor: pointer;
+  border: 3px solid var(--edge); box-shadow: inset 0 -5px 0 var(--shade), inset 0 4px 0 var(--shine); }
+.wg-game:first-child .wg-go button { background: var(--gold); color: var(--gold-ink); }
+.wg-game:last-child .wg-go button { background: var(--helper-edge); color: var(--on-color); }
+.wg-go button:hover:not(:disabled) { filter: brightness(1.06); }
+.wg-go button:active:not(:disabled) { transform: translateY(3px); box-shadow: inset 0 -2px 0 var(--shade); }
+.wg-go button:disabled { opacity: .45; cursor: not-allowed; }
+
+.wg-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; margin-top: 18px; }
+.wg-src { display: flex; align-items: center; gap: 8px; font-size: 15px; color: var(--muted); flex-wrap: wrap; }
+.wg-src select { min-height: 40px; font-size: 15px; }
+.wg-link { font-family: var(--f-display); font-size: 18px; background: none; border: 0; color: var(--helper-edge); text-decoration: underline; text-underline-offset: 4px; cursor: pointer; min-height: 40px; }
+.wg-list { margin-top: 12px; }
+.wg-list ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; }
+.wg-list li { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border: 2px solid var(--line); background: var(--panel); min-width: 0; }
+.wg-list li.known { border-color: var(--grass); }
+.wg-list li b { font-family: var(--f-kid); font-weight: 400; font-size: 20px; }
+.wg-list li span { color: var(--muted); font-size: 15px; overflow-wrap: anywhere; }
+.wl-say { flex: none; width: 34px; height: 34px; border: 2px solid var(--edge); background: var(--panel-2); cursor: pointer; position: relative; }
+.wl-say::after { content: ''; position: absolute; left: 12px; top: 8px; border: 8px solid transparent; border-left: 11px solid var(--ink); border-right: 0; }
+
+/* 게임 화면 공통 */
+.wg-play { max-width: 880px; margin: 0 auto; display: grid; gap: 18px; }
+.wg-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.wg-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.wg-steps li { width: 24px; height: 24px; border: 2px solid var(--edge); background: var(--panel-2); }
+.wg-steps li.now { background: var(--gold); }
+.wg-steps li.right { background: var(--grass); }
+.wg-steps li.wrong { background: var(--redstone); }
+.wg-moves { font-family: var(--f-display); font-size: 18px; color: var(--muted); }
+.wg-quit { margin-left: auto; font-family: var(--f-display); font-size: 16px; background: var(--panel); border: 2px solid var(--line); color: var(--muted); padding: 6px 12px; min-height: 40px; cursor: pointer; }
+
+/* 보고 고르기: 간판 + 블록 보기 */
+.wg-sign { background: var(--panel); border: 3px solid var(--edge); box-shadow: 0 7px 0 var(--dirt); padding: 18px 18px 22px; display: grid; gap: 8px; justify-items: center; text-align: center; }
+.wg-ask { margin: 0; font-family: var(--f-display); font-size: 20px; color: var(--helper-edge); }
+.wg-prompt { margin: 0; font-family: var(--f-kid); font-size: clamp(46px, 9vw, 78px); line-height: 1.1; overflow-wrap: anywhere; }
+.wg-say { font-family: var(--f-display); font-size: 16px; background: var(--panel-2); border: 2px solid var(--edge); padding: 4px 12px 6px; min-height: 40px; cursor: pointer; }
+.wg-opts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 480px) { .wg-opts { grid-template-columns: 1fr; } }
+.wg-opt { position: relative; min-height: 96px; padding: 14px 18px 20px; font-family: var(--f-kid); font-size: clamp(24px, 4vw, 32px); line-height: 1.15; color: var(--on-color);
+  border: 3px solid var(--edge); cursor: pointer; overflow-wrap: anywhere; box-shadow: inset 0 -8px 0 var(--shade), inset 0 5px 0 var(--shine); }
+.wg-opt.grass { background: var(--grass); }
+.wg-opt.sky { background: var(--helper-edge); }
+.wg-opt.gold { background: var(--gold); color: var(--gold-ink); }
+.wg-opt.dirt { background: var(--dirt); }
+.wg-opt .key { position: absolute; top: 6px; left: 8px; font-family: var(--f-pixel); font-size: 12px; padding: 0 5px; background: var(--shade); color: var(--on-color); }
+@media (pointer: coarse) { .wg-opt .key { display: none; } }
+.wg-opt:hover:not(:disabled) { transform: translateY(-2px); }
+.wg-opt:active:not(:disabled) { transform: translateY(3px); box-shadow: inset 0 -3px 0 var(--shade); }
+.wg-opt:disabled { cursor: default; }
+.wg-opt.dim { opacity: .3; }
+.wg-opt.right { background: var(--grass); color: var(--on-color); outline: 5px solid var(--grass-hi); outline-offset: 2px; animation: wg-pop .3s ease-out; }
+.wg-opt.right::after { content: '✓'; position: absolute; top: 4px; right: 10px; font-size: 28px; }
+.wg-opt.wrong { background: var(--redstone); color: var(--on-color); animation: wg-shake .35s; }
+@keyframes wg-pop { 50% { transform: scale(1.05); } }
+@keyframes wg-shake { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+.wg-after { min-height: 64px; display: flex; align-items: center; justify-content: center; gap: 16px; flex-wrap: wrap; text-align: center; }
+.wg-fb { margin: 0; font-family: var(--f-display); font-size: 24px; }
+.wg-fb.good { color: var(--grass); }
+.wg-fb.bad { color: var(--ink); }
+.wg-fb b { font-family: var(--f-kid); font-weight: 400; font-size: 28px; color: var(--grass); }
+.wg-next { font-family: var(--f-display); font-size: 22px; min-height: 56px; padding: 8px 22px 12px; background: var(--grass); color: var(--on-color); border: 3px solid var(--edge);
+  box-shadow: inset 0 -5px 0 var(--shade); cursor: pointer; }
+
+/* 짝 맞추기: 뒷면은 ? 블록, 앞면은 영어/한글 띠 카드 */
+.wg-board { display: grid; gap: 12px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (min-width: 900px) { .wg-board.n12 { grid-template-columns: repeat(6, minmax(0, 1fr)); } .wg-board.n16 { grid-template-columns: repeat(8, minmax(0, 1fr)); } }
+@media (max-width: 480px) { .wg-board { grid-template-columns: repeat(3, minmax(0, 1fr)); } .wg-board.n8 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.wg-tile { position: relative; aspect-ratio: 4 / 3; min-height: 72px; padding: 22px 6px 8px; border: 3px solid var(--edge); cursor: pointer; display: grid; place-items: center;
+  background: var(--gold); color: var(--gold-ink); box-shadow: inset 0 -6px 0 var(--shade), inset 0 4px 0 var(--shine); overflow: hidden; }
+.wg-tile .q { font-family: var(--f-pixel); font-size: clamp(26px, 4vw, 38px); opacity: .75; margin-top: -14px; }
+.wg-tile.up { background: var(--panel); color: var(--ink); box-shadow: inset 0 -4px 0 var(--shade); animation: wg-flip .22s ease-out; }
+.wg-tile .tag { position: absolute; top: 0; left: 0; right: 0; padding: 2px 0 3px; font-size: 12px; font-family: var(--f-body); }
+.wg-tile.en .tag { background: var(--helper-edge); color: var(--on-color); }
+.wg-tile.ko .tag { background: var(--gold); color: var(--gold-ink); }
+.wg-tile .word { font-family: var(--f-kid); font-size: clamp(18px, 2.6vw, 26px); line-height: 1.15; overflow-wrap: anywhere; text-align: center; }
+.wg-tile.done { border-color: var(--grass); opacity: .7; cursor: default; }
+.wg-tile.done::after { content: '✓'; position: absolute; right: 6px; bottom: 2px; color: var(--grass); font-size: 20px; }
+.wg-tile:active:not(:disabled) { transform: translateY(2px); }
+@keyframes wg-flip { from { transform: rotateY(80deg); } }
+
+/* 끝 화면: 받은 에메랄드가 하나씩 튀어나온다 */
+.wg-done { max-width: 640px; margin: 10px auto 0; background: var(--panel); border: 3px solid var(--edge); box-shadow: 0 7px 0 var(--shade); padding: 24px 18px; display: grid; gap: 12px; justify-items: center; text-align: center; }
+.wg-gems { display: flex; gap: 10px; min-height: 52px; align-items: center; }
+.wg-gems i { width: 36px; height: 44px; animation: wg-gem .4s ease-out both; animation-delay: var(--d, 0ms); }
+@keyframes wg-gem { from { transform: translateY(18px) scale(.3); opacity: 0; } 70% { transform: translateY(-6px) scale(1.1); opacity: 1; } }
+.wg-done h2 { margin: 0; font-family: var(--f-display); font-weight: 400; font-size: 40px; }
+.wg-done > p { margin: 0; font-size: 18px; }
+.wg-review p { margin: 6px 0; color: var(--muted); font-size: 15px; }
+.wg-review ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.wg-review li { border: 2px solid var(--line); padding: 4px 10px; background: var(--panel-2); display: flex; gap: 8px; align-items: baseline; }
+.wg-review b { font-family: var(--f-kid); font-weight: 400; font-size: 20px; }
+.wg-review span { color: var(--muted); }
+.wg-done-go { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 6px; }
+.wg-again, .wg-other { font-family: var(--f-display); font-size: 22px; min-height: 58px; padding: 8px 22px 12px; border: 3px solid var(--edge); cursor: pointer; box-shadow: inset 0 -5px 0 var(--shade); }
+.wg-again { background: var(--grass); color: var(--on-color); }
+.wg-other { background: var(--panel-2); color: var(--ink); }
+@media (prefers-reduced-motion: reduce) { .wg-opt.right, .wg-opt.wrong, .wg-tile.up, .wg-gems i { animation: none; } }

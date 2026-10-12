@@ -21,90 +21,91 @@
     <a href="practice.html">문장 연습</a>
     <a href="words.html" aria-current="page">단어 게임</a>
   </nav>
-  <header class="top">
-    <div class="brand">
-      <div class="eyebrow">Word games · 내 문장 속 단어</div>
-      <h1>단어 게임</h1>
+
+  <header class="wg-head">
+    <h1>단어 게임</h1>
+    <div class="wg-me">
+      <div id="kidPick"></div>
+      <p class="wg-badges" id="badges"></p>
     </div>
-    <div id="kidPick"></div>
   </header>
 
-  <section class="learn-home" id="home">
-    <p class="who" id="who">누가 하나요? 위에서 이름을 눌러 주세요.</p>
-    <div class="stats" id="stats"></div>
-    <div class="row learn-filter">
-      <label class="lab" for="proj">어떤 영상 단어로 할까요?</label>
-      <select id="proj"></select>
+  <!-- 처음 화면: 게임 판의 버튼을 누르면 바로 시작 -->
+  <section class="wg-home" id="home">
+    <p class="wg-msg" id="homeMsg" role="status"></p>
+    <div class="wg-games" id="games">
+      <article class="wg-game">
+        <div class="wg-art wg-art-match" aria-hidden="true"><i>?</i><i class="b">?</i><i>?</i></div>
+        <h2>짝 맞추기</h2>
+        <p>카드를 뒤집어서 영어와 한글 짝을 찾아요</p>
+        <div class="wg-go" role="group" aria-label="짝 맞추기 시작">
+          <button type="button" data-go="match" data-pairs="4">4쌍</button>
+          <button type="button" data-go="match" data-pairs="6">6쌍</button>
+          <button type="button" data-go="match" data-pairs="8">8쌍</button>
+        </div>
+      </article>
+      <article class="wg-game">
+        <div class="wg-art wg-art-quiz" aria-hidden="true"><span class="sign">집</span><span class="ops"><i></i><i></i><i></i><i></i></span></div>
+        <h2>보고 고르기</h2>
+        <p>뜻이나 단어를 보고 맞는 것을 4개 중에서 골라요</p>
+        <div class="wg-go" role="group" aria-label="보고 고르기 시작">
+          <button type="button" data-go="quiz" data-dir="ko2en" aria-label="한글 보고 영어 고르기">한글 → 영어</button>
+          <button type="button" data-go="quiz" data-dir="en2ko" aria-label="영어 보고 한글 고르기">영어 → 한글</button>
+          <button type="button" data-go="quiz" data-dir="mix">섞어서</button>
+        </div>
+      </article>
     </div>
-    <div class="game-pick" role="group" aria-label="게임 고르기">
-      <button type="button" class="gp" data-kind="match">
-        <b>짝 맞추기</b><span>영어 카드와 한글 카드의 짝을 찾아요</span>
-      </button>
-      <button type="button" class="gp" data-kind="quiz">
-        <b>보고 고르기</b><span>뜻이나 단어를 보고 맞는 것을 골라요</span>
-      </button>
+    <div class="wg-foot">
+      <label class="wg-src">단어 가져올 영상
+        <select id="proj"></select>
+      </label>
+      <button type="button" class="wg-link" id="openList" aria-expanded="false"></button>
     </div>
-    <div class="row level" role="group" aria-label="카드 수" id="matchOpts">
-      <span class="lab">카드</span>
-      <button type="button" class="lvl" data-pairs="4">4쌍 (쉬움)</button>
-      <button type="button" class="lvl" data-pairs="6">6쌍 (보통)</button>
-      <button type="button" class="lvl" data-pairs="8">8쌍 (어려움)</button>
+    <div class="wg-list" id="list" hidden>
+      <ul id="wordList"></ul>
     </div>
-    <div class="row level" role="group" aria-label="문제 방향" id="quizOpts" hidden>
-      <span class="lab">문제</span>
-      <button type="button" class="lvl" data-dir="ko2en">한글 보고 영어 고르기</button>
-      <button type="button" class="lvl" data-dir="en2ko">영어 보고 한글 고르기</button>
-      <button type="button" class="lvl" data-dir="mix">섞어서</button>
-    </div>
-    <div class="row">
-      <button class="btn big grass" id="start" type="button" disabled>게임 시작</button>
-    </div>
-    <p class="note" id="homeNote" role="status"></p>
-    <details class="sent-list">
-      <summary>내 단어장 보기</summary>
-      <ul class="word-list" id="wordList"></ul>
-    </details>
   </section>
 
-  <section class="game" id="game" hidden>
-    <div class="session-top">
-      <span class="count" id="found"></span>
-      <span class="count" id="moves"></span>
-      <span class="count" id="clock"></span>
-      <button class="btn small" id="quit" type="button">그만하기</button>
+  <!-- 보고 고르기 -->
+  <section class="wg-play" id="quiz" hidden>
+    <div class="wg-bar">
+      <ol class="wg-steps" id="qSteps" aria-label="문제 진행"></ol>
+      <button type="button" class="wg-quit" id="qQuit">그만하기</button>
     </div>
-    <div class="board" id="board"></div>
+    <div class="wg-sign">
+      <p class="wg-ask" id="qLabel"></p>
+      <p class="wg-prompt" id="qPrompt"></p>
+      <button type="button" class="wg-say" id="qSay" hidden>다시 듣기</button>
+    </div>
+    <div class="wg-opts" id="qOpts"></div>
+    <div class="wg-after">
+      <p class="wg-fb" id="qFb" role="status"></p>
+      <button type="button" class="wg-next" id="qNext" hidden>다음 문제</button>
+    </div>
   </section>
 
-  <section class="quiz" id="quiz" hidden>
-    <div class="session-top">
-      <span class="count" id="qCount"></span>
-      <span class="count" id="qScore"></span>
-      <div class="bar" aria-hidden="true"><i id="qFill"></i></div>
-      <button class="btn small" id="qQuit" type="button">그만하기</button>
+  <!-- 짝 맞추기 -->
+  <section class="wg-play" id="game" hidden>
+    <div class="wg-bar">
+      <ol class="wg-steps" id="mSteps" aria-label="찾은 짝"></ol>
+      <span class="wg-moves" id="moves"></span>
+      <button type="button" class="wg-quit" id="quit">그만하기</button>
     </div>
-    <article class="qcard">
-      <p class="q-label" id="qLabel"></p>
-      <div class="q-prompt-row">
-        <p class="q-prompt" id="qPrompt"></p>
-        <button class="btn small listen" type="button" id="qSay" hidden>다시 듣기</button>
-      </div>
-      <div class="q-opts" id="qOpts"></div>
-      <p class="pfb" id="qFb" role="status"></p>
-      <div class="row" id="qNextRow" hidden><button class="btn big grass" type="button" id="qNext">다음 →</button></div>
-    </article>
+    <div class="wg-board" id="board"></div>
   </section>
 
-  <section class="done" id="done" hidden>
-    <h2 id="doneTitle">다 찾았어요!</h2>
+  <!-- 끝 -->
+  <section class="wg-done" id="done" hidden>
+    <div class="wg-gems" id="gems" aria-hidden="true"></div>
+    <h2 id="doneTitle"></h2>
     <p id="doneText"></p>
-    <div class="row">
-      <button class="btn big grass" id="again" type="button">한 판 더</button>
-      <button class="btn big" id="home2" type="button">처음으로</button>
+    <div class="wg-review" id="review"></div>
+    <div class="wg-done-go">
+      <button type="button" class="wg-again" id="again">한 판 더</button>
+      <button type="button" class="wg-other" id="home2">다른 게임</button>
     </div>
   </section>
 </div>
-<div class="toast" id="toast" role="status" hidden></div>
 <script type="module" src="js/words.js"></script>
 </body>
 </html>

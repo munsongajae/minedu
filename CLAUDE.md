@@ -10,7 +10,7 @@
 
 ## 대상 환경
 
-- Windows PC의 크롬·엣지, 갤럭시탭의 크롬(안드로이드). 둘 다에서 확인할 것.
+- Windows PC의 크롬·엣지, 갤럭시탭의 크롬(안드로이드). 둘 다에서 확인할 것. 맥북은 크롬 권장(사파리는 시험 안 함, 사파리는 7일 넘게 안 쓰면 사이트 저장 데이터를 지울 수 있음). 사진 넣기 안내는 맥이면 Cmd+Ctrl+Shift+4 / Cmd+V(`#howMac`).
 - GitHub Pages(https)로 배포하는 정적 사이트(https://munsongajae.github.io/minedu/).
 - 서버 쪽은 Supabase Edge Function `coach` 하나뿐(`supabase/functions/coach/index.ts`, Deno): AI 도우미 + 작품 서버 저장. 앱은 `js/config.js`의 `COACH_URL`로 부른다. Gemini API(`generateContent`, JSON 스키마 출력)를 부른다. 프로젝트 ref: `uwqakkbwaqtrrqvhzzvz`.
 - 마이크(getUserMedia)는 https나 localhost에서만 된다.

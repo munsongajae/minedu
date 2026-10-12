@@ -1268,7 +1268,9 @@ $('#shareBtn').addEventListener('click', async () => {
 
 /* ---------- 시작 ---------- */
 async function init() {
+  const MAC = /Mac/i.test((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '') && !TOUCH;
   if (TOUCH) { $('#howPC').hidden = true; $('#howTab').hidden = false; }
+  else if (MAC) { $('#howPC').hidden = true; $('#howMac').hidden = false; }
   initParentPanel();
   store.askPersist();
   const all = await store.loadAll();

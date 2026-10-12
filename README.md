@@ -43,8 +43,8 @@
    | `APP_PASSCODE` | 가족 암호(아무 문장이나. 이걸 아는 기기만 AI를 쓸 수 있어요) |
    | `GEMINI_MODEL` | (선택) 기본값 `gemini-3.5-flash-lite` |
 
-3. **함수 만들기** — Edge Functions → **Deploy a new function → Via Editor**. 이름은 반드시 `coach`로 하고, 이 저장소의 `supabase/functions/coach/index.ts` 내용을 통째로 붙여 넣은 뒤 **Deploy**.
-4. **JWT 검증 끄기** — 만든 `coach` 함수의 설정(Details)에서 **Verify JWT / Enforce JWT verification**을 끄고 저장합니다. 앱은 로그인 없이 부르고, 대신 가족 암호로 막습니다.
+3. **함수 코드 넣기** — 이 프로젝트의 함수 이름은 `quick-function`입니다. 그 함수의 편집기에 이 저장소의 `supabase/functions/coach/index.ts` 내용을 통째로 붙여 넣고 **Deploy**. (함수를 새로 만들면 그 이름에 맞춰 `js/config.js`의 `COACH_URL`도 바꿉니다.)
+4. **JWT 검증 끄기** — `quick-function` 함수의 설정(Details)에서 **Verify JWT / Enforce JWT verification**을 끄고 저장합니다. 앱은 로그인 없이 부르고, 대신 가족 암호로 막습니다.
 5. **기기마다 암호 넣기** — 앱 맨 아래 **부모님 설정 → 가족 암호**에 `APP_PASSCODE`와 같은 값을 넣고 **저장하고 연결 확인**. "연결됐어요"가 나오면 끝.
 
 Supabase CLI를 쓴다면 3·4번 대신:

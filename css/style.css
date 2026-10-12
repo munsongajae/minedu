@@ -156,6 +156,14 @@ input[type=text] { width: 100%; font-family: var(--f-kid); font-size: 18px; }
 .line-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin: -10px -12px 0; padding: 6px 12px; background: var(--panel-2); border-bottom: 2px solid var(--line); }
 .line-name { font-family: var(--f-display); font-size: 19px; }
 
+/* 말로 쓰기 */
+.lab-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+.lab-row .lab { margin-bottom: 0; }
+.btn.mic { background: var(--gold); color: var(--gold-ink); }
+.btn.mic.on { background: var(--redstone); color: var(--on-color); }
+.btn.mic.on svg { animation: blink 1s steps(2) infinite; }
+@media (prefers-reduced-motion: reduce) { .btn.mic.on svg { animation: none; } }
+
 /* AI 영어 도우미 */
 .btn.diamond { background: var(--helper-edge); color: var(--on-color); }
 .tabs { display: flex; border: 2px solid var(--edge); width: fit-content; max-width: 100%; }

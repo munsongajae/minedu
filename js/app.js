@@ -5,6 +5,7 @@ import { renderVideo, totalDur, canMakeVideo } from './video.js';
 import { canRecord, startRecording, micErrorMessage } from './recorder.js';
 import { aiEnabled, coach, aiMessage, getFamilyCode, setFamilyCode } from './ai.js';
 import { importPortfolioPdf, isPdf } from './pdf-import.js';
+import { canDictate, startDictation, tidyKorean, dictationMessage } from './dictation.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
@@ -15,11 +16,13 @@ const ICON = {
   speaker: '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M2 6h3l4-3v10l-4-3H2zM11 5h1v6h-1zM13 3h1v10h-1z"/></svg>',
   up: '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M7 3h2v2h2v2h2v2H9v5H7V9H3V7h2V5h2z"/></svg>',
   down: '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M7 2h2v5h4v2h-2v2H9v2H7v-2H5V9H3V7h4z"/></svg>',
-  spark: '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M7 1h2v5h5v2H9v5H7V8H2V6h5z"/></svg>'
+  spark: '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M7 1h2v5h5v2H9v5H7V8H2V6h5z"/></svg>',
+  mic: '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M6 1h4v1h1v6h-1v1H6V8H5V2h1zM3 6h1v2h1v1h1v1h4V9h1V8h1V6h1v3h-1v1h-1v1H9v2h3v2H4v-2h3v-2H5v-1H4V9H3z"/></svg>'
 };
 const AI_ON = aiEnabled();
 
 const MIC_OK = canRecord();
+const DICT_OK = canDictate();
 const TOUCH = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
 
 /* ---------- 상태 ---------- */
@@ -31,6 +34,7 @@ let rendering = false;
 let cancelRequested = false;
 let result = null; // { blob, ext, total, url }
 const rec = { lineId: null, sceneId: null, handle: null, timer: null };
+const dict = { lineId: null, sceneId: null, handle: null };   // 말로 쓰기(음성 입력) 중인 문장
 const busy = new Map();      // 문장 id → { kind: 'translate'|'check', ctl: AbortController }
 const statusMsg = new Map(); // 문장 id → { text, err }
 
@@ -218,6 +222,11 @@ function aiBoxHTML(l) {
   return `${tabs}<div class="ai-box">${inner}</div>`;
 }
 
+function dictButtonHTML(l) {
+  const on = dict.lineId === l.id;
+  return `<button class="btn small mic ${on ? 'on' : ''}" type="button" data-act="dictate" aria-pressed="${on}">${ICON.mic} ${on ? '듣는 중이에요… 다 말하면 눌러요' : '말로 쓰기'}</button>`;
+}
+
 function lineHTML(l, j, n) {
   const many = n > 1;
   return `<section class="line" data-line="${l.id}">
@@ -230,7 +239,10 @@ function lineHTML(l, j, n) {
       </div>` : ''}
     </div>
     <div class="field">
-      <label class="lab" for="ko-${l.id}">한글로 쓰기</label>
+      <div class="lab-row">
+        <label class="lab" for="ko-${l.id}">한글로 쓰기</label>
+        ${DICT_OK ? dictButtonHTML(l) : ''}
+      </div>
       <textarea id="ko-${l.id}" data-field="ko" rows="2" placeholder="${j === 0 ? '이 사진에서 무엇을 했나요?' : '이어서 하고 싶은 말을 써요'}">${esc(l.ko)}</textarea>
     </div>
     ${AI_ON ? aiBoxHTML(l) : ''}
@@ -444,6 +456,7 @@ async function toggleRecord(s, l) {
     return;
   }
   if (rec.lineId) { toast('다른 문장을 녹음하고 있어요. 먼저 녹음을 끝내 주세요.'); return; }
+  if (dict.lineId) { toast('말로 쓰기가 끝나면 녹음해 주세요.'); return; }
   if (!l.en.trim()) toast('영어 문장을 먼저 써 두면 보면서 읽을 수 있어요');
   try {
     rec.handle = await startRecording();
@@ -456,6 +469,37 @@ async function toggleRecord(s, l) {
     }, 250);
   } catch (e) {
     toast(micErrorMessage(e));
+  }
+}
+
+/* ---------- 말로 쓰기(음성 입력) ---------- */
+const joinText = (base, add) => (base && add ? base + ' ' + add : base || add);
+function stopDictation() { if (dict.handle) dict.handle.stop(); }
+function toggleDictation(s, l) {
+  if (dict.lineId === l.id) { stopDictation(); return; }
+  if (rec.lineId) { toast('녹음하는 동안에는 말로 쓰기를 할 수 없어요. 녹음을 먼저 끝내 주세요.'); return; }
+  if (dict.lineId) stopDictation();
+  const base = l.ko.trim();
+  try {
+    dict.handle = startDictation({
+      lang: 'ko-KR',
+      onText: (text) => {
+        const ta = document.getElementById('ko-' + l.id);
+        if (ta) ta.value = joinText(base, text);
+      },
+      onError: (code) => toast(dictationMessage(code)),
+      onEnd: (finalText) => {
+        dict.lineId = null; dict.sceneId = null; dict.handle = null;
+        if (finalText) { l.ko = joinText(base, tidyKorean(finalText)); s.example = false; save(); }
+        const now = sceneOfLine(l);
+        if (now) rerenderCard(now.id);
+      }
+    });
+    dict.lineId = l.id; dict.sceneId = s.id;
+    rerenderCard(s.id);
+  } catch (e) {
+    dict.lineId = null; dict.handle = null;
+    toast(dictationMessage('unknown'));
   }
 }
 
@@ -610,6 +654,7 @@ scenesEl.addEventListener('click', async (e) => {
     b.parentElement.innerHTML = '<button class="btn small" type="button" data-act="del">장면 지우기</button>';
   } else if (act === 'del-yes') {
     if (rec.sceneId === s.id) await stopRecordingNow();
+    if (dict.sceneId === s.id) stopDictation();
     s.lines.forEach(abortLine);
     project.scenes.splice(i, 1);
     save(); renderScenes(); renderProjectBar();
@@ -665,6 +710,7 @@ scenesEl.addEventListener('click', async (e) => {
   } else if (act === 'line-del-yes') {
     if (s.lines.length <= 1) return;
     if (rec.lineId === l.id) await stopRecordingNow();
+    if (dict.lineId === l.id) stopDictation();
     abortLine(l);
     s.lines.splice(j, 1);
     save(); rerenderCard(s.id);
@@ -679,6 +725,7 @@ scenesEl.addEventListener('click', async (e) => {
   else if (act === 'papago') openPapago(l.ko);
   else if (act === 'audio-remove') { l.audio = null; l.audioName = ''; l.audioDur = 0; save(); rerenderCard(s.id); }
   else if (act === 'rec') toggleRecord(s, l);
+  else if (act === 'dictate') toggleDictation(s, l);
 });
 
 /* ---------- 이벤트: 프로젝트 ---------- */
@@ -787,6 +834,7 @@ function resetResult() {
 async function makeVideo() {
   if (rendering || !project.scenes.some(s => s.images.length)) return;
   if (rec.lineId) { toast('녹음을 먼저 끝내 주세요'); return; }
+  stopDictation();
   if (!canMakeVideo()) { $('#makeNote').textContent = '이 브라우저에서는 영상을 만들 수 없어요. 크롬이나 엣지에서 열어 주세요.'; return; }
   rendering = true; cancelRequested = false;
   resetResult();

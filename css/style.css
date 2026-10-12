@@ -156,6 +156,25 @@ input[type=text] { width: 100%; font-family: var(--f-kid); font-size: 18px; }
 .line-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin: -10px -12px 0; padding: 6px 12px; background: var(--panel-2); border-bottom: 2px solid var(--line); }
 .line-name { font-family: var(--f-display); font-size: 19px; }
 
+/* 서버 저장 */
+.cloudbar { margin: 0 0 14px; border: 2px solid var(--edge); background: var(--panel); }
+.cloud-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 12px; }
+.cloud-status { margin: 0; flex: 1 1 260px; min-width: 0; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+.cloud-status::before { content: ''; flex: none; width: 12px; height: 12px; border: 2px solid var(--edge); background: var(--line); }
+.cloud-status[data-state="saved"]::before { background: var(--grass); }
+.cloud-status[data-state="saving"]::before { background: var(--gold); animation: blink 1s steps(2) infinite; }
+.cloud-status[data-state="error"]::before, .cloud-status[data-state="conflict"]::before { background: var(--redstone); }
+@media (prefers-reduced-motion: reduce) { .cloud-status[data-state="saving"]::before { animation: none; } }
+.cloud-panel { border-top: 2px solid var(--line); padding: 10px 12px 12px; display: grid; gap: 8px; }
+.cloud-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.cloud-item { display: grid; grid-template-columns: 112px minmax(0, 1fr) auto; gap: 12px; align-items: center; border: 2px solid var(--line); padding: 8px; background: var(--panel); }
+.cloud-item img, .cloud-item .noimg { width: 112px; aspect-ratio: 16 / 10; object-fit: cover; border: 2px solid var(--edge); background: #0d1014; display: block; }
+.cloud-item .t { font-family: var(--f-display); font-size: 19px; overflow-wrap: anywhere; }
+.cloud-item .m { font-size: 13px; color: var(--muted); }
+.cloud-item .row { justify-content: flex-end; }
+@media (max-width: 640px) { .cloud-item { grid-template-columns: 80px minmax(0, 1fr); } .cloud-item img, .cloud-item .noimg { width: 80px; } .cloud-item .row { grid-column: 1 / -1; justify-content: flex-start; } }
+.parent input[type=text] { font: inherit; color: var(--ink); background: var(--panel); border: 2px solid var(--edge); padding: 8px 10px; min-height: 44px; max-width: 240px; border-radius: 0; box-shadow: none; font-family: var(--f-body); font-size: 16px; }
+
 /* 발음 들어 보기 */
 .listen-box { display: grid; gap: 8px; margin-top: 6px; }
 .listen-box .helpers { margin-top: 0; }

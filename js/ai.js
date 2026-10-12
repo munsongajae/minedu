@@ -37,7 +37,7 @@ export async function coach(action, payload, signal) {
     // 우리 함수가 아니라 Supabase가 먼저 막은 경우를 구분한다.
     if (!code && res.status === 401) code = 'jwt_on';
     if (!code && res.status === 404) code = 'no_function';
-    throw { code: code || 'ai_error' };
+    throw { code: code || 'ai_error', status: res.status, data };
   }
   return data;
 }
@@ -54,7 +54,13 @@ const MESSAGES = {
   origin: '이 주소에서는 AI 도우미를 쓸 수 없어요.',
   jwt_on: 'AI 도우미 준비가 덜 됐어요. (부모님: Supabase 함수의 JWT 검증을 꺼 주세요)',
   no_function: 'AI 도우미를 찾지 못했어요. (부모님: Supabase 함수 주소(js/config.js)를 확인해 주세요)',
-  off: 'AI 도우미가 꺼져 있어요.'
+  off: 'AI 도우미가 꺼져 있어요.',
+  cloud_error: '서버 저장소에 문제가 생겼어요. 잠깐 뒤에 다시 해 봐요.',
+  not_found: '서버에서 이 영상을 찾지 못했어요.',
+  upload_failed: '파일을 서버에 올리지 못했어요. 인터넷을 확인해 주세요.',
+  download_failed: '서버에서 파일을 받지 못했어요. 인터넷을 확인해 주세요.',
+  missing_file: '서버에 빠진 파일이 있어요. 처음 저장한 기기에서 다시 저장해 주세요.',
+  too_big: '영상 내용이 너무 커요.'
 };
 export function aiMessage(e) {
   const code = e && e.code;

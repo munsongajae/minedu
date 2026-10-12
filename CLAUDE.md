@@ -12,7 +12,7 @@
 
 - Windows PC의 크롬·엣지, 갤럭시탭의 크롬(안드로이드). 둘 다에서 확인할 것.
 - GitHub Pages(https)로 배포하는 정적 사이트(https://munsongajae.github.io/minedu/).
-- 서버 쪽은 Supabase Edge Function `coach` 하나뿐(`supabase/functions/coach/index.ts`, Deno). 앱은 `js/config.js`의 `COACH_URL`로 부른다. Gemini API(`generateContent`, JSON 스키마 출력)를 부른다. 프로젝트 ref: `uwqakkbwaqtrrqvhzzvz`.
+- 서버 쪽은 Supabase Edge Function `coach` 하나뿐(`supabase/functions/coach/index.ts`, Deno): AI 도우미 + 작품 서버 저장. 앱은 `js/config.js`의 `COACH_URL`로 부른다. Gemini API(`generateContent`, JSON 스키마 출력)를 부른다. 프로젝트 ref: `uwqakkbwaqtrrqvhzzvz`.
 - 마이크(getUserMedia)는 https나 localhost에서만 된다.
 
 ## AI 영어 도우미
@@ -28,13 +28,23 @@
 ## 기술 원칙
 
 - 빌드 도구·프레임워크 없이 순수 HTML/CSS/JS(ES 모듈). npm 의존성을 추가하지 않는다.
-- 데이터는 IndexedDB(`js/storage.js`)에만. 프로젝트 객체 안에 이미지·오디오 Blob을 그대로 저장한다.
+- 데이터는 기기의 IndexedDB(`js/storage.js`)가 기본. 프로젝트 객체 안에 이미지·오디오 Blob을 그대로 저장한다. 가족 암호가 있으면 서버(Supabase Storage)에도 자동으로 올린다.
 - 영상은 `js/video.js`에서 캔버스(1280×720)에 그리고 `canvas.captureStream` + Web Audio(`MediaStreamDestination`) + `MediaRecorder`로 실시간 녹화한다. 그리기 시계는 `AudioContext.currentTime`.
 - 영상 녹화 주의: 소리 트랙에 소리가 끊기면 mp4 녹화가 앞부분(약 1~2초)만 저장되는 문제가 있어서, 들리지 않는 아주 작은 소리(`hum`)를 늘 흘린다. 그리기는 requestAnimationFrame 흐름 하나만 돌리고, 느린 타이머는 그리기가 멈췄을 때만 대신 그린다.
 - 시험: `/opt/pw-browsers`의 Chromium + Python Playwright로 PDF 넣기 → 영상 만들기 → 저장까지 돌릴 수 있다(오픈소스 Chromium이라 mp4가 H.264가 아닌 VP9로 나오는 건 정상).
 - 색과 글꼴은 `css/style.css` 맨 위 `:root` 토큰만 쓴다. 다크 모드 값은 바로 아래 미디어 쿼리.
 - 앱 파일을 바꾸면 `sw.js`의 `CACHE` 이름 숫자를 올린다(안 올리면 기기에 옛 버전이 남을 수 있음). 새 JS 파일을 만들면 `ASSETS`에도 넣는다.
 - 상표 보호: 마인크래프트 로고·캐릭터·공식 블록 텍스처를 그리거나 넣지 않는다. 블록 풍경은 직접 만든 일반 그림만.
+
+## 서버 저장(다른 기기에서 이어서 하기)
+
+- 로그인 없이 가족 암호로 연다. `coach` 함수의 `cloud_*` 동작: `cloud_list`, `cloud_head {id}`, `cloud_need {hashes}`, `cloud_save {id, doc, baseRev, device, force?}`, `cloud_load {id}`, `cloud_delete {id}`.
+- 저장소: Supabase Storage 비공개 버킷 `blockstudio`(함수가 처음 쓸 때 만듦). `docs/<id>.json` = 작품 내용(사진·소리는 `{ref: sha256, type}`), `media/<sha256>` = 파일. 같은 파일은 한 번만 올라간다.
+- 큰 파일은 함수를 거치지 않는다: `cloud_need`가 없는 파일만 서명된 업로드 주소를 주고, 앱이 그 주소로 바로 PUT(FormData)한다. 내려받기도 서명된 주소(1시간).
+- 엇갈림: 서버 문서의 `rev`와 앱이 아는 `project.cloud.rev`가 다르면 409 `conflict`. 앱은 "그 기기 것 불러오기"(이 기기 것은 '(이 기기 사본)'으로 남김) 또는 "이 기기 것으로 덮어쓰기"(`force`)를 고르게 한다.
+- 앱(`js/cloud.js`, app.js의 '서버 저장' 부분): 고칠 때마다 `project.cloud.dirty`를 켜고 3초 뒤 자동으로 올린다. 열 때·다시 돌아왔을 때 `cloud_head`로 확인해서, 이 기기에 안 올린 고침이 없으면 새 내용을 저절로 받고, 있으면 엇갈림을 묻는다. 예시 영상(`project.example`)은 올리지 않는다.
+- `project.cloud = { on, rev, dirty, seq, syncedAt, device, serverAt }`. 기기 이름은 localStorage(`block-studio-device`, 기본 'PC'/'태블릿').
+- 함수 코드를 고치면 Supabase에 다시 붙여 넣어야 한다. 시험은 Playwright `context.route`로 함수와 저장소를 흉내 내서 두 기기(컨텍스트)로 한다.
 
 ## 배경 음악
 
@@ -101,5 +111,4 @@ python3 -m http.server 8080   # http://localhost:8080
 
 ## 다음에 하면 좋은 것 (아직 안 함)
 
-- 프로젝트 백업·옮기기: 프로젝트를 zip 하나로 내보내고 다른 기기에서 불러오기(PC ↔ 태블릿).
 - 장면 순서 끌어서 바꾸기, 장면별 길이 조절, 배경 음악.

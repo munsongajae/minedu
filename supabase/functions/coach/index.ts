@@ -1,14 +1,20 @@
-// 곰이난이 블록 스튜디오 — AI 영어 도우미 (Supabase Edge Function)
+// 곰이난이 블록 스튜디오 — AI 영어 도우미 + 작품 서버 저장 (Supabase Edge Function)
 //
-// 앱이 이 함수에 한글 설명이나 아이가 쓴 영어를 보내면, 이 함수가 Gemini API를 불러
-// 번역(translate) 또는 첨삭(check) 결과를 JSON으로 돌려준다.
-// Gemini API 키는 이 함수의 비밀값(Secret)에만 있고, 앱(브라우저)에는 절대 들어가지 않는다.
+// 1) AI: 앱이 한글 설명이나 아이가 쓴 영어를 보내면 Gemini API를 불러
+//    번역(translate) 또는 첨삭(check) 결과를 JSON으로 돌려준다.
+// 2) 서버 저장(cloud_*): 작품 내용(JSON)과 사진·녹음·음악 파일을 Supabase 저장소의
+//    비공개 버킷에 두어, 다른 기기에서 이어서 편집할 수 있게 한다.
+//    큰 파일은 이 함수를 거치지 않고, 이 함수가 만들어 준 서명된 주소로 앱이 저장소에 바로 올린다.
+// Gemini API 키와 저장소 비밀 키는 이 함수 안에만 있고, 앱(브라우저)에는 절대 들어가지 않는다.
 //
 // 필요한 Secret
 //   GEMINI_API_KEY   (필수) Google AI Studio에서 받은 키
-//   APP_PASSCODE     (권장) 가족 암호. 정해 두면 이 암호를 아는 기기만 AI를 쓸 수 있다.
+//   APP_PASSCODE     (권장) 가족 암호. 정해 두면 이 암호를 아는 기기만 AI와 서버 저장을 쓸 수 있다.
 //   GEMINI_MODEL     (선택) 기본값 gemini-3.5-flash-lite
 //   ALLOWED_ORIGINS  (선택) 쉼표로 구분한 허용 주소. 기본값 https://munsongajae.github.io
+//
+// 저장소 접근에 쓰는 SUPABASE_URL과 비밀 키(SUPABASE_SECRET_KEYS 또는 SUPABASE_SERVICE_ROLE_KEY)는
+// Supabase가 함수에 자동으로 넣어 준다. 버킷(blockstudio, 비공개)은 처음 쓸 때 자동으로 만든다.
 //
 // 함수 설정: JWT 검증(verify_jwt)을 끈다. 접근은 위의 가족 암호로 막는다.
 
@@ -19,7 +25,10 @@ const ALLOWED = (Deno.env.get('ALLOWED_ORIGINS') ?? 'https://munsongajae.github.
   .split(',').map((s) => s.trim()).filter(Boolean);
 
 const MAX_TEXT = 600;          // 글 한 칸에 받는 최대 글자 수
-const RATE_PER_MIN = 30;       // 한 주소에서 1분에 받는 최대 요청 수
+const RATE_PER_MIN = 30;       // 한 주소에서 1분에 받는 최대 AI 요청 수
+const CLOUD_RATE_PER_MIN = 150; // 서버 저장 요청 수(자동 저장이 잦아서 넉넉하게)
+const MAX_DOC = 2_000_000;      // 작품 내용 JSON 최대 크기(사진·소리 파일은 따로 올라가므로 작다)
+const MAX_HASHES = 400;
 
 function originAllowed(origin) {
   if (!origin) return false;
@@ -46,13 +55,13 @@ function reply(origin, status, body) {
 
 // 함수 인스턴스 안에서만 세는 간단한 속도 제한 (완벽하지 않지만 실수로 버튼을 연타하는 정도는 막는다)
 const hits = new Map();
-function rateLimited(key) {
+function rateLimited(key, max = RATE_PER_MIN) {
   const now = Date.now();
   const list = (hits.get(key) ?? []).filter((t) => now - t < 60_000);
   list.push(now);
   hits.set(key, list);
   if (hits.size > 5000) hits.clear();
-  return list.length > RATE_PER_MIN;
+  return list.length > max;
 }
 
 function sameCode(a, b) {
@@ -182,24 +191,184 @@ function shapeCheck(r, attempt) {
   };
 }
 
+// ---------- 작품 서버 저장 ----------
+// 저장소 안 모양:
+//   docs/<작품 id>.json   작품 내용(글, 순서, 설정). 사진·소리는 { ref: <sha256>, type } 로만 가리킨다.
+//   media/<sha256>        사진·녹음·음악 파일. 같은 파일은 한 번만 저장된다.
+const BUCKET = 'blockstudio';
+const ID_RE = /^[a-z0-9]{6,40}$/;
+const HASH_RE = /^[a-f0-9]{64}$/;
+
+let storeReady = null;
+function store() {
+  if (!storeReady) storeReady = makeStore().catch((e) => { storeReady = null; throw e; });
+  return storeReady;
+}
+async function makeStore() {
+  // 시험할 때는 가짜 저장소를 끼울 수 있다(실제 배포에서는 쓰이지 않음).
+  if (globalThis.__BLOCK_STUDIO_TEST_STORE__) return globalThis.__BLOCK_STUDIO_TEST_STORE__;
+  const { createClient } = await import('npm:@supabase/supabase-js@2');
+  let key = '';
+  try { key = JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS') ?? '{}').default ?? ''; } catch (_) { /* 옛 키 사용 */ }
+  key = key || (Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
+  const url = Deno.env.get('SUPABASE_URL') ?? '';
+  if (!url || !key) throw new Error('storage_not_configured');
+  const sb = createClient(url, key, { auth: { persistSession: false } });
+  const { error: getErr } = await sb.storage.getBucket(BUCKET);
+  if (getErr) {
+    const { error } = await sb.storage.createBucket(BUCKET, { public: false });
+    if (error && !/exist/i.test(error.message ?? '')) throw error;
+  }
+  const B = () => sb.storage.from(BUCKET);
+  return {
+    async getJSON(path) {
+      const { data, error } = await B().download(path);
+      if (error || !data) return null;
+      try { return JSON.parse(await data.text()); } catch (_) { return null; }
+    },
+    async putJSON(path, obj) {
+      const body = new Blob([JSON.stringify(obj)], { type: 'application/json' });
+      const { error } = await B().upload(path, body, { upsert: true, contentType: 'application/json', cacheControl: '0' });
+      if (error) throw error;
+    },
+    async listNames(prefix) {
+      const out = [];
+      for (let offset = 0; offset < 5000; offset += 1000) {
+        const { data, error } = await B().list(prefix, { limit: 1000, offset });
+        if (error) throw error;
+        (data ?? []).forEach((f) => out.push(f.name));
+        if (!data || data.length < 1000) break;
+      }
+      return out;
+    },
+    async uploadUrl(path) {
+      const { data, error } = await B().createSignedUploadUrl(path);
+      if (error) throw error;
+      return data.signedUrl;
+    },
+    async downloadUrls(paths) {
+      if (!paths.length) return {};
+      const { data, error } = await B().createSignedUrls(paths, 60 * 60);
+      if (error) throw error;
+      const out = {};
+      (data ?? []).forEach((d) => { if (d.signedUrl) out[d.path] = d.signedUrl; });
+      return out;
+    },
+    async remove(paths) {
+      const { error } = await B().remove(paths);
+      if (error) throw error;
+    }
+  };
+}
+
+const refsOf = (doc) => {
+  const out = new Set();
+  const add = (r) => { if (r && typeof r.ref === 'string' && HASH_RE.test(r.ref)) out.add(r.ref); };
+  add(doc?.music);
+  (doc?.scenes ?? []).forEach((sc) => {
+    (sc.images ?? []).forEach(add);
+    (sc.lines ?? []).forEach((l) => add(l.audio));
+  });
+  return [...out];
+};
+const summaryOf = (doc) => ({
+  id: doc.id, title: String(doc.title ?? ''), makers: String(doc.makers ?? ''),
+  rev: doc.rev ?? 0, updatedAt: doc.updatedAt ?? 0, device: String(doc.device ?? ''),
+  scenes: (doc.scenes ?? []).length,
+  thumb: doc.scenes?.[0]?.images?.[0]?.ref ?? null
+});
+
+async function cloud(action, body) {
+  const S = await store();
+  const id = String(body?.id ?? '');
+  const needId = () => { if (!ID_RE.test(id)) throw new HttpError(400, 'bad_request'); };
+
+  if (action === 'cloud_list') {
+    const names = (await S.listNames('docs')).filter((n) => n.endsWith('.json')).slice(0, 200);
+    const docs = (await Promise.all(names.map((n) => S.getJSON('docs/' + n)))).filter(Boolean);
+    const items = docs.map(summaryOf).sort((a, b) => b.updatedAt - a.updatedAt);
+    const thumbs = await S.downloadUrls([...new Set(items.map((i) => i.thumb).filter(Boolean))].map((h) => 'media/' + h));
+    items.forEach((i) => { i.thumbUrl = i.thumb ? thumbs['media/' + i.thumb] ?? null : null; delete i.thumb; });
+    return { items };
+  }
+  if (action === 'cloud_head') {
+    needId();
+    const doc = await S.getJSON(`docs/${id}.json`);
+    return doc ? { rev: doc.rev ?? 0, updatedAt: doc.updatedAt ?? 0, device: doc.device ?? '' } : { missing: true };
+  }
+  if (action === 'cloud_need') {
+    const hashes = Array.isArray(body?.hashes) ? [...new Set(body.hashes)] : [];
+    if (hashes.length > MAX_HASHES || !hashes.every((h) => HASH_RE.test(h))) throw new HttpError(400, 'bad_request');
+    const have = new Set(await S.listNames('media'));
+    const missing = hashes.filter((h) => !have.has(h));
+    const uploads = await Promise.all(missing.map(async (h) => ({ hash: h, url: await S.uploadUrl('media/' + h) })));
+    return { uploads };
+  }
+  if (action === 'cloud_save') {
+    needId();
+    const doc = body?.doc;
+    if (!doc || typeof doc !== 'object' || doc.id !== id) throw new HttpError(400, 'bad_request');
+    if (JSON.stringify(doc).length > MAX_DOC) throw new HttpError(413, 'too_big');
+    const prev = await S.getJSON(`docs/${id}.json`);
+    const baseRev = Number(body?.baseRev ?? 0);
+    if (prev && (prev.rev ?? 0) !== baseRev && !body?.force) {
+      throw new HttpError(409, 'conflict', { server: { rev: prev.rev ?? 0, updatedAt: prev.updatedAt ?? 0, device: prev.device ?? '' } });
+    }
+    const out = { ...doc, rev: (prev?.rev ?? 0) + 1, updatedAt: Date.now(), device: clean(body?.device).slice(0, 30) };
+    await S.putJSON(`docs/${id}.json`, out);
+    return { rev: out.rev, updatedAt: out.updatedAt };
+  }
+  if (action === 'cloud_load') {
+    needId();
+    const doc = await S.getJSON(`docs/${id}.json`);
+    if (!doc) throw new HttpError(404, 'not_found');
+    const urls = await S.downloadUrls(refsOf(doc).map((h) => 'media/' + h));
+    const byHash = {};
+    Object.entries(urls).forEach(([path, u]) => { byHash[path.replace(/^media\//, '')] = u; });
+    return { doc, urls: byHash };
+  }
+  if (action === 'cloud_delete') {
+    needId();
+    await S.remove([`docs/${id}.json`]);
+    return { ok: true };
+  }
+  throw new HttpError(400, 'bad_request');
+}
+
+class HttpError extends Error {
+  constructor(status, code, extra) { super(code); this.status = status; this.code = code; this.extra = extra; }
+}
+
 // ---------- 요청 처리 ----------
 Deno.serve(async (req) => {
   const origin = req.headers.get('origin') ?? '';
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders(origin) });
   if (req.method !== 'POST') return reply(origin, 405, { error: 'method' });
   if (!originAllowed(origin)) return reply(origin, 403, { error: 'origin' });
-  if (!GEMINI_KEY) return reply(origin, 500, { error: 'not_configured' });
 
   if (PASSCODE && !sameCode(req.headers.get('x-family-code') ?? '', PASSCODE)) {
     return reply(origin, 401, { error: 'bad_code' });
   }
 
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
-  if (rateLimited(ip)) return reply(origin, 429, { error: 'rate_limited' });
 
   let body;
   try { body = await req.json(); } catch (_) { return reply(origin, 400, { error: 'bad_request' }); }
-  const action = body?.action;
+  const action = String(body?.action ?? '');
+
+  if (action.startsWith('cloud_')) {
+    if (rateLimited('cloud:' + ip, CLOUD_RATE_PER_MIN)) return reply(origin, 429, { error: 'rate_limited' });
+    try {
+      return reply(origin, 200, await cloud(action, body));
+    } catch (e) {
+      if (e instanceof HttpError) return reply(origin, e.status, { error: e.code, ...(e.extra ?? {}) });
+      console.error('cloud error', action, e);
+      return reply(origin, 502, { error: 'cloud_error' });
+    }
+  }
+
+  if (rateLimited('ai:' + ip)) return reply(origin, 429, { error: 'rate_limited' });
+  if (action !== 'ping' && !GEMINI_KEY) return reply(origin, 500, { error: 'not_configured' });
   const ko = String(body?.ko ?? '').trim();
   const attempt = String(body?.attempt ?? '').trim();
   if (ko.length > MAX_TEXT || attempt.length > MAX_TEXT) return reply(origin, 400, { error: 'too_long' });

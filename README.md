@@ -4,7 +4,7 @@
 
 - PC(크롬·엣지)와 갤럭시탭(크롬)에서 동작합니다.
 - 설치 없이 주소로 열고, 홈 화면·바탕화면에 앱처럼 추가할 수 있습니다(PWA).
-- 사진·녹음·글은 모두 **그 기기의 그 브라우저 안**(IndexedDB)에만 저장됩니다.
+- 사진·녹음·글은 **그 기기의 그 브라우저 안**(IndexedDB)에 저장되고, 가족 암호를 넣은 기기에서는 **서버(Supabase)에도 자동으로 저장**돼서 다른 기기에서 이어서 편집할 수 있습니다.
 - AI 영어 도우미는 Supabase Edge Function이 Gemini API를 불러서 동작합니다. Gemini 키는 Supabase에만 있고 앱 코드에는 없습니다.
 
 주소: https://munsongajae.github.io/minedu/
@@ -59,6 +59,16 @@ supabase functions deploy coach --project-ref uwqakkbwaqtrrqvhzzvz --no-verify-j
 
 함수 주소는 `js/config.js`의 `COACH_URL`에 있습니다. 비워 두면 AI 기능이 꺼지고 파파고 도움 버튼이 대신 나옵니다.
 
+### 3) 서버 저장(다른 기기에서 이어서 하기)
+
+AI 도우미와 같은 `coach` 함수를 씁니다. 따로 할 일은 없고, 함수 코드를 최신으로 붙여 넣어 두기만 하면 됩니다. 저장소 버킷(`blockstudio`, 비공개)은 처음 저장할 때 함수가 알아서 만듭니다.
+
+- 가족 암호를 넣은 기기에서 영상을 고치면 몇 초 뒤 자동으로 서버에 올라갑니다. 화면 위쪽 막대에 "서버에 저장됨"이 보이면 끝.
+- 다른 기기에서는 **다른 기기 영상 불러오기** → **불러오기**. 그다음부터는 열 때마다 최신 내용을 자동으로 받아요.
+- 두 기기에서 동시에 고쳐 엇갈리면 "그 기기 것 불러오기 / 이 기기 것으로 덮어쓰기"를 물어요. 불러오기를 골라도 이 기기에서 고친 건 "(이 기기 사본)"으로 남아요.
+- 부모님 설정의 **이 기기 이름**을 정해 두면 "마지막으로 고친 곳"에 그 이름이 보여요.
+- Supabase 무료 요금제의 저장 공간 안에서 씁니다. 사진·소리 파일은 같은 파일이면 한 번만 저장돼요.
+
 ## 기기에 앱처럼 설치하기
 
 - **갤럭시탭(크롬)**: 주소를 연 뒤 오른쪽 위 ⋮ → **홈 화면에 추가**(또는 **앱 설치**).
@@ -84,6 +94,7 @@ css/style.css                    디자인(색·글꼴 토큰은 맨 위 :root)
 js/app.js                        화면 그리기와 버튼 동작
 js/ai.js                         AI 영어 도우미 호출, 가족 암호
 js/config.js                     AI 함수 주소
+js/cloud.js                      서버 저장(작품 올리기·받기)
 js/pdf-import.js                 포트폴리오 PDF에서 사진 꺼내기·테두리 자르기
 js/dictation.js                  말로 쓰기(브라우저 음성 인식)
 js/storage.js                    IndexedDB 저장
@@ -93,7 +104,7 @@ js/world.js                      예시 장면용 블록 풍경 그림
 sw.js                            오프라인 캐시(앱 파일을 고치면 CACHE 숫자 올리기)
 manifest.webmanifest             앱 설치 정보
 icons/                           앱 아이콘
-supabase/functions/coach/        AI 영어 도우미 서버 함수(Gemini 호출)
+supabase/functions/coach/        서버 함수: AI 영어 도우미(Gemini) + 작품 서버 저장
 supabase/config.toml             CLI 배포 설정(verify_jwt = false)
 CLAUDE.md                        Claude Code로 이어서 개발할 때 읽는 안내
 ```

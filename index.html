@@ -30,6 +30,18 @@
     </div>
   </header>
 
+  <section class="cloudbar" id="cloudBar" aria-label="서버 저장" hidden>
+    <div class="cloud-line">
+      <p class="cloud-status" id="cloudStatus" role="status"></p>
+      <div class="row" id="cloudActions"></div>
+      <button class="btn small" id="cloudOpen" type="button" aria-expanded="false">다른 기기 영상 불러오기</button>
+    </div>
+    <div class="cloud-panel" id="cloudPanel" hidden>
+      <p class="note" id="cloudPanelNote">서버에 있는 영상을 불러오는 중이에요…</p>
+      <ul class="cloud-list" id="cloudList"></ul>
+    </div>
+  </section>
+
   <ol class="steps" aria-label="만드는 순서">
     <li><div class="n">STEP 1</div><div class="t">사진 넣기</div><div class="d">게임 화면을 캡처해요</div></li>
     <li><div class="n">STEP 2</div><div class="t">한글로 설명</div><div class="d">무엇을 했는지 써요</div></li>
@@ -146,18 +158,23 @@
       </div>
     </div>
   </section>
-  <p class="storage-note" id="storageNote">만든 내용은 이 기기의 이 브라우저에 자동으로 저장돼요.</p>
+  <p class="storage-note" id="storageNote">만든 내용은 이 기기의 이 브라우저에 자동으로 저장돼요. 가족 암호를 넣으면 서버에도 저장돼서 다른 기기에서 이어서 할 수 있어요.</p>
 
   <details class="parent" id="parent">
     <summary>부모님 설정</summary>
     <div class="parent-body">
       <label class="lab" for="familyCode">가족 암호</label>
-      <p class="hint">AI 영어 도우미를 쓰려면 Supabase에 정해 둔 가족 암호(APP_PASSCODE)를 이 기기에 한 번 넣어 주세요.</p>
+      <p class="hint">AI 영어 도우미와 서버 저장(다른 기기에서 이어서 하기)을 쓰려면 Supabase에 정해 둔 가족 암호(APP_PASSCODE)를 이 기기에 한 번 넣어 주세요.</p>
       <div class="row">
         <input type="password" id="familyCode" autocomplete="off" maxlength="64">
         <button class="btn small grass" id="saveCode" type="button">저장하고 연결 확인</button>
       </div>
       <p class="status" id="parentStatus"></p>
+      <label class="lab" for="deviceName">이 기기 이름</label>
+      <p class="hint">다른 기기에서 "마지막으로 고친 곳"으로 보여요.</p>
+      <div class="row">
+        <input type="text" id="deviceName" maxlength="20" placeholder="예: 거실 PC, 곰이 태블릿">
+      </div>
     </div>
   </details>
 </div>

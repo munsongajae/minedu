@@ -7,6 +7,7 @@ import { aiEnabled, coach, aiMessage, getFamilyCode, setFamilyCode } from './ai.
 import { importPortfolioPdf, isPdf } from './pdf-import.js';
 import { canDictate, startDictation, tidyKorean, tidyEnglish, dictationMessage } from './dictation.js';
 import { canSpeak, speak as say, SPEEDS, getSpeed, setSpeed, wordsOf } from './speech.js';
+import { cloudAvailable, getDeviceName, setDeviceName, pushProject, pullProject, headProject, listCloud, deleteCloud } from './cloud.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
@@ -95,6 +96,7 @@ async function makeExampleProject() {
   }));
   return {
     id: uid(), title: '예시: 강가의 나무집', makers: '곰이 · 난이', createdAt: Date.now(), updatedAt: Date.now(),
+    example: true,   // 예시 영상은 서버에 올리지 않는다
     opts: { title: true, ko: true, end: true },
     scenes: [scene]
   };
@@ -103,6 +105,7 @@ async function makeExampleProject() {
 function save(now) {
   if (!project) return;
   project.updatedAt = Date.now();
+  if (cloudOn(project)) { project.cloud.dirty = true; project.cloud.seq = (project.cloud.seq || 0) + 1; scheduleSync(); }
   clearTimeout(saveTimer);
   const go = async () => {
     const ok = await store.put(project);
@@ -655,6 +658,233 @@ function aiCheck(s, l) {
   });
 }
 
+/* ---------- 서버 저장(다른 기기에서 이어서 하기) ---------- */
+// project.cloud = { on, rev(서버 판 번호), dirty(서버에 안 올린 고침이 있음), seq, syncedAt, device, serverAt }
+const deviceName = () => getDeviceName(TOUCH ? '태블릿' : 'PC');
+const cloudOn = (p) => !!(p && p.cloud && p.cloud.on && cloudAvailable());
+function ensureCloud(p) {
+  if (p && !p.cloud && cloudAvailable()) p.cloud = { on: !p.example, rev: 0, dirty: true, seq: 0, syncedAt: 0 };
+}
+const hasContent = (p) => p.scenes.length > 0 || (p.title || '').trim() !== '';
+const cloud = { state: 'idle', info: null, err: null, timer: null, busy: false, again: false, forceNext: false, pulling: null };
+
+function fmtWhen(ms) {
+  if (!ms) return '';
+  const d = new Date(ms), now = new Date();
+  const hm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  return d.toDateString() === now.toDateString() ? hm : `${d.getMonth() + 1}월 ${d.getDate()}일 ${hm}`;
+}
+
+function renderCloud() {
+  const bar = $('#cloudBar');
+  if (!AI_ON || !project) { bar.hidden = true; return; }
+  bar.hidden = false;
+  const st = $('#cloudStatus'), act = $('#cloudActions');
+  const avail = cloudAvailable();
+  $('#cloudOpen').hidden = !avail;
+  let text = '', state = 'idle', buttons = '';
+  if (!avail) {
+    text = '가족 암호를 넣으면 서버에도 저장돼서 다른 기기에서 이어서 할 수 있어요. (맨 아래 부모님 설정)';
+  } else if (cloud.pulling) {
+    state = 'saving'; text = `서버에서 불러오는 중이에요… ${Math.round(cloud.pulling * 100)}%`;
+  } else if (!project.cloud || !project.cloud.on) {
+    text = project.example ? '예시 영상은 이 기기에만 있어요.' : '이 영상은 이 기기에만 저장돼요.';
+    if (!project.example) buttons = '<button class="btn small grass" type="button" data-cloud="on">서버에도 저장하기</button>';
+  } else if (cloud.state === 'conflict') {
+    state = 'conflict';
+    const i = cloud.info || {};
+    text = `다른 기기(${esc(i.device || '?')})에서 ${fmtWhen(i.updatedAt)}에 고친 내용이 있어요. 어느 쪽을 남길까요?`;
+    buttons = '<button class="btn small gold" type="button" data-cloud="take">그 기기 것 불러오기</button><button class="btn small" type="button" data-cloud="force">이 기기 것으로 덮어쓰기</button>';
+  } else if (cloud.busy) {
+    state = 'saving'; text = '서버에 저장하는 중이에요…';
+  } else if (cloud.state === 'error') {
+    state = 'error'; text = '서버에 저장하지 못했어요. ' + esc(cloudMessage(cloud.err));
+    buttons = '<button class="btn small" type="button" data-cloud="retry">다시 해 보기</button>';
+  } else if (project.cloud.dirty && hasContent(project)) {
+    state = 'saving'; text = '고친 내용을 곧 서버에 저장해요…';
+  } else if (project.cloud.rev > 0) {
+    state = 'saved'; text = `서버에 저장됨 · ${fmtWhen(project.cloud.syncedAt)} · 다른 기기에서 이어서 할 수 있어요`;
+    buttons = '<button class="btn small" type="button" data-cloud="off">이 기기에만 저장</button>';
+  } else {
+    text = '사진을 넣으면 서버에도 저장돼요.';
+  }
+  st.dataset.state = state;
+  st.innerHTML = text;
+  act.innerHTML = buttons;
+}
+
+function cloudMessage(e) {
+  if (!e) return '';
+  if (e.code === 'network' || e.code === 'offline') return '인터넷을 확인해 주세요.';
+  return aiMessage(e);
+}
+
+function scheduleSync(delay = 3000) {
+  clearTimeout(cloud.timer);
+  cloud.timer = setTimeout(runSync, delay);
+  renderCloud();
+}
+
+async function runSync() {
+  const p = project;
+  clearTimeout(cloud.timer);
+  if (!cloudOn(p)) return renderCloud();
+  if (cloud.busy) { cloud.again = true; return; }
+  if (cloud.state === 'conflict' && !cloud.forceNext) return renderCloud();
+  if (rendering || rec.lineId || cloud.pulling) { scheduleSync(5000); return; }
+  if (!p.cloud.dirty || !hasContent(p)) return renderCloud();
+  cloud.busy = true; cloud.again = false;
+  renderCloud();
+  const seq = p.cloud.seq;
+  const force = cloud.forceNext;
+  try {
+    const r = await pushProject(p, deviceName(), { force });
+    p.cloud.rev = r.rev; p.cloud.serverAt = r.updatedAt; p.cloud.syncedAt = Date.now(); p.cloud.device = deviceName();
+    if (p.cloud.seq === seq) p.cloud.dirty = false;
+    cloud.forceNext = false;
+    cloud.state = 'saved'; cloud.err = null;
+    await store.put(p);
+  } catch (e) {
+    if (e && e.code === 'conflict') { cloud.state = 'conflict'; cloud.info = (e.data && e.data.server) || null; }
+    else { cloud.state = 'error'; cloud.err = e; clearTimeout(cloud.timer); cloud.timer = setTimeout(runSync, 30000); }
+  } finally {
+    cloud.busy = false;
+    if (p === project && (cloud.again || p.cloud.dirty) && cloud.state === 'saved') scheduleSync(1500);
+    renderCloud();
+  }
+}
+
+// 다른 기기에서 더 새로 고쳤는지 확인한다(열 때, 다시 돌아왔을 때).
+async function checkRemote(p) {
+  if (!cloudOn(p) || cloud.busy || cloud.pulling) return;
+  try {
+    const h = await headProject(p.id);
+    if (p !== project) return;
+    if (h.missing) {
+      if (p.cloud.rev > 0) { p.cloud.rev = 0; p.cloud.dirty = true; scheduleSync(500); }
+      else if (p.cloud.dirty) scheduleSync(500);
+      return;
+    }
+    if (h.rev > p.cloud.rev) {
+      if (!p.cloud.dirty) {
+        await pullInto(p.id, { quiet: true });
+        toast(`다른 기기(${h.device || '?'})에서 고친 내용을 불러왔어요`);
+      } else {
+        cloud.state = 'conflict'; cloud.info = h; renderCloud();
+      }
+    } else if (p.cloud.dirty) scheduleSync(500);
+  } catch (e) { /* 인터넷이 없으면 나중에 다시 */ }
+}
+
+// 서버의 작품을 이 기기로 가져와 연다. 같은 작품이 이 기기에 있으면 바꿔 넣는다.
+async function pullInto(id, { keepLocalCopy = false } = {}) {
+  if (rendering || rec.lineId) { toast('녹음이나 영상 만들기를 먼저 끝내 주세요'); return false; }
+  stopDictation(); stopTalk();
+  cloud.pulling = 0.01; renderCloud();
+  try {
+    const np = await pullProject(id, (f) => { cloud.pulling = Math.max(0.01, f); renderCloud(); });
+    np.scenes.forEach(fixScene);
+    const i = projects.findIndex(x => x.id === id);
+    if (i >= 0 && keepLocalCopy) {
+      // 이 기기에서 고친 것도 버리지 않고 사본으로 남긴다.
+      const old = projects[i];
+      const copy = { ...old, id: uid(), title: `${old.title || '제목 없는 영상'} (이 기기 사본)`, cloud: undefined, updatedAt: Date.now() - 1 };
+      delete copy.cloud;
+      projects.push(copy);
+      await store.put(copy);
+    }
+    // 바꿔 넣는 옛 내용은 서버로 다시 올리지 않는다.
+    if (i >= 0 && projects[i].cloud) { projects[i].cloud.dirty = false; projects[i].cloud.on = false; }
+    if (i >= 0) projects[i] = np; else projects.push(np);
+    await store.put(np);
+    cloud.state = 'saved'; cloud.info = null; cloud.err = null;
+    cloud.pulling = null;
+    openProject(np, { skipCheck: true });
+    return true;
+  } catch (e) {
+    cloud.pulling = null;
+    toast('서버에서 불러오지 못했어요. ' + cloudMessage(e));
+    renderCloud();
+    return false;
+  }
+}
+
+$('#cloudActions').addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-cloud]');
+  if (!b) return;
+  const what = b.dataset.cloud;
+  if (what === 'on') {
+    if (!project.cloud) project.cloud = { on: true, rev: 0, dirty: true, seq: 0, syncedAt: 0 };
+    project.cloud.on = true; project.cloud.dirty = true;
+    save(); runSync();
+  } else if (what === 'off') {
+    project.cloud.on = false; store.put(project); renderCloud();
+    toast('이제 이 영상은 이 기기에만 저장돼요. 서버에 있던 건 남아 있어요.');
+  } else if (what === 'retry') {
+    cloud.state = 'idle'; runSync();
+  } else if (what === 'take') {
+    if (await pullInto(project.id, { keepLocalCopy: true })) toast('그 기기 것을 불러왔어요. 이 기기에서 고친 건 "(이 기기 사본)"으로 남겨 뒀어요.');
+  } else if (what === 'force') {
+    cloud.forceNext = true; cloud.state = 'idle'; project.cloud.dirty = true; runSync();
+  }
+});
+
+// 다른 기기 영상 목록
+async function renderCloudList() {
+  const note = $('#cloudPanelNote'), list = $('#cloudList');
+  note.hidden = false; note.textContent = '서버에 있는 영상을 불러오는 중이에요…'; list.innerHTML = '';
+  try {
+    const items = await listCloud();
+    if (!items.length) { note.textContent = '아직 서버에 저장된 영상이 없어요.'; return; }
+    note.hidden = true;
+    list.innerHTML = items.map(it => {
+      const here = projects.some(p => p.id === it.id);
+      return `<li class="cloud-item" data-cid="${esc(it.id)}">
+        ${it.thumbUrl ? `<img src="${esc(it.thumbUrl)}" alt="">` : '<div class="noimg"></div>'}
+        <div><div class="t">${esc(it.title || '제목 없는 영상')}</div>
+          <div class="m">장면 ${it.scenes}개 · 마지막으로 고친 곳: ${esc(it.device || '?')}, ${fmtWhen(it.updatedAt)}${it.id === project.id ? ' · 지금 여는 영상' : ''}</div></div>
+        <div class="row">
+          <button class="btn small grass" type="button" data-cl="open">${here ? '열기' : '불러오기'}</button>
+          <span data-cldel><button class="btn small" type="button" data-cl="del">서버에서 지우기</button></span>
+        </div>
+      </li>`;
+    }).join('');
+  } catch (e) {
+    note.textContent = '목록을 불러오지 못했어요. ' + cloudMessage(e);
+  }
+}
+$('#cloudOpen').addEventListener('click', () => {
+  const panel = $('#cloudPanel');
+  panel.hidden = !panel.hidden;
+  $('#cloudOpen').setAttribute('aria-expanded', String(!panel.hidden));
+  $('#cloudOpen').textContent = panel.hidden ? '다른 기기 영상 불러오기' : '목록 닫기';
+  if (!panel.hidden) renderCloudList();
+});
+$('#cloudList').addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-cl]');
+  if (!b) return;
+  const id = b.closest('[data-cid]').dataset.cid;
+  const what = b.dataset.cl;
+  if (what === 'open') {
+    const local = projects.find(p => p.id === id);
+    if (local) { openProject(local); }
+    else if (await pullInto(id)) toast('서버에서 영상을 불러왔어요. 이제 이 기기에서 이어서 하면 돼요.');
+    $('#cloudPanel').hidden = true; $('#cloudOpen').textContent = '다른 기기 영상 불러오기'; $('#cloudOpen').setAttribute('aria-expanded', 'false');
+  } else if (what === 'del') {
+    b.parentElement.innerHTML = '<button class="btn small red" type="button" data-cl="del-yes">서버에서 지울까요?</button> <button class="btn small" type="button" data-cl="del-no">아니요</button>';
+  } else if (what === 'del-no') {
+    b.parentElement.innerHTML = '<button class="btn small" type="button" data-cl="del">서버에서 지우기</button>';
+  } else if (what === 'del-yes') {
+    try {
+      await deleteCloud(id);
+      const local = projects.find(p => p.id === id);
+      if (local && local.cloud) { local.cloud.on = false; local.cloud.rev = 0; await store.put(local); }
+      toast('서버에서 지웠어요. 이 기기에 있는 건 그대로 있어요.');
+      renderCloud(); renderCloudList();
+    } catch (err) { toast('지우지 못했어요. ' + cloudMessage(err)); }
+  }
+});
+
 /* ---------- 부모님 설정 ---------- */
 function initParentPanel() {
   const panel = $('#parent');
@@ -662,13 +892,20 @@ function initParentPanel() {
   const input = $('#familyCode');
   input.value = getFamilyCode();
   const status = $('#parentStatus');
+  const dev = $('#deviceName');
+  dev.value = getDeviceName('');
+  dev.placeholder = `예: ${TOUCH ? '곰이 태블릿' : '거실 PC'} (안 쓰면 "${TOUCH ? '태블릿' : 'PC'}")`;
+  dev.addEventListener('input', () => setDeviceName(dev.value.trim()));
   $('#saveCode').addEventListener('click', async () => {
     setFamilyCode(input.value.trim());
     status.classList.remove('err');
     status.textContent = '확인하는 중이에요…';
     try {
       await coach('ping', {});
-      status.textContent = 'AI 도우미와 연결됐어요.';
+      status.textContent = 'AI 도우미와 연결됐어요. 서버 저장도 켜졌어요.';
+      ensureCloud(project);
+      renderCloud();
+      if (cloudOn(project)) { project.cloud.dirty = true; runSync(); }
     } catch (e) {
       status.classList.add('err');
       status.textContent = aiMessage(e);
@@ -884,21 +1121,27 @@ $('.projbar').addEventListener('click', async (e) => {
   } else if (b.id === 'delNo') renderProjectBar();
   else if (b.id === 'delYes') {
     if (rendering || rec.lineId) { toast('녹음이나 영상 만들기를 먼저 끝내 주세요'); renderProjectBar(); return; }
+    const wasCloud = cloudOn(project) && project.cloud.rev > 0;
     await store.remove(project.id);
     projects = projects.filter(p => p.id !== project.id);
     if (!projects.length) { const p = newProject(); projects.push(p); openProject(p); save(true); }
     else openProject([...projects].sort((a, b) => b.updatedAt - a.updatedAt)[0]);
-    toast('지웠어요');
+    toast(wasCloud ? '이 기기에서 지웠어요. 서버에 있는 건 "다른 기기 영상 불러오기"에 남아 있어요.' : '지웠어요');
   }
 });
-function openProject(p) {
+function openProject(p, { skipCheck = false } = {}) {
   if (rendering || rec.lineId) { toast('녹음이나 영상 만들기를 먼저 끝내 주세요'); renderProjectBar(); return; }
+  const prev = project;
+  if (prev && prev !== p && cloudOn(prev) && prev.cloud.dirty && !cloud.busy) { project = prev; runSync(); }
   clearURLs();
   busy.forEach(x => x.ctl.abort());
   busy.clear(); statusMsg.clear();
   project = p;
+  ensureCloud(p);
+  if (!cloud.busy) { cloud.state = 'idle'; cloud.info = null; cloud.err = null; cloud.forceNext = false; }
   resetResult();
-  renderProjectBar(); renderMeta(); renderScenes();
+  renderProjectBar(); renderMeta(); renderScenes(); renderCloud();
+  if (!skipCheck) checkRemote(p);
 }
 
 /* ---------- 붙여넣기와 끌어다 놓기 (PC) ---------- */
@@ -1039,14 +1282,19 @@ async function init() {
     projects = [project];
     save(true);
   }
-  renderProjectBar(); renderMeta(); renderScenes();
+  ensureCloud(project);
+  renderProjectBar(); renderMeta(); renderScenes(); renderCloud();
+  checkRemote(project);
 }
 init();
 
 // 창을 닫거나 다른 앱으로 넘어갈 때, 모아 두던 저장을 바로 한다.
 const flushSave = () => { if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; save(true); } };
 window.addEventListener('pagehide', flushSave);
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushSave(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') { flushSave(); if (cloudOn(project) && project.cloud.dirty) runSync(); }
+  else if (project) checkRemote(project);
+});
 
 window.addEventListener('beforeunload', (e) => {
   if (rendering || rec.lineId) { e.preventDefault(); e.returnValue = ''; }

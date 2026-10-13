@@ -488,6 +488,7 @@ kbd { font-family: var(--f-pixel); font-size: 12px; border: 2px solid var(--edge
 .g-night .wg-go button { background: var(--ghost-dark); color: var(--on-color); }
 .g-cart .wg-go button { background: var(--dirt); color: var(--on-color); }
 .g-craft .wg-go button { background: #8e5828; color: var(--on-color); }
+.g-world .wg-go button { background: #1c6d7a; color: var(--on-color); }
 /* 새 게임 판: 맨 위에 넓게(그림 | 글·버튼) */
 .wg-games .wide { grid-column: 1 / -1; grid-template-columns: minmax(240px, 360px) 1fr; column-gap: 20px; }
 .wg-games .wide > :not(.wg-art) { grid-column: 2; }
@@ -1321,33 +1322,38 @@ kbd { font-family: var(--f-pixel); font-size: 12px; border: 2px solid var(--edge
 /* =========================================================
    내 월드 탐험 (실제 마인크래프트 게임 화면 & 1인칭 HUD)
    ========================================================= */
-.wg-game.g-world {
-  background: linear-gradient(180deg, #2b4c7e 0%, #3a7028 100%);
-  color: #fff;
-}
-
 .wg-art-world {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(circle, #4f86c6 0%, #1e3c1a 100%);
 }
 
 .world-hud-preview {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
+  transform: translateY(-4px);
+}
+
+.world-hud-preview .wh-cross {
+  font-style: normal;
+  font-weight: bold;
+  font-size: 20px;
+  color: #fff;
+  text-shadow: 1px 1px 0 #000, -1px -1px 0 #000;
+  line-height: 1;
 }
 
 .world-hud-preview .wh-tip {
   background: #100010;
   border: 2px solid #5000ff;
+  box-shadow: 0 0 0 1px #100010;
   color: #ffff55;
-  padding: 2px 10px;
+  padding: 1px 8px;
   font-family: 'Silkscreen', monospace;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .world-hud-preview .wh-hotbar {
@@ -1362,9 +1368,10 @@ kbd { font-family: var(--f-pixel); font-size: 12px; border: 2px solid var(--edge
   width: 20px;
   height: 20px;
   background: #727272;
-  border: 2px solid #fff;
+  border: 2px solid #373737;
   font-style: normal;
-  font-size: 10px;
+  font-size: 11px;
+  color: #fff;
   display: grid;
   place-items: center;
 }

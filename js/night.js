@@ -276,14 +276,6 @@ function buildMobModel(kind) {
 /* ---------- 1인칭 활 & 스티브 팔 제작 ---------- */
 function buildFirstPersonBow() {
   const g = new THREE.Group();
-  const matCyan = new THREE.MeshLambertMaterial({ color: 0x00c4c7 });
-  const matSkin = new THREE.MeshLambertMaterial({ color: 0xbc8965 });
-  const matWood = new THREE.MeshLambertMaterial({ color: 0x936339 });
-  const matDarkWood = new THREE.MeshLambertMaterial({ color: 0x54371c });
-  const matString = new THREE.MeshBasicMaterial({ color: 0xffffff });
-
-function buildFirstPersonBow() {
-  const g = new THREE.Group();
   g.position.set(0.24, -0.24, -0.56);
 
   const matCyan = new THREE.MeshLambertMaterial({ color: 0x00c4c7 });

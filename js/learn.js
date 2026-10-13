@@ -194,7 +194,7 @@ export async function fillGlossary(words, sentences) {
 }
 
 /* ---------- 연습 기록 서버 저장(다른 기기와 합치기) ---------- */
-const keyOf = (child) => 'progress-' + [...new TextEncoder().encode(child)].map(b => b.toString(16).padStart(2, '0')).join('');
+export const keyOf = (child) => 'progress-' + [...new TextEncoder().encode(child)].map(b => b.toString(16).padStart(2, '0')).join('');
 const cloudOk = () => aiEnabled() && !!getFamilyCode();
 
 // 문장·단어마다 더 나중에 연습한 기록을 남기고, 에메랄드는 큰 쪽, 연습한 날은 합친다.

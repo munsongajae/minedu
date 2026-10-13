@@ -66,6 +66,15 @@ export async function putItem(store, obj) {
   catch (e) { return false; }
 }
 
+/** 저장소 하나의 모든 항목. */
+export async function allItems(store) {
+  try { return (await tx(store, 'readonly', s => s.getAll())) || []; }
+  catch (e) { return []; }
+}
+export async function removeItem(store, id) {
+  try { await tx(store, 'readwrite', s => s.delete(id)); } catch (e) { /* 무시 */ }
+}
+
 /** 브라우저가 공간이 부족할 때 데이터를 지우지 않도록 요청. */
 export async function askPersist() {
   try { if (navigator.storage && navigator.storage.persist) await navigator.storage.persist(); } catch (e) { /* 무시 */ }

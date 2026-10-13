@@ -189,6 +189,20 @@
       <div class="row">
         <input type="text" id="deviceName" maxlength="20" placeholder="예: 거실 PC, 곰이 태블릿">
       </div>
+      <div class="erase">
+        <label class="lab">모든 기록 지우기</label>
+        <p class="hint">만든 영상(사진·녹음·음악)과 곰이·난이의 연습 기록·에메랄드를 모두 지워요. 지우면 되돌릴 수 없어요. 가족 암호와 기기 이름은 남아요.</p>
+        <button class="btn small red" id="eraseOpen" type="button">모든 기록 지우기…</button>
+        <div class="erase-confirm" id="eraseConfirm" hidden>
+          <p class="hint" id="eraseHint"></p>
+          <div class="row">
+            <input type="text" id="eraseWord" autocomplete="off" placeholder="지우기" aria-label="확인 글자">
+            <button class="btn small red" id="eraseGo" type="button" disabled>정말 모두 지우기</button>
+            <button class="btn small" id="eraseCancel" type="button">그만두기</button>
+          </div>
+        </div>
+        <p class="status" id="eraseStatus" role="status"></p>
+      </div>
     </div>
   </details>
 </div>

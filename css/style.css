@@ -282,6 +282,9 @@ kbd { font-family: var(--f-pixel); font-size: 12px; border: 2px solid var(--edge
 .bar { height: 16px; border: 2px solid var(--edge); background: var(--panel-2); margin-top: 10px; }
 .bar i { display: block; height: 100%; width: 0; background: repeating-linear-gradient(90deg, var(--grass) 0 12px, var(--grass-hi) 12px 16px); }
 .note { font-size: 14px; color: var(--muted); margin: 0; }
+.erase { margin-top: 18px; padding-top: 14px; border-top: 2px dashed var(--line); }
+.erase-confirm { margin-top: 8px; }
+.erase-confirm input { max-width: 140px; }
 .storage-note { font-size: 13px; color: var(--muted); padding-block: 10px 0; }
 
 .drop-overlay { position: fixed; inset: 0; background: rgba(20, 30, 20, .55); display: grid; place-items: center; z-index: 50; pointer-events: none; }

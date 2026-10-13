@@ -8,6 +8,7 @@
 import { $, esc, shuffle, getChild, setChild, childPickerHTML, loadSentences, loadProgress, saveProgress, syncProgress,
   grade, todayQueue, mastered, markToday, streak, tokens, wordKey, blobURL,
   FREE_GEMS, freeGemsLeft, takeFreeGem, nextDueDays } from './learn.js';
+import { checkReset } from './reset.js';
 import { canSpeak, speak, getSpeed, wordsOf } from './speech.js';
 
 const SPEAK_OK = canSpeak();
@@ -796,6 +797,7 @@ function finish() {
 /* ---------- 시작 ---------- */
 async function init() {
   renderKid();
+  await checkReset();     // 다른 기기에서 '모든 기록 지우기'를 했으면 이 기기 것도 지운다
   all = await loadSentences();
   $('#proj').innerHTML = `<option value="">모든 영상 (${all.sentences.length}문장)</option>` +
     all.projects.map(p => `<option value="${esc(p.id)}">${esc(p.title || '제목 없는 영상')} (${all.sentences.filter(s => s.projectId === p.id).length}문장)</option>`).join('');

@@ -126,3 +126,7 @@ supabase/functions/coach/        서버 함수: AI 영어 도우미·단어 뜻(
 supabase/config.toml             CLI 배포 설정(verify_jwt = false)
 CLAUDE.md                        Claude Code로 이어서 개발할 때 읽는 안내
 ```
+
+## 모든 기록 지우기
+
+만들기 화면 맨 아래 **부모님 설정 → 모든 기록 지우기**에서 만든 영상(사진·녹음·음악)과 곰이·난이의 연습 기록·에메랄드를 이 기기와 서버에서 모두 지울 수 있어요(칸에 "지우기"라고 써야 버튼이 켜져요). 다른 기기는 다음에 앱을 열 때 같이 지워져요. 가족 암호와 기기 이름은 남아요. 서버 파일까지 깨끗이 지우려면 `supabase/functions/coach/index.ts`를 Supabase에 한 번 다시 배포해 주세요.

@@ -8,6 +8,7 @@ import { importPortfolioPdf, isPdf } from './pdf-import.js';
 import { canDictate, startDictation, tidyKorean, tidyEnglish, dictationMessage } from './dictation.js';
 import { canSpeak, speak as say, SPEEDS, getSpeed, setSpeed, wordsOf } from './speech.js';
 import { cloudAvailable, getDeviceName, setDeviceName, pushProject, pullProject, headProject, listCloud, deleteCloud } from './cloud.js';
+import { checkReset, eraseEverything } from './reset.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
@@ -33,6 +34,7 @@ const TOUCH = window.matchMedia && window.matchMedia('(pointer: coarse)').matche
 let projects = [];
 let project = null;
 let saveTimer = null;
+let erasing = false;     // '모든 기록 지우기' 중에는 저장·서버 올리기를 멈춘다
 let rendering = false;
 let cancelRequested = false;
 let result = null; // { blob, ext, total, url }
@@ -103,7 +105,7 @@ async function makeExampleProject() {
 }
 
 function save(now) {
-  if (!project) return;
+  if (!project || erasing) return;
   project.updatedAt = Date.now();
   if (cloudOn(project)) { project.cloud.dirty = true; project.cloud.seq = (project.cloud.seq || 0) + 1; scheduleSync(); }
   clearTimeout(saveTimer);
@@ -728,6 +730,7 @@ function scheduleSync(delay = 3000) {
 async function runSync() {
   const p = project;
   clearTimeout(cloud.timer);
+  if (erasing) return;
   if (!cloudOn(p)) return renderCloud();
   if (cloud.busy) { cloud.again = true; return; }
   if (cloud.state === 'conflict' && !cloud.forceNext) return renderCloud();
@@ -909,6 +912,38 @@ function initParentPanel() {
     } catch (e) {
       status.classList.add('err');
       status.textContent = aiMessage(e);
+    }
+  });
+  initErase();
+}
+
+// 모든 기록 지우기: '지우기'라고 써야 버튼이 켜진다.
+function initErase() {
+  const box = $('#eraseConfirm'), word = $('#eraseWord'), go = $('#eraseGo'), st = $('#eraseStatus');
+  $('#eraseOpen').addEventListener('click', () => {
+    box.hidden = false; word.value = ''; go.disabled = true; st.textContent = '';
+    st.classList.remove('err');
+    $('#eraseHint').textContent = cloudAvailable()
+      ? '확인하려면 칸에 "지우기"라고 써 주세요. 이 기기와 서버에서 지우고, 다른 기기는 다음에 열 때 지워져요.'
+      : '확인하려면 칸에 "지우기"라고 써 주세요. 가족 암호가 없어서 이 기기에서만 지워요.';
+    word.focus();
+  });
+  word.addEventListener('input', () => { go.disabled = word.value.trim() !== '지우기'; });
+  $('#eraseCancel').addEventListener('click', () => { box.hidden = true; st.textContent = ''; });
+  go.addEventListener('click', async () => {
+    go.disabled = true; word.disabled = true;
+    erasing = true;
+    clearTimeout(saveTimer); saveTimer = null; clearTimeout(cloud.timer);
+    st.classList.remove('err');
+    try {
+      await eraseEverything((msg) => { st.textContent = msg; });
+      st.textContent = '모두 지웠어요. 새로 시작해요!';
+      setTimeout(() => location.reload(), 900);
+    } catch (e) {
+      erasing = false;
+      st.classList.add('err');
+      st.textContent = `다 지우지 못했어요. ${aiMessage(e)} 인터넷을 확인하고 다시 눌러 주세요.`;
+      go.disabled = false; word.disabled = false;
     }
   });
 }
@@ -1273,6 +1308,7 @@ async function init() {
   else if (MAC) { $('#howPC').hidden = true; $('#howMac').hidden = false; }
   initParentPanel();
   store.askPersist();
+  await checkReset();     // 다른 기기에서 '모든 기록 지우기'를 했으면 이 기기 것도 지운다
   const all = await store.loadAll();
   if (all === null) $('#storageNote').textContent = '이 브라우저에서는 자동 저장이 되지 않아요. 창을 닫기 전에 영상을 먼저 저장하세요.';
   if (all && all.length) {

@@ -365,6 +365,17 @@ async function cloud(action, body) {
     await S.remove([`docs/${id}.json`]);
     return { ok: true };
   }
+  // 모든 기록 지우기(부모님 설정): 작품·파일·기록 문서를 모두 지운다. 실수로 불리지 않게 확인 글자가 있어야 한다.
+  if (action === 'cloud_reset') {
+    if (body?.confirm !== 'erase-all') throw new HttpError(400, 'bad_request');
+    let removed = 0;
+    for (const dir of ['docs', 'media', 'kv']) {
+      const paths = (await S.listNames(dir)).filter((n) => n && n !== '.emptyFolderPlaceholder').map((n) => `${dir}/${n}`);
+      for (let i = 0; i < paths.length; i += 100) await S.remove(paths.slice(i, i + 100));
+      removed += paths.length;
+    }
+    return { ok: true, removed };
+  }
   throw new HttpError(400, 'bad_request');
 }
 

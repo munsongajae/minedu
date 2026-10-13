@@ -8,6 +8,7 @@
 import { $, esc, shuffle, getChild, setChild, childPickerHTML, loadSentences, loadProgress, saveProgress, syncProgress,
   markToday, streak, collectWords, loadGlossary, fillGlossary } from './learn.js';
 import { aiEnabled, aiMessage } from './ai.js';
+import { checkReset } from './reset.js';
 import { canSpeak, speak } from './speech.js';
 import { startMine, stopMine } from './mine.js';
 import { startNight, stopNight } from './night.js';
@@ -350,6 +351,7 @@ async function fillMeanings() {
 }
 async function init() {
   $('#kidPick').innerHTML = childPickerHTML(child);
+  await checkReset();     // 다른 기기에서 '모든 기록 지우기'를 했으면 이 기기 것도 지운다
   all = await loadSentences();
   glossary = await loadGlossary();
   $('#proj').innerHTML = `<option value="">모든 영상</option>` +

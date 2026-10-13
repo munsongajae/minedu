@@ -18,7 +18,7 @@
 ## AI 영어 도우미
 
 - 앱 → `js/ai.js`의 `coach(action, payload)` → POST `COACH_URL`(`js/config.js`). 헤더 `x-family-code`에 가족 암호(기기 localStorage).
-- action: `ping`, `translate {ko}` → `{english, words[]}`, `check {ko, attempt}` → `{corrected, praise, fixes[]}`.
+- action: `ping`, `translate {ko}` → `{english, words[]}`, `check {ko, attempt}` → `{corrected, praise, fixes[]}`, `glossary`, 그리고 서버 저장용 `cloud_*`(아래).
 - 함수는 `verify_jwt = false`. 대신 Secret `APP_PASSCODE`와 비교하고, CORS는 `ALLOWED_ORIGINS`(기본 GitHub Pages 주소) + localhost만 허용, 글 600자 제한, 간단한 분당 횟수 제한.
 - Gemini 키(`GEMINI_API_KEY`)는 Supabase Secret에만 둔다. 브라우저 코드나 저장소에 절대 넣지 않는다.
 - 모델은 Secret `GEMINI_MODEL`(기본 `gemini-3.5-flash-lite`). 모델 이름은 바뀔 수 있으니 바꿀 때 Google 문서에서 현재 안정판을 확인한다.
@@ -56,11 +56,12 @@
 
 ## 서버 저장(다른 기기에서 이어서 하기)
 
-- 로그인 없이 가족 암호로 연다. `coach` 함수의 `cloud_*` 동작: `cloud_list`, `cloud_head {id}`, `cloud_need {hashes}`, `cloud_save {id, doc, baseRev, device, force?}`, `cloud_load {id}`, `cloud_delete {id}`.
+- 로그인 없이 가족 암호로 연다. `coach` 함수의 `cloud_*` 동작: `cloud_list`, `cloud_head {id}`, `cloud_need {hashes}`, `cloud_save {id, doc, baseRev, device, force?}`, `cloud_load {id}`, `cloud_delete {id}`, `cloud_get`/`cloud_put {key, doc}`(kv), `cloud_reset {confirm}`.
 - 저장소: Supabase Storage 비공개 버킷 `blockstudio`(함수가 처음 쓸 때 만듦). `docs/<id>.json` = 작품 내용(사진·소리는 `{ref: sha256, type}`), `media/<sha256>` = 파일. 같은 파일은 한 번만 올라간다.
 - 큰 파일은 함수를 거치지 않는다: `cloud_need`가 없는 파일만 서명된 업로드 주소를 주고, 앱이 그 주소로 바로 PUT(FormData)한다. 내려받기도 서명된 주소(1시간).
 - 엇갈림: 서버 문서의 `rev`와 앱이 아는 `project.cloud.rev`가 다르면 409 `conflict`. 앱은 "그 기기 것 불러오기"(이 기기 것은 '(이 기기 사본)'으로 남김) 또는 "이 기기 것으로 덮어쓰기"(`force`)를 고르게 한다.
 - 앱(`js/cloud.js`, app.js의 '서버 저장' 부분): 고칠 때마다 `project.cloud.dirty`를 켜고 3초 뒤 자동으로 올린다. 열 때·다시 돌아왔을 때 `cloud_head`로 확인해서, 이 기기에 안 올린 고침이 없으면 새 내용을 저절로 받고, 있으면 엇갈림을 묻는다. 예시 영상(`project.example`)은 올리지 않는다.
+- 모든 기록 지우기(부모님 설정 맨 아래, `js/reset.js`): 칸에 '지우기'라고 써야 버튼이 켜진다. 서버는 `cloud_reset {confirm:'erase-all'}`(docs·media·kv 전부 삭제, 함수를 다시 배포해야 생김). 옛 함수면 대신 작품을 하나씩 `cloud_delete`하고 아이별 연습 기록을 빈 것으로 `cloud_put`(이때 media 파일은 서버에 남지만 쓰이지 않음). 끝에 서버에 `kv/reset.json {at}`을 남기고, 모든 페이지가 시작할 때 `checkReset()`(2.5초 안에)으로 이걸 보고 `at` 전에 고친 영상·연습 기록·단어 뜻 모음을 그 기기에서도 지운다(지운 뒤 새로 만든 것은 남김, 기기 표시는 localStorage `block-studio-reset`). 이렇게 해야 다른 기기의 옛 데이터가 다시 올라가지 않는다. 가족 암호·기기 이름·발음 빠르기는 남긴다.
 - `project.cloud = { on, rev, dirty, seq, syncedAt, device, serverAt }`. 기기 이름은 localStorage(`block-studio-device`, 기본 'PC'/'태블릿').
 - 함수 코드를 고치면 Supabase에 다시 붙여 넣어야 한다. 시험은 Playwright `context.route`로 함수와 저장소를 흉내 내서 두 기기(컨텍스트)로 한다.
 

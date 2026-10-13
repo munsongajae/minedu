@@ -3,6 +3,7 @@ import * as store from './storage.js';
 import { CHILDREN, loadSentences, loadProgress, syncProgress, streak, mastered, isDue, nextDueDays, collectWords, loadGlossary, BOX_DAYS, esc, $ } from './learn.js';
 import { cloudAvailable, getDeviceName } from './cloud.js';
 import { getFamilyCode } from './ai.js';
+import { checkReset } from './reset.js';
 
 let currentTab = '곰이';
 let allSentences = [];
@@ -33,6 +34,7 @@ const todayStr = (t = Date.now()) => {
 
 async function init() {
   bindEvents();
+  await checkReset();     // 다른 기기에서 '모든 기록 지우기'를 했으면 이 기기 것도 지운다
   await loadData();
   renderSystemInfo();
 }

@@ -37,6 +37,17 @@ export function sfx(kind) {
     else if (kind === 'switch') { burst(0.05, 1500, 3, 0.25); tone('square', 300, 300, 0.04, 0.04, 0.03); }
     else if (kind === 'ding') { tone('triangle', 880, 880, 0.12, 0.13); tone('triangle', 1320, 1320, 0.22, 0.12, 0.09); }
     else if (kind === 'crash') { burst(0.32, 260, 0.6, 0.55); tone('sawtooth', 160, 60, 0.3, 0.1); }
+    else if (kind === 'jump') { tone('sine', 260, 520, 0.12, 0.18); burst(0.06, 1200, 1.5, 0.15); }
+    else if (kind === 'land') { burst(0.09, 800, 1.0, 0.35); tone('triangle', 180, 120, 0.08, 0.1); }
+    else if (kind === 'sizzle') {
+      const o = ac.createBufferSource(); o.buffer = noise;
+      const f = ac.createBiquadFilter(); f.type = 'bandpass';
+      f.frequency.setValueAtTime(3200, t); f.frequency.exponentialRampToValueAtTime(1000, t + 0.45); f.Q.value = 2.5;
+      const g = ac.createGain(); g.gain.setValueAtTime(0.38, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+      o.connect(f).connect(g).connect(out); o.start(t); o.stop(t + 0.52);
+    }
+    else if (kind === 'splash') { burst(0.25, 450, 0.7, 0.45); tone('sine', 300, 100, 0.2, 0.15); }
+    else if (kind === 'portal') { [261, 329, 392, 523, 659].forEach((f, i) => tone('sine', f, f * 1.5, 0.28, 0.1, i * 0.07)); }
     else if (kind === 'craft') { [587, 880, 1174, 1760].forEach((f, i) => tone('triangle', f, f, 0.16, 0.14, i * 0.08)); burst(0.2, 1800, 1.5, 0.2); }
     else if (kind === 'win') { [523, 659, 784, 1047].forEach((f, i) => tone('triangle', f, f, 0.22, 0.12, i * 0.13)); }
     else if (kind === 'end') { tone('triangle', 784, 784, 0.18, 0.12); tone('triangle', 659, 659, 0.18, 0.12, 0.18); tone('triangle', 523, 523, 0.35, 0.12, 0.36); }

@@ -1,9 +1,9 @@
 // 단어 게임: 아이가 만든 문장에서 나온 단어로 한다. 기록은 아이별로 따로.
 //   짝 맞추기: 영어 카드와 한글 카드의 짝을 찾는다(4·6·8쌍).
-//   보고 고르기: 한글 뜻을 보고 영어 단어를, 또는 영어 단어를 보고 한글 뜻을 4개 중에서 고른다(10문제).
 //   단어 광산(mine.js): 1분 동안 뜻에 맞는(또는 들리는) 단어 블록을 세 번 두드려 캔다.
 //   밤을 지켜라(night.js): 뜻을 든 몹이 집으로 걸어오면 맞는 영어 단어를 눌러 막는다.
 //   광산 수레 달리기(cart.js): 갈림길이 오기 전에 뜻에 맞는 단어가 있는 선로로 수레를 옮긴다.
+//   조합대 제작소(craft.js): 3x3 작업대에 맞는 단어 재료를 넣어 아이템을 조합한다.
 // 처음 화면의 게임 판 버튼을 누르면 바로 시작한다. 아직 잘 모르는 단어가 먼저 나온다.
 import { $, esc, shuffle, getChild, setChild, childPickerHTML, loadSentences, loadProgress, saveProgress, syncProgress,
   markToday, streak, collectWords, loadGlossary, fillGlossary } from './learn.js';
@@ -15,8 +15,6 @@ import { startCart, stopCart } from './cart.js';
 import { startCraft, stopCraft } from './craft.js';
 
 const SPEAK_OK = canSpeak();
-const QUIZ_LEN = 10;
-const MATERIALS = ['grass', 'sky', 'gold', 'dirt'];   // 보기 블록 색
 
 let child = getChild();
 let progress = null;
@@ -26,9 +24,8 @@ let words = [];          // 뜻이 있는 단어
 let filling = false;     // AI가 단어 뜻을 찾는 중
 let last = null;         // 마지막으로 한 게임 { kind, pairs | dir } — '한 판 더'
 let game = null;         // 짝 맞추기
-let quiz = null;         // 보고 고르기
 
-function show(which) { ['home', 'game', 'quiz', 'mine', 'night', 'cart', 'craft', 'done'].forEach(k => { $('#' + k).hidden = k !== which; }); window.scrollTo(0, 0); }
+function show(which) { ['home', 'game', 'mine', 'night', 'cart', 'craft', 'done'].forEach(k => { $('#' + k).hidden = k !== which; }); window.scrollTo(0, 0); }
 function say(text) { if (SPEAK_OK) speak(text, { speed: 'slow' }).catch(() => {}); }
 
 /* ---------- 아이·기록 ---------- */
@@ -72,7 +69,7 @@ function renderHome() {
 
   const ready = !!child && !!progress;
   document.querySelectorAll('[data-go="match"]').forEach(b => { b.disabled = !ready || words.length < 2; });
-  document.querySelectorAll('[data-go="quiz"], [data-go="mine"], [data-go="night"], [data-go="cart"], [data-go="craft"]').forEach(b => { b.disabled = !ready || words.length < 4; });
+  document.querySelectorAll('[data-go="mine"], [data-go="night"], [data-go="cart"], [data-go="craft"]').forEach(b => { b.disabled = !ready || words.length < 4; });
   $('#mineListen').hidden = !SPEAK_OK;
   $('#cartListen').hidden = !SPEAK_OK;
   $('#games').classList.toggle('locked', !ready);
@@ -133,7 +130,6 @@ $('#games').addEventListener('click', (e) => {
   else if (b.dataset.go === 'night') goNight(b.dataset.mode || 'ko', b.dataset.speed || speeds.night || 'normal');
   else if (b.dataset.go === 'cart') goCart(b.dataset.mode || 'ko', b.dataset.speed || speeds.cart || 'normal');
   else if (b.dataset.go === 'craft') goCraft(b.dataset.mode || 'ko');
-  else startQuiz(b.dataset.dir);
 });
 $('#again').addEventListener('click', () => {
   if (!last) return show('home');
@@ -142,10 +138,8 @@ $('#again').addEventListener('click', () => {
   else if (last.kind === 'night') goNight(last.mode || 'ko', last.speed || speeds.night || 'normal');
   else if (last.kind === 'cart') goCart(last.mode || 'ko', last.speed || speeds.cart || 'normal');
   else if (last.kind === 'craft') goCraft(last.mode || 'ko');
-  else startQuiz(last.dir);
 });
 $('#home2').addEventListener('click', () => { show('home'); renderHome(); });
-$('#qQuit').addEventListener('click', () => { quiz = null; show('home'); renderHome(); });
 $('#quit').addEventListener('click', () => { game = null; show('home'); renderHome(); });
 $('#cartQuit').addEventListener('click', () => { stopCart(); saveProgress(progress); show('home'); renderHome(); });
 $('#ngQuit').addEventListener('click', () => { stopNight(); saveProgress(progress); show('home'); renderHome(); });
@@ -245,100 +239,7 @@ async function finishMatch() {
   game = null;
 }
 
-/* ---------- 보고 고르기 ---------- */
-function startQuiz(dir) {
-  const n = Math.min(QUIZ_LEN, words.length);
-  last = { kind: 'quiz', dir };
-  const items = pickWords(n).map(w => ({ w, dir: dir === 'mix' ? (Math.random() < 0.5 ? 'ko2en' : 'en2ko') : dir, result: '' }));
-  quiz = { items, i: 0, right: 0, answered: false, missed: [] };
-  show('quiz');
-  drawQuestion();
-}
-// 보기 4개: 정답 + 다른 단어 3개(같은 글자 보기는 빼고, 영어 보기는 길이가 비슷한 것부터).
-function optionsFor(w, d) {
-  const label = (x) => (d === 'en2ko' ? x.ko : x.en);
-  const answer = label(w);
-  const others = shuffle(words.filter(x => x.key !== w.key));
-  if (d === 'ko2en') others.sort((a, b) => Math.abs(a.en.length - w.en.length) - Math.abs(b.en.length - w.en.length));
-  const opts = [];
-  for (const x of others) {
-    const l = label(x);
-    if (l === answer || opts.some(o => o.label === l)) continue;
-    opts.push({ label: l, key: x.key });
-    if (opts.length === 3) break;
-  }
-  return shuffle([{ label: answer, key: w.key }, ...opts]);
-}
-function drawQuestion() {
-  const q = quiz.items[quiz.i];
-  quiz.answered = false;
-  $('#qSteps').innerHTML = stepsHTML(quiz.items.map((it, k) => it.result || (k === quiz.i ? 'now' : '')));
-  const en2ko = q.dir === 'en2ko';
-  $('#qLabel').textContent = en2ko ? '이 단어의 뜻은?' : '이 뜻의 영어 단어는?';
-  const prompt = $('#qPrompt');
-  prompt.textContent = en2ko ? q.w.en : q.w.ko;
-  prompt.lang = en2ko ? 'en' : 'ko';
-  $('#qSay').hidden = !en2ko || !SPEAK_OK;
-  $('#qOpts').innerHTML = optionsFor(q.w, q.dir).map((o, k) =>
-    `<button type="button" class="wg-opt ${MATERIALS[k]}" data-key="${esc(o.key)}" ${en2ko ? '' : 'lang="en"'}>
-      <span class="key" aria-hidden="true">${k + 1}</span><span class="lbl">${esc(o.label)}</span></button>`).join('');
-  $('#qFb').textContent = ''; $('#qFb').className = 'wg-fb';
-  $('#qNext').hidden = true;
-  if (en2ko) say(q.w.en);
-}
-$('#qSay').addEventListener('click', () => { if (quiz) say(quiz.items[quiz.i].w.en); });
-function answer(b) {
-  if (!b || !quiz || quiz.answered) return;
-  quiz.answered = true;
-  const q = quiz.items[quiz.i];
-  const ok = b.dataset.key === q.w.key;
-  document.querySelectorAll('.wg-opt').forEach(x => {
-    x.disabled = true;
-    if (x.dataset.key === q.w.key) x.classList.add('right');
-    else if (x !== b) x.classList.add('dim');
-  });
-  if (!ok) b.classList.add('wrong');
-  q.result = ok ? 'right' : 'wrong';
-  $('#qSteps').innerHTML = stepsHTML(quiz.items.map((it, k) => it.result || (k === quiz.i ? 'now' : '')));
-  recordWord(q.w, ok);
-  saveProgress(progress);
-  say(q.w.en);
-  if (ok) {
-    quiz.right++;
-    $('#qFb').textContent = '맞았어요!'; $('#qFb').className = 'wg-fb good';
-    setTimeout(() => { if (quiz && quiz.items[quiz.i] === q) nextQuestion(); }, 1100);
-  } else {
-    quiz.missed.push(q.w);
-    $('#qFb').innerHTML = `정답은 <b lang="en">${esc(q.w.en)}</b> = <b>${esc(q.w.ko)}</b>`;
-    $('#qFb').className = 'wg-fb bad';
-    $('#qNext').hidden = false;
-    $('#qNext').focus({ preventScroll: true });
-  }
-}
-$('#qOpts').addEventListener('click', (e) => answer(e.target.closest('[data-key]')));
-$('#qNext').addEventListener('click', () => nextQuestion());
-// PC에서는 숫자키 1~4로 고르고, Enter로 다음 문제
-document.addEventListener('keydown', (e) => {
-  if ($('#quiz').hidden || !quiz || e.altKey || e.ctrlKey || e.metaKey) return;
-  const n = Number(e.key);
-  if (n >= 1 && n <= 4 && !quiz.answered) { answer(document.querySelectorAll('.wg-opt')[n - 1]); e.preventDefault(); }
-  else if (e.key === 'Enter' && quiz.answered && !$('#qNext').hidden) { nextQuestion(); e.preventDefault(); }
-});
-function nextQuestion() {
-  quiz.i++;
-  if (quiz.i < quiz.items.length) drawQuestion(); else finishQuiz();
-}
-async function finishQuiz() {
-  const n = quiz.items.length, right = quiz.right;
-  const gems = Math.max(right ? 1 : 0, Math.ceil(right / 2)) + (right === n ? 1 : 0);
-  await reward(gems);
-  showDone({
-    title: right === n ? '다 맞았어요!' : right >= n * 0.7 ? '잘했어요!' : '끝까지 했어요!',
-    text: `${n}문제 중 ${right}개 맞혔어요.`,
-    gems, missed: quiz.missed
-  });
-  quiz = null;
-}
+
 
 /* ---------- 단어 광산 ---------- */
 function goMine(mode) {
@@ -430,7 +331,7 @@ function showDone({ title, text, gems, missed }) {
   $('#review').innerHTML = uniq.length
     ? `<p>다시 볼 단어</p><ul>${uniq.map(w => `<li><b lang="en">${esc(w.en)}</b><span>${esc(w.ko)}</span></li>`).join('')}</ul>`
     : '';
-  $('#again').textContent = last && last.kind === 'quiz' ? '한 판 더 풀기' : last && last.kind === 'mine' ? '한 번 더 캐기' : last && last.kind === 'night' ? '다시 지키기' : last && last.kind === 'cart' ? '다시 달리기' : last && last.kind === 'craft' ? '다시 만들기' : '한 판 더 하기';
+  $('#again').textContent = last && last.kind === 'mine' ? '한 번 더 캐기' : last && last.kind === 'night' ? '다시 지키기' : last && last.kind === 'cart' ? '다시 달리기' : last && last.kind === 'craft' ? '다시 만들기' : '한 판 더 하기';
   renderBadges();
 }
 

@@ -462,14 +462,7 @@ kbd { font-family: var(--f-pixel); font-size: 12px; border: 2px solid var(--edge
   background: var(--gold); border: 3px solid var(--edge); box-shadow: inset 0 -6px 0 var(--shade), inset 0 4px 0 var(--shine); transform: translateY(-8px) rotate(-8deg); }
 .wg-art-match i.b { background: var(--panel); color: var(--helper-edge); transform: translateY(-14px); }
 .wg-art-match i:last-child { transform: translateY(-8px) rotate(8deg); }
-.wg-art-quiz { gap: 14px; }
-.wg-art-quiz .sign { font-family: var(--f-kid); font-size: 32px; padding: 6px 16px 8px; background: var(--panel); border: 3px solid var(--edge); transform: translateY(-10px);
-  box-shadow: 0 5px 0 var(--dirt); }
-.wg-art-quiz .ops { display: grid; grid-template-columns: repeat(2, 26px); gap: 5px; transform: translateY(-10px); }
-.wg-art-quiz .ops i { width: 26px; height: 20px; border: 2px solid var(--edge); background: var(--grass); }
-.wg-art-quiz .ops i:nth-child(2) { background: var(--helper-edge); }
-.wg-art-quiz .ops i:nth-child(3) { background: var(--gold); }
-.wg-art-quiz .ops i:nth-child(4) { background: var(--dirt); }
+
 
 /* 게임 빠르기 선택 */
 .wg-speed-row { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
@@ -488,7 +481,6 @@ kbd { font-family: var(--f-pixel); font-size: 12px; border: 2px solid var(--edge
 .wg-go button { flex: 1 1 0; min-width: 118px; white-space: nowrap; min-height: 58px; padding: 8px 10px 12px; font-family: var(--f-display); font-size: 21px; cursor: pointer;
   border: 3px solid var(--edge); box-shadow: inset 0 -5px 0 var(--shade), inset 0 4px 0 var(--shine); }
 .g-match .wg-go button { background: var(--gold); color: var(--gold-ink); }
-.g-quiz .wg-go button { background: var(--helper-edge); color: var(--on-color); }
 .g-mine .wg-go button { background: var(--stone-dark); color: var(--on-color); }
 .g-night .wg-go button { background: var(--ghost-dark); color: var(--on-color); }
 .g-cart .wg-go button { background: var(--dirt); color: var(--on-color); }

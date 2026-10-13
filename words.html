@@ -124,16 +124,6 @@
           <button type="button" data-go="match" data-pairs="8">8쌍</button>
         </div>
       </article>
-      <article class="wg-game g-quiz">
-        <div class="wg-art wg-art-quiz" aria-hidden="true"><span class="sign">집</span><span class="ops"><i></i><i></i><i></i><i></i></span></div>
-        <h2>보고 고르기</h2>
-        <p>뜻이나 단어를 보고 맞는 것을 4개 중에서 골라요</p>
-        <div class="wg-go" role="group" aria-label="보고 고르기 시작">
-          <button type="button" data-go="quiz" data-dir="ko2en" aria-label="한글 보고 영어 고르기">한글 → 영어</button>
-          <button type="button" data-go="quiz" data-dir="en2ko" aria-label="영어 보고 한글 고르기">영어 → 한글</button>
-          <button type="button" data-go="quiz" data-dir="mix">섞어서</button>
-        </div>
-      </article>
     </div>
     <div class="wg-foot">
       <label class="wg-src">단어 가져올 영상
@@ -143,24 +133,6 @@
     </div>
     <div class="wg-list" id="list" hidden>
       <ul id="wordList"></ul>
-    </div>
-  </section>
-
-  <!-- 보고 고르기 -->
-  <section class="wg-play" id="quiz" hidden>
-    <div class="wg-bar">
-      <ol class="wg-steps" id="qSteps" aria-label="문제 진행"></ol>
-      <button type="button" class="wg-quit" id="qQuit">그만하기</button>
-    </div>
-    <div class="wg-sign">
-      <p class="wg-ask" id="qLabel"></p>
-      <p class="wg-prompt" id="qPrompt"></p>
-      <button type="button" class="wg-say" id="qSay" hidden>다시 듣기</button>
-    </div>
-    <div class="wg-opts" id="qOpts"></div>
-    <div class="wg-after">
-      <p class="wg-fb" id="qFb" role="status"></p>
-      <button type="button" class="wg-next" id="qNext" hidden>다음 문제</button>
     </div>
   </section>
 

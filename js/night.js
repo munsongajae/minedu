@@ -320,8 +320,8 @@ function buildFirstPersonBow() {
   bow.add(bowString);
 
   const arrow = buildArrowMesh();
-  arrow.position.set(-0.07, 0, -0.05);
-  arrow.rotation.y = Math.PI;
+  arrow.position.set(-0.07, 0, -0.28);
+  arrow.rotation.y = 0;
   bow.add(arrow);
   notchArrow = arrow;
 
@@ -661,6 +661,18 @@ function choose(k) {
   // 활 쏘기 사운드 & 손 반동
   sfx('bow');
   recoilImpulse = 0.28;
+  if (notchArrow) {
+    notchArrow.position.z = -0.16; // 시위 당김
+    setTimeout(() => {
+      if (notchArrow) notchArrow.visible = false; // 화살 발사
+      setTimeout(() => {
+        if (notchArrow) {
+          notchArrow.position.z = -0.28;
+          notchArrow.visible = true; // 새 화살 장전
+        }
+      }, 160);
+    }, 60);
+  }
   setTimeout(() => sfx('shoot'), 70);
 
   launchArrow(m);
@@ -669,7 +681,7 @@ function choose(k) {
 
 function launchArrow(targetMob) {
   const mesh = buildArrowMesh();
-  mesh.position.set(0.28, 1.32, -0.7);
+  mesh.position.set(0.08, 1.32, -1.0);
   scene.add(mesh);
 
   const start = mesh.position.clone();

@@ -618,6 +618,7 @@ function spawn() {
 
   n.mobs.push(m);
   n.spawned++;
+  if (type.kind === 'zombie' && Math.random() < 0.5) sfx('zombie');
   ensureAnswers();
 }
 
@@ -713,7 +714,7 @@ function hitMob(m) {
   const progress = Math.min(1, Math.max(0, (m.z - Z_SPAWN) / (Z_REACH - Z_SPAWN)));
   m.x = LANES_CONFIG[m.lane].startX + (LANES_CONFIG[m.lane].endX - LANES_CONFIG[m.lane].startX) * progress;
   m.model.root.position.set(m.x, 0, m.z);
-  sfx('hit');
+  sfx('bowhit');
 
   setTimeout(() => {
     killMob(m);

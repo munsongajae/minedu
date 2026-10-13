@@ -333,7 +333,7 @@ async function finishNight(r) {
   await reward(gems);
   showDone({
     title: r.win ? (r.hearts === 3 ? '집을 완벽하게 지켰어요!' : '아침까지 집을 지켰어요!') : '다음엔 꼭 지켜요!',
-    text: `유령 ${r.total}마리 중 ${r.killed}마리를 물리쳤어요.${r.best >= 3 ? ` 가장 길게 ${r.best}번 연속으로 맞혔어요.` : ''}`,
+    text: `유령 ${r.total}마리 중 ${r.killed}마리를 물리쳤어요.${r.win ? ` ${Math.floor(r.sec / 60) ? `${Math.floor(r.sec / 60)}분 ` : ''}${r.sec % 60}초 걸렸어요.` : ''}${r.best >= 3 ? ` 가장 길게 ${r.best}번 연속으로 맞혔어요.` : ''}`,
     gems, missed: r.missed
   });
 }

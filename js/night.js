@@ -4,6 +4,7 @@
 //   - 틀린 단어를 누르면 그 단어의 뜻을 보여 주고 0.6초 쉰다.
 //   - 유령이 집에 닿으면 하트 1개가 깎이고, 그 단어는 '틀림'으로 남는다. 하트 3개가 다 없어지면 끝.
 //   - 유령 12마리를 다 막으면 아침이 온다. 뒤로 갈수록 조금씩 빨라진다.
+//   - '유령 부르기'(PC는 Space)로 다음 유령을 바로 불러낼 수 있다(동시에 3마리까지). 끝나면 걸린 시간을 보여 준다.
 // 유령·집·하트 그림은 직접 만든 픽셀 그림(게임 캐릭터 아님).
 import { $, esc, shuffle } from './learn.js';
 import { sfx } from './sfx.js';
@@ -150,6 +151,9 @@ function tick(now) {
     const g = SPEEDS[n.speed].gap;
     n.nextSpawn = n.t + g * (0.8 + Math.random() * 0.4);
   }
+  const canCall = n.spawned < TOTAL && alive().length < MAX_ALIVE;
+  const cb = $('#ngCall');
+  if (cb.disabled === canCall) cb.disabled = !canCall;
   for (const m of alive()) {
     if (n.over) break;
     m.x += dt / m.walk;
@@ -255,11 +259,21 @@ function poof(m, atHouse) {
   }
 }
 
+// '유령 부르기': 다음 유령을 바로 불러낸다. 다음 유령이 저절로 나오는 시간도 그만큼 뒤로.
+function callNext() {
+  if (!n || n.over || n.spawned >= TOTAL || alive().length >= MAX_ALIVE) return;
+  spawn();
+  sfx('switch');
+  n.nextSpawn = n.t + SPEEDS[n.speed].gap * (0.8 + Math.random() * 0.4);
+  if (n.spawned >= TOTAL || alive().length >= MAX_ALIVE) $('#ngCall').disabled = true;
+}
+
 /* ---------- 끝 ---------- */
 function finish(win) {
   n.over = true;
   cancelAnimationFrame(raf);
   $('#ngOpts').querySelectorAll('button').forEach(b => { b.disabled = true; });
+  $('#ngCall').disabled = true;
   const over = $('#ngOver');
   over.querySelector('p').textContent = win ? '아침이 왔어요!' : '집이 다 부서졌어요!';
   over.hidden = false;
@@ -267,7 +281,7 @@ function finish(win) {
   sfx(win ? 'win' : 'end');
   // 걸어오던 유령의 단어도 '틀림'으로
   if (!win) alive().forEach(m => { m.state = 'gone'; n.missed.push(m.w); ctx.recordWord(m.w, false); });
-  const r = { win, killed: n.killed, hearts: n.hearts, best: n.best, missed: n.missed, total: TOTAL };
+  const r = { win, killed: n.killed, hearts: n.hearts, best: n.best, missed: n.missed, total: TOTAL, sec: Math.round(n.t) };
   setTimeout(() => { if (ctx) ctx.onEnd(r); }, 1800);
 }
 const morning = () => finish(true);
@@ -282,4 +296,6 @@ document.addEventListener('keydown', (e) => {
   if ($('#night').hidden || !n || n.over || e.altKey || e.ctrlKey || e.metaKey) return;
   const k = Number(e.key);
   if (k >= 1 && k <= 4) { choose(k - 1); e.preventDefault(); }
+  else if (e.key === ' ' || e.key === 'Enter') { callNext(); e.preventDefault(); }
 });
+$('#ngCall').addEventListener('click', callNext);

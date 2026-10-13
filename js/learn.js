@@ -85,6 +85,27 @@ export function markToday(p) {
   if (!p.days.includes(t)) p.days.push(t);
   if (p.days.length > 400) p.days = p.days.slice(-400);
 }
+// 자유 연습: 복습 날짜는 바꾸지 않고, 에메랄드는 하루 FREE_GEMS개까지만 준다.
+export const FREE_GEMS = 5;
+export function freeGemsLeft(p) {
+  const f = p.free || {};
+  return f.day === todayStr() ? Math.max(0, FREE_GEMS - (f.gems || 0)) : FREE_GEMS;
+}
+/** 자유 연습 에메랄드 1개를 받을 수 있으면 주고 true. */
+export function takeFreeGem(p) {
+  if (!freeGemsLeft(p)) return false;
+  const t = todayStr();
+  p.free = { day: t, gems: (p.free && p.free.day === t ? p.free.gems || 0 : 0) + 1 };
+  p.emeralds += 1;
+  return true;
+}
+/** 지금 연습할 차례가 아닌 문장 중 가장 먼저 돌아오는 날(며칠 뒤). 없으면 null. */
+export function nextDueDays(sentences, progress) {
+  const now = Date.now();
+  const dues = sentences.map(s => progress.sentences[s.key]).filter(it => it && (it.due || 0) > now).map(it => it.due);
+  if (!dues.length) return null;
+  return Math.max(1, Math.round((startOfDay(Math.min(...dues)) - startOfDay(now)) / DAY));
+}
 export function streak(p) {
   const set = new Set(p.days);
   let n = 0;
@@ -185,8 +206,15 @@ export function mergeProgress(a, b) {
     words: pick(a.words, b.words),
     emeralds: Math.max(a.emeralds || 0, b.emeralds || 0),
     days: [...new Set([...(a.days || []), ...(b.days || [])])].sort().slice(-400),
+    free: mergeFree(a.free, b.free),
     updatedAt: Math.max(a.updatedAt || 0, b.updatedAt || 0)
   };
+}
+// 자유 연습 에메랄드 수: 더 나중 날짜, 같은 날이면 큰 쪽.
+function mergeFree(x, y) {
+  if (!x || !y) return x || y || null;
+  if (x.day !== y.day) return x.day > y.day ? x : y;
+  return { day: x.day, gems: Math.max(x.gems || 0, y.gems || 0) };
 }
 /** 서버의 기록과 합쳐서 양쪽에 저장한다. 합쳐진 기록을 돌려준다. */
 export async function syncProgress(p) {

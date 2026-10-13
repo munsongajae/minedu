@@ -3,9 +3,11 @@
 //   2번 상자: 블록 쌓기
 //   3번 상자: 빈칸 채우기
 //   4·5번 상자: 한글 보고 말해 보기(정답을 보고 스스로 맞았는지 고르기)
+// 자유 연습(언제든): 같은 활동을 섞어서 한다. 복습 날짜는 바꾸지 않고, 에메랄드는 하루 5개까지.
 // 말하며 외우기(언제든): 보면서 말하기 → 반쯤 가리고 말하기 → 다 가리고 한글만 보고 말하기 → 정답 보고 스스로 확인
 import { $, esc, shuffle, getChild, setChild, childPickerHTML, loadSentences, loadProgress, saveProgress, syncProgress,
-  grade, todayQueue, mastered, markToday, streak, tokens, wordKey, blobURL } from './learn.js';
+  grade, todayQueue, mastered, markToday, streak, tokens, wordKey, blobURL,
+  FREE_GEMS, freeGemsLeft, takeFreeGem, nextDueDays } from './learn.js';
 import { canSpeak, speak, getSpeed, wordsOf } from './speech.js';
 
 const SPEAK_OK = canSpeak();
@@ -52,13 +54,16 @@ function renderHome() {
   const start = $('#start');
   if (!all.sentences.length) {
     who.textContent = '아직 연습할 문장이 없어요. 만들기에서 영어 문장을 먼저 써 주세요.';
-    start.disabled = true; $('#memorize').disabled = true; $('#stats').innerHTML = ''; return;
+    start.disabled = true; $('#memorize').disabled = true; $('#free').disabled = true; $('#stats').innerHTML = ''; return;
   }
   if (!child || !progress) {
     who.textContent = '누가 연습하나요? 위에서 이름을 눌러 주세요.';
-    start.disabled = true; $('#memorize').disabled = true; $('#stats').innerHTML = ''; renderList(); return;
+    start.disabled = true; $('#memorize').disabled = true; $('#free').disabled = true; $('#stats').innerHTML = ''; renderList(); return;
   }
   $('#memorize').disabled = !pool.length;
+  $('#free').disabled = !pool.length;
+  const left = freeGemsLeft(progress);
+  $('#freeGems').textContent = left ? `오늘 자유 연습 에메랄드 ${left}개 남았어요.` : '오늘 자유 연습 에메랄드는 다 받았어요. 연습은 계속 할 수 있어요.';
   who.textContent = `${child}의 연습`;
   const q = todayQueue(pool, progress);
   const m = mastered(pool, progress);
@@ -68,9 +73,15 @@ function renderHome() {
     <div class="stat gem"><b>${progress.emeralds}</b><span>에메랄드</span></div>
     <div class="stat"><b>${streak(progress)}<small>일</small></b><span>연속 연습</span></div>`;
   start.disabled = !q.length;
-  $('#homeNote').textContent = q.length ? '' : '오늘 연습할 문장을 다 했어요! 내일 다시 와요. 새 문장을 만들면 바로 연습할 수 있어요.';
+  $('#homeNote').textContent = q.length ? '' : doneNote();
   if (all.usingExample) $('#homeNote').textContent = '지금은 예시 영상 문장으로 연습해요. 영상을 만들면 내 문장이 나와요.';
   renderList();
+}
+
+function doneNote() {
+  const d = nextDueDays(pool, progress);
+  const when = d === null ? '' : d === 1 ? ' 다음 문장은 내일 나와요.' : ` 다음 문장은 ${d}일 뒤에 나와요.`;
+  return `오늘 연습할 문장을 다 했어요!${when} 더 하고 싶으면 자유 연습이나 말하며 외우기를 해요.`;
 }
 
 function renderList() {
@@ -85,7 +96,12 @@ function renderList() {
 $('#proj').addEventListener('change', renderHome);
 $('#start').addEventListener('click', () => startSession());
 $('#memorize').addEventListener('click', () => startMemorize());
-$('#again').addEventListener('click', () => (session.kind === 'memorize' ? startMemorize() : startSession()));
+$('#free').addEventListener('click', () => startFree());
+$('#again').addEventListener('click', () => {
+  if (session.kind === 'memorize') startMemorize();
+  else if (session.kind === 'review' && todayQueue(pool, progress).length) startSession();
+  else startFree();
+});
 $('#home2').addEventListener('click', () => { show('home'); renderHome(); });
 $('#quit').addEventListener('click', () => { stopAudio(); finish(); });
 
@@ -114,7 +130,29 @@ function startMemorize() {
   nextCard();
 }
 
+// 자유 연습: 덜 외운 문장이 더 자주 나오게 고르되, 매번 조금씩 섞는다. 8개까지.
+function startFree() {
+  const boxOf = (s) => Math.max(1, progress.sentences[s.key] ? progress.sentences[s.key].box : 1);
+  queue = shuffle(pool).map(s => ({ s, w: boxOf(s) + Math.random() * 2.5 })).sort((a, b) => a.w - b.w).map(x => x.s).slice(0, 8);
+  if (!queue.length) { toast('연습할 문장이 없어요.'); return; }
+  idx = 0; retried = new Set(); session = { right: 0, wrong: 0, gems: 0, kind: 'free' };
+  show('session');
+  nextCard();
+}
+
+// 자유 연습은 상자 단계 안에서 활동을 골고루 섞는다.
+function freeModeFor(s) {
+  const it = progress.sentences[s.key];
+  const box = it ? it.box : 0;
+  const can = ['build'];
+  if (box === 0) return 'listen';
+  if (box >= 2 && tokens(s.en).length >= 3) can.push('cloze');
+  if (box >= 3) can.push('recall');
+  return can[Math.floor(Math.random() * can.length)];
+}
+
 function modeFor(s) {
+  if (session.kind === 'free') return freeModeFor(s);
   const it = progress.sentences[s.key];
   const box = it ? it.box : 0;
   if (box <= 1) return 'listen';
@@ -142,17 +180,26 @@ function nextCard() {
   else runRecall(s);
 }
 
+// 결과를 남기고, 받은 에메랄드 수(0 또는 1)를 돌려준다.
+// 자유 연습은 복습 날짜를 바꾸지 않고, 에메랄드는 하루 한도 안에서만 준다.
 async function record(s, ok) {
-  progress.sentences[s.key] = grade(progress.sentences[s.key], ok);
-  if (ok) { progress.emeralds += 1; session.gems += 1; session.right += 1; }
-  else {
+  let gem = 0;
+  if (session.kind !== 'free') progress.sentences[s.key] = grade(progress.sentences[s.key], ok);
+  if (ok) {
+    session.right += 1;
+    if (session.kind !== 'free') { progress.emeralds += 1; gem = 1; }
+    else if (takeFreeGem(progress)) gem = 1;
+    session.gems += gem;
+  } else {
     session.wrong += 1;
     // 틀린 문장은 이번 연습 끝에 한 번 더 나온다.
     if (!retried.has(s.key)) { retried.add(s.key); queue.push(s); }
   }
   markToday(progress);
   await saveProgress(progress);
+  return gem;
 }
+const gemNote = (gem) => (gem ? ' 에메랄드 1개를 얻었어요.' : '');
 
 function controls(html) { $('#controls').innerHTML = html; }
 function feedback(text, kind) { const f = $('#pfb'); f.textContent = text; f.className = 'pfb ' + (kind || ''); }
@@ -220,9 +267,8 @@ function runBuild(s) {
     const ok = placed.every((i, k) => wordKey(words[i]) === wordKey(words[k]));
     if (ok) {
       bindActivity(null);
-      feedback('맞았어요! 에메랄드 1개를 얻었어요.', 'good');
       $('#activity').insertAdjacentHTML('beforeend', followHTML(s.en));
-      await record(s, true);
+      feedback('맞았어요!' + gemNote(await record(s, true)), 'good');
       controls('<button class="btn big grass" type="button" id="next">다음 →</button>');
       $('#next').addEventListener('click', () => { idx++; nextCard(); });
       sayIt(s.en);
@@ -293,8 +339,8 @@ function runCloze(s) {
       b.classList.add('right');
       document.querySelectorAll('[data-opt]').forEach(x => { x.disabled = true; });
       $('#activity').querySelector('.cloze').outerHTML = sentenceHTML(true);
-      feedback(tries ? '맞았어요!' : '한 번에 맞았어요! 에메랄드 1개를 얻었어요.', 'good');
-      await record(s, tries === 0);
+      const gem = await record(s, tries === 0);
+      feedback(tries ? '맞았어요!' : '한 번에 맞았어요!' + gemNote(gem), 'good');
       sayIt(s.en);
     } else {
       b.classList.add('wrong'); b.disabled = true;
@@ -326,8 +372,8 @@ function runRecall(s) {
     sayIt(s.en);
     controls('<button class="btn big grass" type="button" id="yes">맞았어요</button><button class="btn big" type="button" id="no">아직 어려워요</button>');
     const done = async (ok) => {
-      await record(s, ok);
-      feedback(ok ? '잘했어요! 에메랄드 1개를 얻었어요.' : '괜찮아요. 다음에 다시 나와요.', ok ? 'good' : 'warn');
+      const gem = await record(s, ok);
+      feedback(ok ? '잘했어요!' + gemNote(gem) : session.kind === 'free' ? '괜찮아요. 이번 연습 끝에 한 번 더 나와요.' : '괜찮아요. 다음에 다시 나와요.', ok ? 'good' : 'warn');
       controls('<button class="btn big grass" type="button" id="next">다음 →</button>');
       $('#next').addEventListener('click', () => { idx++; nextCard(); });
     };
@@ -390,8 +436,8 @@ function runMemorize(s) {
     controls('<button class="btn big grass" type="button" data-memo="yes">외웠어요</button><button class="btn big" type="button" data-memo="no">더 연습할래요</button>');
   };
   const doneCard = async (ok) => {
-    await record(s, ok);
-    feedback(ok ? '외웠어요! 에메랄드 1개를 얻었어요.' : '괜찮아요. 이번 연습 끝에 한 번 더 나와요.', ok ? 'good' : 'warn');
+    const gem = await record(s, ok);
+    feedback(ok ? '외웠어요!' + gemNote(gem) : '괜찮아요. 이번 연습 끝에 한 번 더 나와요.', ok ? 'good' : 'warn');
     controls('<button class="btn big grass" type="button" data-memo="go">다음 →</button>');
   };
   // 가린 낱말 엿보기
@@ -422,12 +468,16 @@ function finish() {
   bindActivity(null);
   show('done');
   const n = session.right + session.wrong;
-  $('#doneTitle').textContent = n ? '오늘 연습 끝!' : '다음에 또 해요!';
+  const free = session.kind === 'free';
+  $('#doneTitle').textContent = !n ? '다음에 또 해요!' : free ? '자유 연습 끝!' : session.kind === 'memorize' ? '외우기 끝!' : '오늘 연습 끝!';
+  const capNote = free && !freeGemsLeft(progress) ? '<br>오늘 자유 연습 에메랄드는 다 받았어요. 연습은 더 해도 좋아요!' : '';
   $('#doneText').innerHTML = n
-    ? `맞힌 문장 <b>${session.right}</b>개 · 에메랄드 <b>+${session.gems}</b> (모두 ${progress.emeralds}개) · <b>${streak(progress)}</b>일째 연습`
+    ? `맞힌 문장 <b>${session.right}</b>개 · 에메랄드 <b>+${session.gems}</b> (모두 ${progress.emeralds}개) · <b>${streak(progress)}</b>일째 연습${capNote}`
     : '';
-  if (session.kind === 'memorize') { $('#again').hidden = false; $('#again').textContent = '다시 외우기'; }
-  else { $('#again').hidden = !todayQueue(pool, progress).length; $('#again').textContent = '더 연습하기'; }
+  $('#again').hidden = false;
+  if (session.kind === 'memorize') $('#again').textContent = '다시 외우기';
+  else if (session.kind === 'review' && todayQueue(pool, progress).length) $('#again').textContent = '더 연습하기';
+  else $('#again').textContent = free ? '자유 연습 한 번 더' : '자유 연습 하기';
 }
 
 /* ---------- 시작 ---------- */

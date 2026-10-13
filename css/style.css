@@ -764,17 +764,19 @@ kbd { font-family: var(--f-pixel); font-size: 12px; border: 2px solid var(--edge
 .ng-hearts i.lost svg { fill: var(--line); opacity: .6; }
 .ng-count { font-family: var(--f-display); font-size: 22px; }
 .ng-count + .wg-quit { margin-left: auto; }
-.ng-field { --hz: 44%; position: relative; height: 380px; overflow: hidden; border: 3px solid var(--edge); box-shadow: 0 7px 0 var(--shade);
-  background:
-    radial-gradient(circle at 12% 18%, var(--moon) 0 1.5px, transparent 2px), radial-gradient(circle at 34% 9%, var(--moon) 0 1px, transparent 1.5px),
-    radial-gradient(circle at 47% 26%, var(--moon) 0 1.5px, transparent 2px), radial-gradient(circle at 63% 12%, var(--moon) 0 1px, transparent 1.5px),
-    radial-gradient(circle at 78% 30%, var(--moon) 0 1.5px, transparent 2px), radial-gradient(circle at 90% 8%, var(--moon) 0 1px, transparent 1.5px),
-    radial-gradient(circle at 24% 38%, var(--moon) 0 1px, transparent 1.5px), radial-gradient(circle at 55% 40%, var(--moon) 0 1px, transparent 1.5px),
-    linear-gradient(var(--night-top), var(--night-low) var(--hz), var(--night-grass) var(--hz) calc(var(--hz) + 4%), var(--night-field) calc(var(--hz) + 4%)); }
-.ng-field::before { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 1.4s ease;
-  background: linear-gradient(var(--dawn-top), var(--dawn) var(--hz), var(--grass-hi) var(--hz) calc(var(--hz) + 4%), var(--grass) calc(var(--hz) + 4%)); }
-.ng-field.dawn::before { opacity: 1; }
-.ng-field::after { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 8; opacity: 0; box-shadow: inset 0 0 0 10px var(--redstone); }
+.ng-field { position: relative; height: 380px; overflow: hidden; border: 3px solid var(--edge); box-shadow: 0 7px 0 var(--shade); background: #060914; }
+.ng-field.hurt { animation: ng-field-shake .4s ease-out; }
+@keyframes ng-field-shake { 0%, 100% { transform: none; } 20% { transform: translate(-5px, 3px); } 40% { transform: translate(5px, -3px); } 60% { transform: translate(-3px, 2px); } 80% { transform: translate(3px, -1px); } }
+.ng-canvas3d { position: absolute; inset: 0; width: 100%; height: 100%; display: block; outline: none; }
+.ng-signs { position: absolute; inset: 0; pointer-events: none; z-index: 5; overflow: hidden; }
+.ng-sign3d { position: absolute; font-family: var(--f-kid); font-size: 21px; line-height: 1.15; padding: 4px 11px 6px; max-width: 170px; text-align: center; overflow-wrap: anywhere;
+  background: #b8945f; color: #201509; border: 2px solid #543d1f; box-shadow: inset 1px 1px 0 #d9b882, inset -2px -2px 0 #4a3418, 0 4px 0 rgba(0,0,0,0.5);
+  pointer-events: auto; cursor: pointer; user-select: none; transform-origin: center bottom; will-change: transform, left, top; transition: filter .12s, background .12s; }
+.ng-sign3d::after { content: ''; position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); width: 4px; height: 6px; background: #543d1f; }
+.ng-sign3d:hover { filter: brightness(1.15); }
+.ng-sign3d.hit { background: #e04545; color: #fff; border-color: #7a1515; box-shadow: 0 0 12px #ff2222; }
+.ng-crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-family: monospace; font-size: 24px; line-height: 1; color: rgba(255, 255, 255, 0.4); text-shadow: 0 0 1px #000; pointer-events: none; z-index: 4; user-select: none; }
+.ng-field::after { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 8; opacity: 0; box-shadow: inset 0 0 0 12px var(--redstone), inset 0 0 32px rgba(255, 30, 30, 0.45); }
 .ng-field.hurt::after { animation: ng-hurt .5s ease-out; }
 @keyframes ng-hurt { 20% { opacity: 1; } }
 .ng-moon { position: absolute; z-index: 1; top: 8%; left: calc(4% + var(--p, 0) * 78%); width: 44px; height: 44px; transition: left .6s ease;
@@ -886,6 +888,8 @@ kbd { font-family: var(--f-pixel); font-size: 12px; border: 2px solid var(--edge
   .ng-mob.lane0 .ng-creature { width: 28px; height: 42px; }
   .ng-mob.lane2 .ng-creature { width: 40px; height: 60px; }
   .ng-sign { font-size: 18px; max-width: 110px; }
+  .ng-sign3d { font-size: 17px; padding: 3px 8px 5px; }
+  .ng-crosshair { font-size: 20px; }
   .ng-opts { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .ng-opt { min-height: 64px; font-size: 22px; }
   .ng-play { grid-template-columns: 1fr; gap: 8px; }

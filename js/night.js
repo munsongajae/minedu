@@ -20,11 +20,213 @@ const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 let n = null, ctx = null, raf = 0, seq = 0;
 
-// 마인크래프트 몹: 좀비·스켈레톤·크리퍼를 직접 그린 픽셀 SVG.
-const MOB_TYPES = [
-  { name: '좀비', svg: "<svg class=\"ng-creature zombie\" viewBox=\"0 0 16 24\" shape-rendering=\"crispEdges\" aria-hidden=\"true\"><g class=\"skin\"><rect x=\"4\" y=\"0\" width=\"8\" height=\"8\"/><rect x=\"1\" y=\"11\" width=\"3\" height=\"6\"/><rect x=\"12\" y=\"11\" width=\"3\" height=\"6\"/></g><g class=\"skin-shade\"><rect x=\"10\" y=\"0\" width=\"2\" height=\"8\"/><rect x=\"4\" y=\"6\" width=\"6\" height=\"2\"/></g><g class=\"shirt\"><rect x=\"4\" y=\"8\" width=\"8\" height=\"9\"/><rect x=\"1\" y=\"8\" width=\"3\" height=\"3\"/><rect x=\"12\" y=\"8\" width=\"3\" height=\"3\"/></g><g class=\"pants\"><rect x=\"4\" y=\"17\" width=\"3\" height=\"6\"/><rect x=\"9\" y=\"17\" width=\"3\" height=\"6\"/></g><g class=\"face\"><rect x=\"5\" y=\"3\" width=\"2\" height=\"1\"/><rect x=\"9\" y=\"3\" width=\"2\" height=\"1\"/><rect x=\"7\" y=\"5\" width=\"3\" height=\"1\"/><rect x=\"4\" y=\"23\" width=\"3\" height=\"1\"/><rect x=\"9\" y=\"23\" width=\"3\" height=\"1\"/></g></svg>" },
-  { name: '스켈레톤', svg: "<svg class=\"ng-creature skeleton\" viewBox=\"0 0 16 24\" shape-rendering=\"crispEdges\" aria-hidden=\"true\"><g class=\"bone\"><rect x=\"4\" y=\"0\" width=\"8\" height=\"7\"/><rect x=\"5\" y=\"7\" width=\"6\" height=\"1\"/><rect x=\"7\" y=\"8\" width=\"2\" height=\"9\"/><rect x=\"5\" y=\"9\" width=\"6\" height=\"1\"/><rect x=\"5\" y=\"12\" width=\"6\" height=\"1\"/><rect x=\"5\" y=\"15\" width=\"6\" height=\"1\"/><rect x=\"3\" y=\"9\" width=\"2\" height=\"9\"/><rect x=\"11\" y=\"9\" width=\"2\" height=\"8\"/><rect x=\"5\" y=\"17\" width=\"6\" height=\"2\"/><rect x=\"5\" y=\"19\" width=\"2\" height=\"5\"/><rect x=\"9\" y=\"19\" width=\"2\" height=\"5\"/></g><g class=\"bone-shade\"><rect x=\"10\" y=\"0\" width=\"2\" height=\"7\"/><rect x=\"7\" y=\"10\" width=\"1\" height=\"7\"/></g><g class=\"face\"><rect x=\"5\" y=\"3\" width=\"2\" height=\"2\"/><rect x=\"9\" y=\"3\" width=\"2\" height=\"2\"/><rect x=\"7\" y=\"5\" width=\"2\" height=\"1\"/><rect x=\"6\" y=\"7\" width=\"1\" height=\"1\"/><rect x=\"9\" y=\"7\" width=\"1\" height=\"1\"/></g><g class=\"bow\"><rect x=\"13\" y=\"8\" width=\"1\" height=\"2\"/><rect x=\"14\" y=\"10\" width=\"1\" height=\"2\"/><rect x=\"15\" y=\"12\" width=\"1\" height=\"4\"/><rect x=\"14\" y=\"16\" width=\"1\" height=\"2\"/><rect x=\"13\" y=\"18\" width=\"1\" height=\"2\"/></g><path class=\"bow-string\" d=\"M13.5 8V20\" fill=\"none\" stroke-width=\"0.5\"/></svg>" },
-  { name: '크리퍼', svg: "<svg class=\"ng-creature creeper\" viewBox=\"0 0 16 24\" shape-rendering=\"crispEdges\" aria-hidden=\"true\"><g class=\"skin\"><rect x=\"4\" y=\"0\" width=\"8\" height=\"8\"/><rect x=\"5\" y=\"8\" width=\"6\" height=\"10\"/><rect x=\"2\" y=\"18\" width=\"4\" height=\"6\"/><rect x=\"10\" y=\"18\" width=\"4\" height=\"6\"/></g><g class=\"skin-shade\"><rect x=\"10\" y=\"0\" width=\"2\" height=\"8\"/><rect x=\"9\" y=\"8\" width=\"2\" height=\"10\"/><rect x=\"5\" y=\"18\" width=\"2\" height=\"5\"/><rect x=\"9\" y=\"18\" width=\"2\" height=\"5\"/></g><g class=\"speckle\"><rect x=\"5\" y=\"1\" width=\"2\" height=\"1\"/><rect x=\"9\" y=\"2\" width=\"1\" height=\"1\"/><rect x=\"6\" y=\"9\" width=\"2\" height=\"2\"/><rect x=\"8\" y=\"13\" width=\"2\" height=\"1\"/><rect x=\"5\" y=\"16\" width=\"1\" height=\"1\"/><rect x=\"3\" y=\"19\" width=\"1\" height=\"2\"/><rect x=\"12\" y=\"21\" width=\"1\" height=\"1\"/></g><g class=\"face\"><rect x=\"5\" y=\"3\" width=\"2\" height=\"2\"/><rect x=\"9\" y=\"3\" width=\"2\" height=\"2\"/><rect x=\"7\" y=\"5\" width=\"2\" height=\"2\"/><rect x=\"6\" y=\"6\" width=\"4\" height=\"1\"/><rect x=\"6\" y=\"7\" width=\"1\" height=\"1\"/><rect x=\"9\" y=\"7\" width=\"1\" height=\"1\"/><rect x=\"2\" y=\"23\" width=\"4\" height=\"1\"/><rect x=\"10\" y=\"23\" width=\"4\" height=\"1\"/></g></svg>" },
+// 마인크래프트 3D 입체 몹: 좀비·스켈레톤·크리퍼·엔더맨을 3D 아이소메트릭 블록으로 직접 구현.
+export const ZOMBIE_SVG = `<svg class="ng-creature zombie" viewBox="0 0 26 39" shape-rendering="crispEdges" aria-hidden="true">
+  <ellipse class="mc-shadow" cx="13" cy="37.5" rx="8.5" ry="2" fill="rgba(0,0,0,0.38)"/>
+  <g class="mc-arm-far">
+    <polygon points="12,14 17,13 18,15 13,16" fill="#1b8587"/>
+    <rect x="13" y="15" width="4" height="3" fill="#146d6f"/>
+    <polygon points="17,13 22,13 22,15 17,15" fill="#69a838"/>
+    <rect x="17" y="15" width="5" height="3" fill="#4d8226"/>
+    <rect x="17" y="18" width="5" height="1" fill="#38601c"/>
+  </g>
+  <g class="mc-leg-far">
+    <rect x="11" y="25" width="2" height="11" fill="#1b1735"/>
+    <rect x="13" y="25" width="4" height="11" fill="#2a2350"/>
+    <rect x="13" y="30" width="4" height="1" fill="#201a3e"/>
+    <rect x="12" y="35" width="5" height="1.5" fill="#16132b"/>
+  </g>
+  <g class="mc-torso">
+    <polygon points="7,14 11,11.5 18,12.5 14,15" fill="#2ac3c5"/>
+    <polygon points="7,14 10,13.5 10,25 7,24" fill="#135f61"/>
+    <polygon points="10,13.5 17,14 17,25 10,25" fill="#1ea8aa"/>
+    <polygon points="12,13.8 14.5,13.9 13.5,16.5 12,16.5" fill="#588c34"/>
+    <rect x="10" y="23.5" width="7" height="1.5" fill="#157c7e"/>
+  </g>
+  <g class="mc-leg-near">
+    <polygon points="7,24 10,24 12,25 9,25" fill="#4d4282"/>
+    <rect x="6.5" y="25" width="2.5" height="11" fill="#231d42"/>
+    <rect x="9" y="25" width="4.5" height="11" fill="#3a3168"/>
+    <rect x="9" y="25" width="1" height="10" fill="#483d7e"/>
+    <rect x="8" y="30" width="5" height="1" fill="#28224a"/>
+    <rect x="7" y="35" width="6.5" height="1.5" fill="#1c1735"/>
+  </g>
+  <g class="mc-arm-near">
+    <polygon points="6,15 10,14 12,16 8,17" fill="#2fc5c7"/>
+    <polygon points="6,15 8,17 8,20 6,18" fill="#14686a"/>
+    <polygon points="8,17 12,16 12,19 8,20" fill="#1ea8aa"/>
+    <polygon points="12,16 23,16 24,18 13,18" fill="#75b840"/>
+    <rect x="13" y="18" width="11" height="3" fill="#588c34"/>
+    <rect x="13" y="21" width="11" height="1" fill="#3d6324"/>
+    <rect x="23" y="17" width="1" height="4" fill="#30501c"/>
+  </g>
+  <g class="mc-head">
+    <polygon points="8,5 12,2 18,3 14,6" fill="#4a7327"/>
+    <polygon points="10,4.5 13,2.5 16,3.2 13,5.2" fill="#5c8c32"/>
+    <polygon points="8,5 11,5.5 11,14 8,13" fill="#2d4817"/>
+    <rect x="9" y="8" width="1.5" height="2" fill="#243b12"/>
+    <polygon points="8,10 11,10.5 11,14 8,13" fill="#3b5e22"/>
+    <polygon points="11,5.5 18,6.5 18,14.5 11,14" fill="#588c34"/>
+    <rect x="11" y="5.5" width="7" height="2.5" fill="#38581e"/>
+    <rect x="13" y="8" width="2" height="1" fill="#38581e"/>
+    <rect x="12" y="9" width="2" height="1.5" fill="#13210d"/>
+    <rect x="12.5" y="9" width="1" height="1" fill="#233550"/>
+    <rect x="15" y="9.5" width="2" height="1.5" fill="#13210d"/>
+    <rect x="15.5" y="9.5" width="1" height="1" fill="#233550"/>
+    <rect x="14" y="11.5" width="2" height="1" fill="#426827"/>
+    <rect x="13" y="13" width="3" height="1" fill="#2e4c1a"/>
+  </g>
+</svg>`;
+
+export const SKELETON_SVG = `<svg class="ng-creature skeleton" viewBox="0 0 26 39" shape-rendering="crispEdges" aria-hidden="true">
+  <ellipse class="mc-shadow" cx="13" cy="37.5" rx="8" ry="1.8" fill="rgba(0,0,0,0.38)"/>
+  <g class="mc-arm-far">
+    <rect x="14" y="14" width="2" height="8" fill="#999684"/>
+  </g>
+  <g class="mc-leg-far">
+    <rect x="13" y="25" width="2.5" height="11" fill="#918e7d"/>
+    <rect x="13" y="29.5" width="2.5" height="1" fill="#6d6a5c"/>
+    <rect x="13" y="35" width="3" height="1.5" fill="#757364"/>
+  </g>
+  <g class="mc-torso">
+    <rect x="8" y="14" width="8" height="10" fill="#141414"/>
+    <rect x="11.5" y="14" width="2" height="10" fill="#e0ddd0"/>
+    <polygon points="7,14 11,12 17,13 13,15" fill="#f4f1e4"/>
+    <rect x="8" y="15.5" width="8" height="1.2" fill="#dcd9c8"/>
+    <rect x="8.5" y="18" width="7.5" height="1.2" fill="#dcd9c8"/>
+    <rect x="9" y="20.5" width="6.5" height="1.2" fill="#dcd9c8"/>
+    <polygon points="8,23 16,23.5 15,25.5 9,25" fill="#c7c3b2"/>
+  </g>
+  <g class="mc-leg-near">
+    <rect x="8.5" y="25" width="1" height="11" fill="#999684"/>
+    <rect x="9.5" y="25" width="2" height="11" fill="#dedbc9"/>
+    <rect x="8.5" y="30" width="3" height="1" fill="#aba794"/>
+    <rect x="9" y="35" width="3.5" height="1.5" fill="#b8b4a2"/>
+  </g>
+  <g class="mc-arm-near">
+    <polygon points="7,14 10,14 16,18 14,20" fill="#dedbc9"/>
+    <rect x="13" y="18" width="2" height="2" fill="#b0ac9a"/>
+    <g class="mc-bow">
+      <rect x="16" y="9" width="2" height="3" fill="#693c18"/>
+      <rect x="17.5" y="11" width="2" height="4" fill="#8f562b"/>
+      <rect x="19" y="14" width="2" height="4" fill="#aa6c35"/>
+      <rect x="19.5" y="17" width="2.5" height="4" fill="#bd7d42"/>
+      <rect x="18.5" y="17.5" width="1.5" height="3" fill="#693c18"/>
+      <rect x="19" y="20" width="2" height="4" fill="#aa6c35"/>
+      <rect x="17.5" y="23" width="2" height="4" fill="#8f562b"/>
+      <rect x="16" y="26" width="2" height="3" fill="#693c18"/>
+      <line x1="16.5" y1="9.5" x2="16.5" y2="28.5" stroke="#f0f0f0" stroke-width="0.8"/>
+      <line x1="14" y1="18.5" x2="24" y2="18.5" stroke="#8a5e35" stroke-width="1"/>
+      <polygon points="24,17.5 26,18.5 24,19.5" fill="#d2d2d2"/>
+      <rect x="14" y="17.5" width="1.5" height="2" fill="#f8f8f8"/>
+    </g>
+  </g>
+  <g class="mc-head">
+    <polygon points="8,5 12,2 18,3 14,6" fill="#f4f1e4"/>
+    <polygon points="8,5 11,5.5 11,14 8,13" fill="#918e7c"/>
+    <rect x="8.5" y="7" width="2" height="3" fill="#757262"/>
+    <polygon points="11,5.5 18,6.5 18,14.5 11,14" fill="#dedbc9"/>
+    <rect x="12" y="8" width="2" height="2" fill="#141414"/>
+    <rect x="15" y="8.5" width="2.5" height="2" fill="#141414"/>
+    <polygon points="14,11 15,11 14.5,12" fill="#141414"/>
+    <rect x="12" y="12.5" width="5.5" height="1.2" fill="#2b2b2b"/>
+    <line x1="13.5" y1="12.5" x2="13.5" y2="13.7" stroke="#dedbc9" stroke-width="0.6"/>
+    <line x1="15" y1="12.5" x2="15" y2="13.7" stroke="#dedbc9" stroke-width="0.6"/>
+    <line x1="16.5" y1="12.5" x2="16.5" y2="13.7" stroke="#dedbc9" stroke-width="0.6"/>
+  </g>
+</svg>`;
+
+export const CREEPER_SVG = `<svg class="ng-creature creeper" viewBox="0 0 26 39" shape-rendering="crispEdges" aria-hidden="true">
+  <ellipse class="mc-shadow" cx="13" cy="37.5" rx="8.5" ry="2" fill="rgba(0,0,0,0.38)"/>
+  <g class="mc-leg-rear-far">
+    <rect x="6" y="27" width="3.5" height="8" fill="#32631f"/>
+    <rect x="6" y="34" width="3.5" height="1.5" fill="#182c10"/>
+  </g>
+  <g class="mc-leg-rear-near">
+    <polygon points="9,28 13,28 13,36 9,36" fill="#4d8c32"/>
+    <rect x="9" y="34.5" width="4" height="1.5" fill="#182c10"/>
+  </g>
+  <g class="mc-leg-front-far">
+    <rect x="13" y="27" width="3.5" height="8" fill="#3d7528"/>
+    <rect x="13" y="34" width="3.5" height="1.5" fill="#182c10"/>
+  </g>
+  <g class="mc-leg-front-near">
+    <polygon points="16,28 20,28 20,36 16,36" fill="#589e3a"/>
+    <rect x="16" y="34.5" width="4" height="1.5" fill="#182c10"/>
+  </g>
+  <g class="mc-torso">
+    <polygon points="7,14 11,11.5 18,12.5 14,15" fill="#75c74e"/>
+    <polygon points="7,14 10,13.5 10,28 7,27" fill="#2d5c1c"/>
+    <rect x="7" y="16" width="3" height="3" fill="#244a16"/>
+    <rect x="7" y="21" width="3" height="2" fill="#387023"/>
+    <polygon points="10,13.5 18,14.5 18,28 10,28" fill="#529938"/>
+    <rect x="11" y="15" width="2" height="2" fill="#73c750"/>
+    <rect x="14" y="15" width="3" height="2" fill="#3c7826"/>
+    <rect x="12" y="18" width="3" height="3" fill="#65b844"/>
+    <rect x="15" y="19" width="3" height="2" fill="#88db5f"/>
+    <rect x="10.5" y="22" width="2.5" height="3" fill="#366b23"/>
+    <rect x="14" y="23" width="3" height="3" fill="#4d9432"/>
+  </g>
+  <g class="mc-head">
+    <polygon points="8,5 12,2 18,3 14,6" fill="#75c74e"/>
+    <polygon points="10,4.5 13,2.5 16,3.2 13,5.2" fill="#8ae060"/>
+    <polygon points="8,5 11,5.5 11,14 8,13" fill="#2d5c1c"/>
+    <rect x="8.5" y="8" width="2" height="2" fill="#204214"/>
+    <polygon points="11,5.5 18,6.5 18,14.5 11,14" fill="#5db03e"/>
+    <rect x="11" y="6" width="3" height="2" fill="#79d453"/>
+    <rect x="15" y="6.5" width="3" height="2" fill="#46872d"/>
+    <rect x="11.5" y="8" width="2" height="2" fill="#0d180b"/>
+    <rect x="15.5" y="8.5" width="2" height="2" fill="#0d180b"/>
+    <rect x="13.5" y="9.5" width="2" height="2" fill="#0d180b"/>
+    <rect x="12.5" y="11" width="1.5" height="2.5" fill="#0d180b"/>
+    <rect x="15" y="11.5" width="1.5" height="2.5" fill="#0d180b"/>
+    <rect x="12" y="13" width="5" height="1" fill="#0d180b"/>
+  </g>
+</svg>`;
+
+export const ENDERMAN_SVG = `<svg class="ng-creature enderman" viewBox="0 0 26 39" shape-rendering="crispEdges" aria-hidden="true">
+  <ellipse class="mc-shadow" cx="13" cy="37.5" rx="7.5" ry="1.8" fill="rgba(0,0,0,0.38)"/>
+  <g class="mc-arm-far">
+    <rect x="14" y="11" width="1.8" height="22" fill="#0f0f12"/>
+  </g>
+  <g class="mc-leg-far">
+    <rect x="12.5" y="22" width="2" height="15" fill="#0f0f12"/>
+  </g>
+  <g class="mc-torso">
+    <polygon points="8,10 11,9 16,9.5 13,11" fill="#282830"/>
+    <polygon points="8,10 10,9.8 10,22 8,21.5" fill="#121216"/>
+    <polygon points="10,9.8 15,10.2 15,22 10,22" fill="#1a1a20"/>
+  </g>
+  <g class="mc-leg-near">
+    <rect x="8.5" y="22" width="2.2" height="15" fill="#18181e"/>
+    <rect x="8.5" y="35.5" width="3" height="1.5" fill="#101014"/>
+  </g>
+  <g class="mc-arm-near">
+    <rect x="7" y="11" width="2" height="22" fill="#1a1a22"/>
+    <rect x="7" y="31" width="2" height="3" fill="#121218"/>
+  </g>
+  <g class="mc-head">
+    <polygon points="8,3.5 11,1 17,1.8 13,4.5" fill="#2e2e38"/>
+    <polygon points="8,3.5 10,4 10,10 8,9.5" fill="#111116"/>
+    <polygon points="10,4 17,4.8 17,10.5 10,10" fill="#1a1a22"/>
+    <rect x="11" y="6" width="2" height="1.2" fill="#d645f5"/>
+    <rect x="11.5" y="6.2" width="1" height="0.8" fill="#ffa8ff"/>
+    <rect x="14.5" y="6.4" width="2" height="1.2" fill="#d645f5"/>
+    <rect x="15" y="6.6" width="1" height="0.8" fill="#ffa8ff"/>
+  </g>
+  <g class="mc-ender-sparks">
+    <rect class="mc-spark s1" x="5" y="6" width="1.2" height="1.2" fill="#d645f5"/>
+    <rect class="mc-spark s2" x="18" y="14" width="1.2" height="1.2" fill="#d645f5"/>
+    <rect class="mc-spark s3" x="4" y="20" width="1.2" height="1.2" fill="#ba33db"/>
+    <rect class="mc-spark s4" x="17" y="28" width="1.2" height="1.2" fill="#e86eff"/>
+  </g>
+</svg>`;
+
+export const MOB_TYPES = [
+  { name: '좀비', svg: ZOMBIE_SVG },
+  { name: '스켈레톤', svg: SKELETON_SVG },
+  { name: '크리퍼', svg: CREEPER_SVG },
+  { name: '엔더맨', svg: ENDERMAN_SVG },
 ];
 export const HOUSE = `<svg class="ng-house-svg" viewBox="0 0 16 15" shape-rendering="crispEdges" aria-hidden="true">
   <g class="roof"><rect x="7" y="0" width="2" height="1"/><rect x="5" y="1" width="6" height="1"/><rect x="3" y="2" width="10" height="1"/><rect x="1" y="3" width="14" height="1"/><rect x="0" y="4" width="16" height="1"/></g>
@@ -174,7 +376,8 @@ function reach(m) {
   ctx.recordWord(m.w, false);
   const f = $('#ngField');
   f.classList.remove('hurt'); void f.offsetWidth; f.classList.add('hurt');
-  $('#ngFb').innerHTML = `${m.type.name}${m.type.name === '스켈레톤' ? '이' : '가'} 집에 닿았어요! <b lang="en">${esc(m.w.en)}</b> = ${esc(m.w.ko)}`;
+  const particle = ['스켈레톤', '엔더맨'].includes(m.type.name) ? '이' : '가';
+  $('#ngFb').innerHTML = `${m.type.name}${particle} 집에 닿았어요! <b lang="en">${esc(m.w.en)}</b> = ${esc(m.w.ko)}`;
   drawBar();
   if (n.hearts <= 0) return gameOver();
 }
@@ -232,7 +435,11 @@ function shoot(m, done) {
     { transform: `translate(0px, 0px) rotate(${ang - 12}deg)` },
     { transform: `translate(${dx * 0.5}px, ${dy * 0.5 + lift}px) rotate(${ang}deg)`, offset: 0.5 },
     { transform: `translate(${dx}px, ${dy}px) rotate(${ang + 10}deg)` }
-  ], { duration: 260, easing: 'linear' }).onfinish = () => { el.remove(); done(); };
+  ], { duration: 260, easing: 'linear' }).onfinish = () => {
+    el.remove();
+    m.el.classList.add('hit-flash');
+    setTimeout(() => done(), 90);
+  };
 }
 
 function poof(m, atHouse) {
@@ -244,10 +451,14 @@ function poof(m, atHouse) {
   const fr = field.getBoundingClientRect();
   const r = el.querySelector('.ng-creature').getBoundingClientRect();
   const cx = r.left - fr.left + r.width / 2, cy = r.top - fr.top + r.height / 2;
-  for (let k = 0; k < 12; k++) {
+  const bitColor = m.type.name === '스켈레톤' ? 'var(--mob-bone)'
+    : m.type.name === '크리퍼' ? 'var(--creeper-skin)'
+    : m.type.name === '엔더맨' ? '#d645f5'
+    : 'var(--zombie-skin)';
+  for (let k = 0; k < 14; k++) {
     const b = document.createElement('i');
     b.className = `ng-bit ${k % 4 === 0 ? 'eye' : ''}`;
-    b.style.background = `var(${m.type.name === '스켈레톤' ? '--mob-bone' : m.type.name === '크리퍼' ? '--creeper-skin' : '--zombie-skin'})`;
+    b.style.background = bitColor;
     b.style.left = `${cx}px`; b.style.top = `${cy}px`;
     field.appendChild(b);
     const a = Math.random() * Math.PI * 2, d = 26 + Math.random() * 50;

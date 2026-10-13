@@ -784,8 +784,64 @@ kbd { font-family: var(--f-pixel); font-size: 12px; border: 2px solid var(--edge
 .ng-mob .ng-creature { width: 44px; height: 66px; display: block; filter: drop-shadow(2px 2px 0 var(--shade)); }
 .ng-mob.lane0 .ng-creature { width: 38px; height: 57px; }
 .ng-mob.lane2 .ng-creature { width: 50px; height: 75px; }
-.ng-sign { font-family: var(--f-kid); font-size: 22px; line-height: 1.1; padding: 1px 8px 3px; max-width: 150px; text-align: center; overflow-wrap: anywhere;
-  background: var(--panel); color: var(--ink); border: 2px solid var(--edge); box-shadow: 0 3px 0 var(--dirt); }
+.ng-sign { font-family: var(--f-kid); font-size: 22px; line-height: 1.1; padding: 3px 10px 5px; max-width: 150px; text-align: center; overflow-wrap: anywhere;
+  background: #b8945f; color: #201509; border: 2px solid #543d1f; box-shadow: inset 1px 1px 0 #d9b882, inset -2px -2px 0 #4a3418, 0 3px 0 rgba(0,0,0,0.4); position: relative; }
+.ng-sign::after { content: ''; position: absolute; bottom: -5px; left: 50%; transform: translateX(-50%); width: 3px; height: 5px; background: #543d1f; }
+.ng-mob.hit-flash .ng-creature { filter: drop-shadow(0 0 10px #ff2222) brightness(1.3) saturate(2.5); transform: scale(0.95) translateX(-4px); transition: transform 0.08s ease-out, filter 0.08s ease-out; }
+
+/* 마인크래프트 3D 몹 애니메이션 */
+.ng-mob .mc-leg-near { transform-origin: 10px 25px; animation: mc-leg-near-walk 0.75s ease-in-out infinite alternate; }
+.ng-mob .mc-leg-far { transform-origin: 14px 25px; animation: mc-leg-far-walk 0.75s ease-in-out infinite alternate; }
+@keyframes mc-leg-near-walk { 0% { transform: rotate(-16deg); } 100% { transform: rotate(16deg); } }
+@keyframes mc-leg-far-walk { 0% { transform: rotate(16deg); } 100% { transform: rotate(-16deg); } }
+
+/* 좀비 양팔: 앞으로 뻗은 채 미세 흔들림 */
+.ng-creature.zombie .mc-arm-near { transform-origin: 8px 16px; animation: mc-zombie-arm-near 0.8s ease-in-out infinite alternate; }
+.ng-creature.zombie .mc-arm-far { transform-origin: 14px 15px; animation: mc-zombie-arm-far 0.8s ease-in-out infinite alternate; }
+@keyframes mc-zombie-arm-near { 0% { transform: rotate(-3deg); } 100% { transform: rotate(4deg); } }
+@keyframes mc-zombie-arm-far { 0% { transform: rotate(3deg); } 100% { transform: rotate(-4deg); } }
+
+/* 스켈레톤 활 조준 호흡 */
+.ng-creature.skeleton .mc-arm-near { transform-origin: 8px 16px; animation: mc-skel-aim 1.2s ease-in-out infinite alternate; }
+@keyframes mc-skel-aim { 0% { transform: rotate(-2deg); } 100% { transform: rotate(3deg); } }
+
+/* 크리퍼 4족 보행 */
+.ng-creature.creeper .mc-leg-front-near, .ng-creature.creeper .mc-leg-rear-far { transform-origin: 18px 28px; animation: mc-creeper-leg1 0.6s ease-in-out infinite alternate; }
+.ng-creature.creeper .mc-leg-front-far, .ng-creature.creeper .mc-leg-rear-near { transform-origin: 10px 28px; animation: mc-creeper-leg2 0.6s ease-in-out infinite alternate; }
+@keyframes mc-creeper-leg1 { 0% { transform: rotate(-14deg); } 100% { transform: rotate(14deg); } }
+@keyframes mc-creeper-leg2 { 0% { transform: rotate(14deg); } 100% { transform: rotate(-14deg); } }
+
+/* 엔더맨 엔더 스파크 입자 */
+.ng-creature.enderman .mc-spark { animation: mc-ender-float 1.2s ease-in-out infinite alternate; }
+.ng-creature.enderman .mc-spark.s1 { animation-delay: 0s; }
+.ng-creature.enderman .mc-spark.s2 { animation-delay: 0.3s; }
+.ng-creature.enderman .mc-spark.s3 { animation-delay: 0.6s; }
+.ng-creature.enderman .mc-spark.s4 { animation-delay: 0.9s; }
+@keyframes mc-ender-float {
+  0% { transform: translate(0, 0) scale(0.8); opacity: 0.3; }
+  50% { transform: translate(1px, -2px) scale(1.2); opacity: 0.9; }
+  100% { transform: translate(-1px, -4px) scale(0.6); opacity: 0.2; }
+}
+
+/* 머리 리듬 흔들림 */
+.ng-mob .mc-head { transform-origin: 12px 14px; animation: mc-head-bob 0.75s ease-in-out infinite alternate; }
+@keyframes mc-head-bob { 0% { transform: rotate(-2deg); } 100% { transform: rotate(2deg); } }
+
+/* 바닥 그림자 호흡 */
+.mc-shadow { transform-origin: 13px 37.5px; animation: mc-shadow-scale 0.75s ease-in-out infinite alternate; }
+@keyframes mc-shadow-scale { 0% { transform: scale(0.94); opacity: 0.3; } 100% { transform: scale(1.04); opacity: 0.42; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .ng-mob .mc-leg-near, .ng-mob .mc-leg-far,
+  .ng-creature.zombie .mc-arm-near, .ng-creature.zombie .mc-arm-far,
+  .ng-creature.skeleton .mc-arm-near,
+  .ng-creature.creeper .mc-leg-front-near, .ng-creature.creeper .mc-leg-rear-far,
+  .ng-creature.creeper .mc-leg-front-far, .ng-creature.creeper .mc-leg-rear-near,
+  .ng-creature.enderman .mc-spark, .ng-mob .mc-head, .mc-shadow {
+    animation: none;
+  }
+}
+
 .ng-mob.pop .ng-creature { animation: ng-pop .36s ease-out forwards; }
 .ng-mob.pop .ng-sign, .ng-mob.bump .ng-sign { transition: opacity .3s; opacity: 0; }
 .ng-mob.bump .ng-creature { animation: ng-bump .36s ease-in forwards; }

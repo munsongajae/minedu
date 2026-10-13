@@ -95,6 +95,25 @@
           <button type="button" data-go="night" data-mode="en">영어 보고 막기</button>
         </div>
       </article>
+      <article class="wg-game g-craft">
+        <div class="wg-art wg-art-craft" aria-hidden="true">
+          <div class="art-craft-table">
+            <span class="act-grid">
+              <i></i><i class="gem"></i><i></i>
+              <i></i><i class="gem"></i><i></i>
+              <i></i><i class="stk"></i><i></i>
+            </span>
+            <span class="act-arr">➔</span>
+            <span class="act-out"><svg class="mc-crafted-svg" viewBox="0 0 24 24" shape-rendering="crispEdges"><g transform="rotate(45 12 12)"><rect x="11" y="2" width="2" height="14" fill="#32cad8"/><rect x="11" y="2" width="1" height="14" fill="#e9feff"/><rect x="12" y="2" width="1" height="14" fill="#0d5462"/><rect x="9" y="16" width="6" height="2" fill="#0d5462"/><rect x="11" y="18" width="2" height="4" fill="#845932"/><rect x="10" y="22" width="4" height="2" fill="#583c1d"/></g></svg></span>
+          </div>
+        </div>
+        <h2>조합대 제작소 <small class="wg-new">새 게임</small></h2>
+        <p>3×3 작업대에 재료를 채워 다이아몬드 검과 전설의 아이템을 조합해요!</p>
+        <div class="wg-go" role="group" aria-label="조합대 제작소 시작">
+          <button type="button" data-go="craft" data-mode="ko">뜻 보고 만들기</button>
+          <button type="button" data-go="craft" data-mode="en">영어 보고 만들기</button>
+        </div>
+      </article>
       <article class="wg-game g-match">
         <div class="wg-art wg-art-match" aria-hidden="true"><i>?</i><i class="b">?</i><i>?</i></div>
         <h2>짝 맞추기</h2>
@@ -226,6 +245,47 @@
     </div>
     <p class="ng-fb" id="cartFb" role="status"></p>
     <div class="cart-pick" id="cartPick"></div>
+  </section>
+
+  <!-- 조합대 제작소 -->
+  <section class="wg-play wg-craft" id="craft" hidden>
+    <div class="wg-bar">
+      <span class="ng-hearts" id="craftHearts" role="img"></span>
+      <span class="craft-recipe-name" id="craftRecipeName"></span>
+      <span class="craft-prog" id="craftProg"></span>
+      <span class="craft-count" id="craftCount"></span>
+      <button type="button" class="wg-quit" id="craftQuit">그만하기</button>
+    </div>
+    <div class="craft-table" id="craftTable">
+      <div class="craft-prompt-sign">
+        <small id="craftAsk"></small>
+        <b id="craftWord"></b>
+        <button type="button" class="wg-say" id="craftSay" hidden>다시 듣기</button>
+      </div>
+      <div class="craft-gui">
+        <div class="craft-grid-wrap">
+          <span class="craft-gui-title">제작</span>
+          <div class="craft-grid" id="craftGrid"></div>
+        </div>
+        <div class="craft-arrow-wrap">
+          <div class="craft-arrow" aria-hidden="true">
+            <span class="craft-arrow-bg">➔</span>
+            <span class="craft-arrow-fill" id="craftArrowFill"></span>
+          </div>
+        </div>
+        <div class="craft-output-wrap">
+          <div class="craft-output-slot" id="craftOutputSlot"></div>
+          <span class="craft-output-name" id="craftOutputName"></span>
+        </div>
+      </div>
+      <div class="craft-over" id="craftOver" hidden><p></p></div>
+    </div>
+    <p class="ng-fb" id="craftFb" role="status"></p>
+    <div class="craft-pick" id="craftPick"></div>
+    <div class="craft-hotbar-wrap">
+      <span class="craft-hotbar-title">완성한 전설 아이템</span>
+      <ol class="craft-hotbar" id="craftHotbar" aria-label="완성한 아이템"></ol>
+    </div>
   </section>
 
   <!-- 끝 -->

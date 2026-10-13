@@ -492,6 +492,7 @@ kbd { font-family: var(--f-pixel); font-size: 12px; border: 2px solid var(--edge
 .g-mine .wg-go button { background: var(--stone-dark); color: var(--on-color); }
 .g-night .wg-go button { background: var(--ghost-dark); color: var(--on-color); }
 .g-cart .wg-go button { background: var(--dirt); color: var(--on-color); }
+.g-craft .wg-go button { background: #8e5828; color: var(--on-color); }
 /* 새 게임 판: 맨 위에 넓게(그림 | 글·버튼) */
 .wg-games .wide { grid-column: 1 / -1; grid-template-columns: minmax(240px, 360px) 1fr; column-gap: 20px; }
 .wg-games .wide > :not(.wg-art) { grid-column: 2; }
@@ -1191,3 +1192,124 @@ kbd { font-family: var(--f-pixel); font-size: 12px; border: 2px solid var(--edge
 .wg-art-cart .wheel-turn { transform-box: fill-box; transform-origin: center; animation: cart-wheel-preview 1.4s linear infinite; }
 @keyframes cart-wheel-preview { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .wg-art-cart .wheel-turn, .cart-wall .flame, .cart-wall .flame-core, .cart-wall .torch-glow { animation: none; } .cart-spark { display: none; } }
+
+/* ---------- 조합대 제작소 ---------- */
+.wg-art-craft { background: linear-gradient(#5a391c 0 70%, #3e2612 70%); position: relative; }
+.art-craft-table { display: flex; align-items: center; justify-content: center; gap: 14px; background: #c6c6c6; border: 3px solid var(--edge); box-shadow: inset 2px 2px 0 #fff, inset -2px -2px 0 #555, 0 5px 0 rgba(0,0,0,0.3); padding: 8px 12px; }
+.act-grid { display: grid; grid-template-columns: repeat(3, 16px); gap: 2px; }
+.act-grid i { width: 16px; height: 16px; background: #8b8b8b; border: 1px solid #373737; border-bottom-color: #fff; border-right-color: #fff; display: block; }
+.act-grid i.gem { background: #32cad8; box-shadow: inset 1px 1px 0 #fff, inset -1px -1px 0 #0d5462; }
+.act-grid i.stk { background: #845932; box-shadow: inset 1px 1px 0 #a07246, inset -1px -1px 0 #583c1d; }
+.act-arr { font-family: var(--f-pixel); font-size: 16px; color: #555; }
+.act-out { width: 28px; height: 28px; background: #8b8b8b; border: 2px solid #373737; border-bottom-color: #fff; border-right-color: #fff; display: grid; place-items: center; }
+.act-out svg { width: 22px; height: 22px; }
+
+.wg-craft { max-width: 900px; gap: 12px; }
+.craft-recipe-name { font-family: var(--f-display); font-size: 22px; color: var(--gold); }
+.craft-prog { font-family: var(--f-pixel); font-size: 15px; color: var(--muted); background: var(--panel); border: 2px solid var(--edge); padding: 2px 8px; }
+.craft-count { font-family: var(--f-display); font-size: 18px; color: var(--muted); margin-left: auto; }
+
+/* 조합대 상단 작업대 & GUI */
+.craft-table { position: relative; border: 3px solid var(--edge); box-shadow: 0 7px 0 var(--shade); background: #312113 linear-gradient(135deg, rgba(255,255,255,0.04) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.04) 50%, rgba(255,255,255,0.04) 75%, transparent 75%); background-size: 32px 32px; padding: 16px 14px 20px; display: grid; gap: 14px; justify-items: center; overflow: hidden; }
+
+/* 문제 간판 */
+.craft-prompt-sign {
+  position: relative; z-index: 2; min-width: 240px; max-width: calc(100% - 32px); text-align: center; padding: 6px 20px 8px;
+  background: #b8945f; color: #201509; border: 3px solid #543d1f; box-shadow: inset 1px 1px 0 #d9b882, inset -2px -2px 0 #4a3418, 0 4px 0 rgba(0,0,0,0.3); display: grid; justify-items: center; gap: 2px;
+}
+.craft-prompt-sign small { font-size: 14px; color: #432e14; }
+.craft-prompt-sign b { font-family: var(--f-kid); font-weight: 400; font-size: clamp(34px, 6vw, 48px); line-height: 1.1; overflow-wrap: anywhere; }
+
+/* 마인크래프트 GUI 창 (3x3 + 화살표 + 결과) */
+.craft-gui {
+  background: #c6c6c6; border: 3px solid var(--edge);
+  box-shadow: inset 3px 3px 0 #ffffff, inset -3px -3px 0 #555555, 0 6px 0 rgba(0,0,0,0.35);
+  padding: 12px 18px 16px; display: flex; align-items: center; justify-content: center; gap: 18px; flex-wrap: wrap;
+}
+.craft-gui-title { font-family: var(--f-pixel); font-size: 14px; color: #3f3f3f; display: block; margin-bottom: 6px; }
+
+/* 3x3 격자 */
+.craft-grid { display: grid; grid-template-columns: repeat(3, 56px); grid-template-rows: repeat(3, 56px); gap: 4px; }
+.craft-slot {
+  width: 56px; height: 56px; background: #8b8b8b;
+  border: 3px solid #373737; border-bottom-color: #ffffff; border-right-color: #ffffff;
+  display: grid; place-items: center; position: relative; box-sizing: border-box; overflow: hidden;
+}
+.craft-slot.ghost { background: #7c7c7c; }
+.craft-slot.ghost .slot-ghost-item { opacity: 0.35; filter: grayscale(0.5); transform: scale(0.85); animation: ghost-pulse 1.2s ease-in-out infinite alternate; }
+@keyframes ghost-pulse { 0% { transform: scale(0.8); opacity: 0.25; } 100% { transform: scale(0.95); opacity: 0.5; } }
+.craft-slot.placed { background: #9c9c9c; }
+.craft-slot.placed .mc-item-svg { width: 34px; height: 34px; animation: wg-pop 0.3s ease-out; }
+.craft-slot.pop { animation: slot-sparkle 0.35s ease-out; }
+@keyframes slot-sparkle { 50% { transform: scale(1.08); filter: brightness(1.3); } }
+.slot-lbl { display: none; }
+
+/* 화살표 */
+.craft-arrow-wrap { display: flex; align-items: center; justify-content: center; width: 44px; }
+.craft-arrow { position: relative; width: 38px; height: 26px; display: grid; place-items: center; }
+.craft-arrow-bg { font-family: var(--f-pixel); font-size: 28px; color: #555; line-height: 1; }
+.craft-arrow-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0%; overflow: hidden; transition: width 0.3s ease; }
+
+/* 결과 슬롯 */
+.craft-output-wrap { display: grid; justify-items: center; gap: 6px; }
+.craft-output-slot {
+  width: 68px; height: 68px; background: #8b8b8b;
+  border: 4px solid #373737; border-bottom-color: #ffffff; border-right-color: #ffffff;
+  display: grid; place-items: center; position: relative; box-sizing: border-box;
+}
+.craft-output-slot.blueprint svg { opacity: 0.25; filter: grayscale(1); transform: scale(0.85); }
+.craft-output-slot.ready {
+  background: #2b1736;
+  border-color: #a042ff;
+  box-shadow: 0 0 14px rgba(160, 66, 255, 0.6), inset 0 0 10px rgba(230, 140, 255, 0.4);
+}
+.craft-output-slot.ready svg { animation: enchant-glint 1.4s ease-in-out infinite alternate; filter: drop-shadow(0 0 4px #e080ff); }
+@keyframes enchant-glint { 0% { transform: scale(1) rotate(0deg); } 100% { transform: scale(1.1) rotate(3deg); } }
+.craft-output-slot.pop { animation: output-pop 0.45s ease-out; }
+@keyframes output-pop { 30% { transform: scale(1.22); } 100% { transform: scale(1); } }
+.craft-output-name { font-family: var(--f-display); font-size: 15px; color: #222; min-height: 18px; text-align: center; }
+
+/* 날아가는 재료 */
+.craft-fly-item { position: absolute; z-index: 9; width: 32px; height: 32px; pointer-events: none; }
+.craft-fly-item svg { width: 100%; height: 100%; }
+
+/* 재료 선택 버튼 4개 */
+.craft-pick { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.craft-btn {
+  position: relative; min-height: 84px; padding: 12px 14px 14px 54px;
+  font-family: var(--f-kid); font-size: clamp(22px, 3.4vw, 30px); line-height: 1.15; cursor: pointer;
+  background: #d4a373; color: #2b1806; border: 3px solid var(--edge); box-shadow: inset 0 -5px 0 #9c6644, inset 0 4px 0 #eddcd2;
+  text-align: left; overflow-wrap: anywhere;
+}
+.craft-btn .craft-btn-ico { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 30px; height: 30px; }
+.craft-btn .craft-btn-ico svg { width: 100%; height: 100%; display: block; }
+.craft-btn .key { position: absolute; top: 6px; right: 8px; font-family: var(--f-pixel); font-size: 11px; padding: 0 5px; background: rgba(0,0,0,0.3); color: #fff; }
+.craft-btn:hover:not(:disabled) { filter: brightness(1.05); transform: translateY(-2px); }
+.craft-btn:active:not(:disabled) { transform: translateY(3px); box-shadow: inset 0 -2px 0 #9c6644; }
+.craft-btn.right { background: var(--grass); color: #fff; animation: wg-pop .3s ease-out; }
+.craft-btn.wrong { background: var(--redstone); color: #fff; animation: wg-shake .35s; }
+
+/* 하단 핫바 (완성한 전설 아이템 보관함) */
+.craft-hotbar-wrap { background: var(--panel); border: 2px solid var(--edge); padding: 8px 12px; display: grid; gap: 6px; }
+.craft-hotbar-title { font-family: var(--f-display); font-size: 15px; color: var(--muted); }
+.craft-hotbar { list-style: none; margin: 0; padding: 0; display: flex; gap: 8px; flex-wrap: wrap; min-height: 44px; align-items: center; }
+.craft-hotbar-item {
+  display: flex; align-items: center; gap: 6px; background: #c6c6c6; border: 2px solid var(--edge);
+  box-shadow: inset 2px 2px 0 #fff, inset -2px -2px 0 #555; padding: 3px 8px;
+}
+.craft-hotbar-item svg { width: 24px; height: 24px; }
+.craft-hotbar-item b { font-family: var(--f-display); font-size: 15px; color: #222; }
+.craft-hotbar-item.pop { animation: wg-pop .4s ease-out; }
+
+.craft-win-txt { color: #a042ff; font-size: 26px; }
+.craft-over { position: absolute; inset: 0; z-index: 10; background: rgba(0,0,0,0.85); display: grid; place-items: center; color: #fff; font-family: var(--f-display); font-size: 32px; }
+
+@media (max-width: 600px) {
+  .craft-grid { grid-template-columns: repeat(3, 44px); grid-template-rows: repeat(3, 44px); gap: 3px; }
+  .craft-slot { width: 44px; height: 44px; border-width: 2px; }
+  .craft-output-slot { width: 54px; height: 54px; }
+  .craft-gui { gap: 10px; padding: 10px; }
+  .craft-pick { grid-template-columns: 1fr; }
+  .craft-btn { min-height: 64px; font-size: 22px; padding-left: 48px; }
+}
+

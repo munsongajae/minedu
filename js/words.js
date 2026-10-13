@@ -12,6 +12,7 @@ import { canSpeak, speak } from './speech.js';
 import { startMine, stopMine } from './mine.js';
 import { startNight, stopNight } from './night.js';
 import { startCart, stopCart } from './cart.js';
+import { startCraft, stopCraft } from './craft.js';
 
 const SPEAK_OK = canSpeak();
 const QUIZ_LEN = 10;
@@ -27,7 +28,7 @@ let last = null;         // 마지막으로 한 게임 { kind, pairs | dir } —
 let game = null;         // 짝 맞추기
 let quiz = null;         // 보고 고르기
 
-function show(which) { ['home', 'game', 'quiz', 'mine', 'night', 'cart', 'done'].forEach(k => { $('#' + k).hidden = k !== which; }); window.scrollTo(0, 0); }
+function show(which) { ['home', 'game', 'quiz', 'mine', 'night', 'cart', 'craft', 'done'].forEach(k => { $('#' + k).hidden = k !== which; }); window.scrollTo(0, 0); }
 function say(text) { if (SPEAK_OK) speak(text, { speed: 'slow' }).catch(() => {}); }
 
 /* ---------- 아이·기록 ---------- */
@@ -71,7 +72,7 @@ function renderHome() {
 
   const ready = !!child && !!progress;
   document.querySelectorAll('[data-go="match"]').forEach(b => { b.disabled = !ready || words.length < 2; });
-  document.querySelectorAll('[data-go="quiz"], [data-go="mine"], [data-go="night"], [data-go="cart"]').forEach(b => { b.disabled = !ready || words.length < 4; });
+  document.querySelectorAll('[data-go="quiz"], [data-go="mine"], [data-go="night"], [data-go="cart"], [data-go="craft"]').forEach(b => { b.disabled = !ready || words.length < 4; });
   $('#mineListen').hidden = !SPEAK_OK;
   $('#cartListen').hidden = !SPEAK_OK;
   $('#games').classList.toggle('locked', !ready);
@@ -131,6 +132,7 @@ $('#games').addEventListener('click', (e) => {
   else if (b.dataset.go === 'mine') goMine(b.dataset.mode);
   else if (b.dataset.go === 'night') goNight(b.dataset.mode || 'ko', b.dataset.speed || speeds.night || 'normal');
   else if (b.dataset.go === 'cart') goCart(b.dataset.mode || 'ko', b.dataset.speed || speeds.cart || 'normal');
+  else if (b.dataset.go === 'craft') goCraft(b.dataset.mode || 'ko');
   else startQuiz(b.dataset.dir);
 });
 $('#again').addEventListener('click', () => {
@@ -139,6 +141,7 @@ $('#again').addEventListener('click', () => {
   else if (last.kind === 'mine') goMine(last.mode);
   else if (last.kind === 'night') goNight(last.mode || 'ko', last.speed || speeds.night || 'normal');
   else if (last.kind === 'cart') goCart(last.mode || 'ko', last.speed || speeds.cart || 'normal');
+  else if (last.kind === 'craft') goCraft(last.mode || 'ko');
   else startQuiz(last.dir);
 });
 $('#home2').addEventListener('click', () => { show('home'); renderHome(); });
@@ -147,6 +150,7 @@ $('#quit').addEventListener('click', () => { game = null; show('home'); renderHo
 $('#cartQuit').addEventListener('click', () => { stopCart(); saveProgress(progress); show('home'); renderHome(); });
 $('#ngQuit').addEventListener('click', () => { stopNight(); saveProgress(progress); show('home'); renderHome(); });
 $('#mineQuit').addEventListener('click', () => { stopMine(); saveProgress(progress); show('home'); renderHome(); });
+$('#craftQuit').addEventListener('click', () => { stopCraft(); saveProgress(progress); show('home'); renderHome(); });
 
 // 잘 모르는 단어를 먼저: 처음 보는 단어, 틀린 적 많은 단어, 오래전에 본 단어 순.
 function pickWords(n) {
@@ -390,6 +394,27 @@ async function finishCart(r) {
   });
 }
 
+/* ---------- 조합대 제작소 ---------- */
+function goCraft(mode = 'ko') {
+  last = { kind: 'craft', mode };
+  show('craft');
+  startCraft({ words, pickWords, recordWord, say, onEnd: finishCraft }, mode);
+  $('#craft').scrollIntoView({ block: 'start' });
+}
+async function finishCraft(r) {
+  if ($('#craft').hidden) return;     // 그사이 그만하기를 눌렀으면
+  const gems = r.win ? Math.min(8, Math.ceil(r.right / 2)) + (r.hearts === 3 ? 1 : 0) : Math.ceil(r.right / 3);
+  await reward(gems);
+  const itemsText = r.crafted && r.crafted.length
+    ? ` ${r.crafted.map(it => it.name).join(', ')}을(를) 완성했어요!`
+    : '';
+  showDone({
+    title: r.win ? (r.hearts === 3 ? '전설의 장비를 완벽하게 제작했어요!' : '조합을 모두 마쳤어요!') : '다음엔 꼭 완성해요!',
+    text: `문제 ${r.total}개 중 ${r.right}개를 맞혔어요.${itemsText}${r.win ? ` ${Math.floor(r.sec / 60) ? `${Math.floor(r.sec / 60)}분 ` : ''}${r.sec % 60}초 걸렸어요.` : ''}${r.best >= 3 ? ` 가장 길게 ${r.best}번 연속으로 맞혔어요.` : ''}`,
+    gems, missed: r.missed
+  });
+}
+
 /* ---------- 끝 ---------- */
 async function reward(gems) {
   progress.emeralds += gems;
@@ -405,7 +430,7 @@ function showDone({ title, text, gems, missed }) {
   $('#review').innerHTML = uniq.length
     ? `<p>다시 볼 단어</p><ul>${uniq.map(w => `<li><b lang="en">${esc(w.en)}</b><span>${esc(w.ko)}</span></li>`).join('')}</ul>`
     : '';
-  $('#again').textContent = last && last.kind === 'quiz' ? '한 판 더 풀기' : last && last.kind === 'mine' ? '한 번 더 캐기' : last && last.kind === 'night' ? '다시 지키기' : last && last.kind === 'cart' ? '다시 달리기' : '한 판 더 하기';
+  $('#again').textContent = last && last.kind === 'quiz' ? '한 판 더 풀기' : last && last.kind === 'mine' ? '한 번 더 캐기' : last && last.kind === 'night' ? '다시 지키기' : last && last.kind === 'cart' ? '다시 달리기' : last && last.kind === 'craft' ? '다시 만들기' : '한 판 더 하기';
   renderBadges();
 }
 

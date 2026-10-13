@@ -37,6 +37,7 @@ export function sfx(kind) {
     else if (kind === 'switch') { burst(0.05, 1500, 3, 0.25); tone('square', 300, 300, 0.04, 0.04, 0.03); }
     else if (kind === 'ding') { tone('triangle', 880, 880, 0.12, 0.13); tone('triangle', 1320, 1320, 0.22, 0.12, 0.09); }
     else if (kind === 'crash') { burst(0.32, 260, 0.6, 0.55); tone('sawtooth', 160, 60, 0.3, 0.1); }
+    else if (kind === 'craft') { [587, 880, 1174, 1760].forEach((f, i) => tone('triangle', f, f, 0.16, 0.14, i * 0.08)); burst(0.2, 1800, 1.5, 0.2); }
     else if (kind === 'win') { [523, 659, 784, 1047].forEach((f, i) => tone('triangle', f, f, 0.22, 0.12, i * 0.13)); }
     else if (kind === 'end') { tone('triangle', 784, 784, 0.18, 0.12); tone('triangle', 659, 659, 0.18, 0.12, 0.18); tone('triangle', 523, 523, 0.35, 0.12, 0.36); }
   } catch (e) { /* 소리가 안 되는 기기 */ }

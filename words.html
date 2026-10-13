@@ -284,6 +284,7 @@
     <div class="wg-bar">
       <span class="ng-hearts" id="worldHearts" role="img"></span>
       <span class="world-scene-badge" id="worldSceneBadge">실제 게임 화면</span>
+      <span class="world-combo-badge" id="worldCombo" hidden>🔥 2연속 채굴!</span>
       <span class="ng-count" id="worldCount">1 / 12</span>
       <button type="button" class="wg-quit" id="worldQuit">그만하기</button>
     </div>
@@ -294,10 +295,11 @@
       <!-- 2) 캡처 이미지가 없을 때 작동하는 3D 마인크래프트 월드 캔버스 -->
       <canvas class="world-canvas3d" id="worldCanvas3D"></canvas>
 
-      <!-- 상단 마인크래프트 보스바 -->
+      <!-- 상단 마인크래프트 보스바 (문제 진행도 및 제한시간 게이지) -->
       <div class="world-bossbar" aria-hidden="true">
         <div class="world-boss-title" id="worldBossTitle">WORLD EXPLORER · 1 / 12</div>
         <div class="world-boss-track"><div class="world-boss-fill" id="worldBossFill"></div></div>
+        <div class="world-time-track"><div class="world-time-fill" id="worldTimeFill"></div></div>
       </div>
 
       <!-- 좌측 상단 마인크래프트 F3 스타일 월드 정보 -->
@@ -306,8 +308,9 @@
         <div id="worldCoords">XYZ: 128 / 64 / -42</div>
       </div>
 
-      <!-- 정중앙 크로스헤어 -->
+      <!-- 정중앙 크로스헤어 및 블록 타격 균열 오버레이 -->
       <div class="world-crosshair" aria-hidden="true">+</div>
+      <div class="world-crack" id="worldCrack" aria-hidden="true"></div>
 
       <!-- 마인크래프트 정통 보라색 테두리 아이템 툴팁 문제창 -->
       <div class="world-tooltip" id="worldTooltip">
@@ -338,6 +341,12 @@
     </div>
 
     <p class="ng-fb" id="worldFb" role="status"></p>
+
+    <!-- 실시간 캔 전리품 보물 상자/인벤토리 -->
+    <div class="world-backpack-wrap">
+      <span class="world-backpack-title">🎒 캔 보물 배낭</span>
+      <ul class="world-backpack" id="worldBackpack" aria-label="채굴한 보물 목록"></ul>
+    </div>
 
     <!-- 마인크래프트 하단 핫바 스타일 4지선다 슬롯 (숫자 1~4 및 터치 지원) -->
     <div class="world-hotbar" id="worldOpts" role="group" aria-label="단어 핫바 선택"></div>

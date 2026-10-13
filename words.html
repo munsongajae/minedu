@@ -124,6 +124,22 @@
           <button type="button" data-go="match" data-pairs="8">8쌍</button>
         </div>
       </article>
+      <article class="wg-game g-world">
+        <div class="wg-art wg-art-world" aria-hidden="true">
+          <span class="world-hud-preview">
+            <i class="wh-cross">+</i>
+            <b class="wh-tip">DIAMOND</b>
+            <span class="wh-hotbar"><i>1</i><i>2</i><i>3</i><i>4</i></span>
+          </span>
+        </div>
+        <h2>내 월드 탐험 <small class="wg-new">실제 화면</small></h2>
+        <p>내가 찍은 마인크래프트 실제 게임 화면과 3D 월드 속을 탐험하며 핫바에서 맞는 단어를 골라요!</p>
+        <div class="wg-go" role="group" aria-label="내 월드 탐험 시작">
+          <button type="button" data-go="world" data-mode="ko">뜻 보고 탐험</button>
+          <button type="button" data-go="world" data-mode="en">영어 보고 탐험</button>
+          <button type="button" data-go="world" data-mode="listen" id="worldListen">듣고 탐험</button>
+        </div>
+      </article>
     </div>
     <div class="wg-foot">
       <label class="wg-src">단어 가져올 영상
@@ -261,6 +277,70 @@
       <span class="craft-hotbar-title">완성한 전설 아이템</span>
       <ol class="craft-hotbar" id="craftHotbar" aria-label="완성한 아이템"></ol>
     </div>
+  </section>
+
+  <!-- 내 월드 탐험 (실제 마인크래프트 게임 화면 + 1인칭 HUD) -->
+  <section class="wg-play wg-world" id="world" hidden>
+    <div class="wg-bar">
+      <span class="ng-hearts" id="worldHearts" role="img"></span>
+      <span class="world-scene-badge" id="worldSceneBadge">실제 게임 화면</span>
+      <span class="ng-count" id="worldCount">1 / 12</span>
+      <button type="button" class="wg-quit" id="worldQuit">그만하기</button>
+    </div>
+
+    <div class="world-viewport" id="worldViewport">
+      <!-- 1) 아이가 캡처한 실제 마인크래프트 스크린샷 레이어 -->
+      <img class="world-real-img" id="worldRealImg" alt="내가 찍은 마인크래프트 화면" hidden>
+      <!-- 2) 캡처 이미지가 없을 때 작동하는 3D 마인크래프트 월드 캔버스 -->
+      <canvas class="world-canvas3d" id="worldCanvas3D"></canvas>
+
+      <!-- 상단 마인크래프트 보스바 -->
+      <div class="world-bossbar" aria-hidden="true">
+        <div class="world-boss-title" id="worldBossTitle">WORLD EXPLORER · 1 / 12</div>
+        <div class="world-boss-track"><div class="world-boss-fill" id="worldBossFill"></div></div>
+      </div>
+
+      <!-- 좌측 상단 마인크래프트 F3 스타일 월드 정보 -->
+      <div class="world-f3" id="worldF3" aria-hidden="true">
+        <div>Minecraft Education · Block Studio</div>
+        <div id="worldCoords">XYZ: 128 / 64 / -42</div>
+      </div>
+
+      <!-- 정중앙 크로스헤어 -->
+      <div class="world-crosshair" aria-hidden="true">+</div>
+
+      <!-- 마인크래프트 정통 보라색 테두리 아이템 툴팁 문제창 -->
+      <div class="world-tooltip" id="worldTooltip">
+        <small class="world-ask" id="worldAsk">이 뜻의 영어 단어를 핫바에서 골라요</small>
+        <b class="world-word" id="worldWord"></b>
+        <p class="world-sent-hint" id="worldSentHint" hidden></p>
+        <button type="button" class="wg-say" id="worldSay" hidden>🔊 다시 듣기</button>
+      </div>
+
+      <!-- 1인칭 오른손 다이아몬드 곡괭이 (타격 스윙 모션) -->
+      <div class="world-hand" id="worldHand" aria-hidden="true">
+        <svg class="pick-svg mc-pick" viewBox="0 0 16 16" shape-rendering="crispEdges">
+          <g fill="#422915"><rect x="1" y="14" width="1" height="1"/><rect x="2" y="13" width="1" height="1"/><rect x="3" y="12" width="1" height="1"/><rect x="4" y="11" width="1" height="1"/><rect x="5" y="10" width="1" height="1"/><rect x="6" y="9" width="1" height="1"/><rect x="7" y="8" width="1" height="1"/><rect x="8" y="7" width="1" height="1"/><rect x="9" y="6" width="1" height="1"/></g>
+          <g fill="#845932"><rect x="2" y="14" width="1" height="1"/><rect x="3" y="13" width="1" height="1"/><rect x="4" y="12" width="1" height="1"/><rect x="5" y="11" width="1" height="1"/><rect x="6" y="10" width="1" height="1"/><rect x="7" y="9" width="1" height="1"/><rect x="8" y="8" width="1" height="1"/><rect x="9" y="7" width="1" height="1"/></g>
+          <g fill="#0d5462"><rect x="5" y="2" width="1" height="1"/><rect x="6" y="1" width="3" height="1"/><rect x="9" y="2" width="1" height="1"/><rect x="13" y="3" width="2" height="1"/><rect x="14" y="4" width="1" height="1"/><rect x="2" y="6" width="2" height="1"/><rect x="11" y="6" width="2" height="1"/></g>
+          <g fill="#32cad8"><rect x="6" y="2" width="3" height="1"/><rect x="7" y="3" width="3" height="1"/><rect x="8" y="4" width="2" height="1"/><rect x="10" y="3" width="3" height="1"/><rect x="11" y="4" width="3" height="1"/><rect x="12" y="5" width="2" height="1"/><rect x="4" y="3" width="2" height="1"/><rect x="3" y="4" width="2" height="1"/><rect x="2" y="5" width="2" height="1"/></g>
+          <g fill="#95f8fd"><rect x="6" y="2" width="3" height="1"/><rect x="10" y="3" width="2" height="1"/><rect x="12" y="4" width="2" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/></g>
+        </svg>
+      </div>
+
+      <!-- 하단 마인크래프트 경험치(XP) 바 -->
+      <div class="world-xp-wrap" aria-hidden="true">
+        <span class="world-xp-lv" id="worldXpLv">1</span>
+        <div class="world-xp-bar"><div class="world-xp-fill" id="worldXpFill"></div></div>
+      </div>
+
+      <div class="ng-over" id="worldOver" hidden><p></p></div>
+    </div>
+
+    <p class="ng-fb" id="worldFb" role="status"></p>
+
+    <!-- 마인크래프트 하단 핫바 스타일 4지선다 슬롯 (숫자 1~4 및 터치 지원) -->
+    <div class="world-hotbar" id="worldOpts" role="group" aria-label="단어 핫바 선택"></div>
   </section>
 
   <!-- 끝 -->

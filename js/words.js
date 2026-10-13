@@ -4,6 +4,7 @@
 //   밤을 지켜라(night.js): 뜻을 든 몹이 집으로 걸어오면 맞는 영어 단어를 눌러 막는다.
 //   광산 수레 달리기(cart.js): 갈림길이 오기 전에 뜻에 맞는 단어가 있는 선로로 수레를 옮긴다.
 //   조합대 제작소(craft.js): 3x3 작업대에 맞는 단어 재료를 넣어 아이템을 조합한다.
+//   내 월드 탐험(worldplay.js): 실제 마인크래프트 캡처 사진과 3D 월드에서 핫바로 단어를 고른다.
 // 처음 화면의 게임 판 버튼을 누르면 바로 시작한다. 아직 잘 모르는 단어가 먼저 나온다.
 import { $, esc, shuffle, getChild, setChild, childPickerHTML, loadSentences, loadProgress, saveProgress, syncProgress,
   markToday, streak, collectWords, loadGlossary, fillGlossary } from './learn.js';
@@ -14,6 +15,7 @@ import { startMine, stopMine } from './mine.js';
 import { startNight, stopNight } from './night.js';
 import { startCart, stopCart } from './cart.js';
 import { startCraft, stopCraft } from './craft.js';
+import { startWorldGame, stopWorldGame } from './worldplay.js';
 
 const SPEAK_OK = canSpeak();
 
@@ -26,7 +28,7 @@ let filling = false;     // AI가 단어 뜻을 찾는 중
 let last = null;         // 마지막으로 한 게임 { kind, pairs | dir } — '한 판 더'
 let game = null;         // 짝 맞추기
 
-function show(which) { ['home', 'game', 'mine', 'night', 'cart', 'craft', 'done'].forEach(k => { $('#' + k).hidden = k !== which; }); window.scrollTo(0, 0); }
+function show(which) { ['home', 'game', 'mine', 'night', 'cart', 'craft', 'world', 'done'].forEach(k => { $('#' + k).hidden = k !== which; }); window.scrollTo(0, 0); }
 function say(text) { if (SPEAK_OK) speak(text, { speed: 'slow' }).catch(() => {}); }
 
 /* ---------- 아이·기록 ---------- */
@@ -70,9 +72,10 @@ function renderHome() {
 
   const ready = !!child && !!progress;
   document.querySelectorAll('[data-go="match"]').forEach(b => { b.disabled = !ready || words.length < 2; });
-  document.querySelectorAll('[data-go="mine"], [data-go="night"], [data-go="cart"], [data-go="craft"]').forEach(b => { b.disabled = !ready || words.length < 4; });
+  document.querySelectorAll('[data-go="mine"], [data-go="night"], [data-go="cart"], [data-go="craft"], [data-go="world"]').forEach(b => { b.disabled = !ready || words.length < 4; });
   $('#mineListen').hidden = !SPEAK_OK;
   $('#cartListen').hidden = !SPEAK_OK;
+  if ($('#worldListen')) $('#worldListen').hidden = !SPEAK_OK;
   $('#games').classList.toggle('locked', !ready);
 
   $('#openList').textContent = `내 단어장 ${words.length}개`;
@@ -131,6 +134,7 @@ $('#games').addEventListener('click', (e) => {
   else if (b.dataset.go === 'night') goNight(b.dataset.mode || 'ko', b.dataset.speed || speeds.night || 'normal');
   else if (b.dataset.go === 'cart') goCart(b.dataset.mode || 'ko', b.dataset.speed || speeds.cart || 'normal');
   else if (b.dataset.go === 'craft') goCraft(b.dataset.mode || 'ko');
+  else if (b.dataset.go === 'world') goWorld(b.dataset.mode || 'ko');
 });
 $('#again').addEventListener('click', () => {
   if (!last) return show('home');
@@ -139,6 +143,7 @@ $('#again').addEventListener('click', () => {
   else if (last.kind === 'night') goNight(last.mode || 'ko', last.speed || speeds.night || 'normal');
   else if (last.kind === 'cart') goCart(last.mode || 'ko', last.speed || speeds.cart || 'normal');
   else if (last.kind === 'craft') goCraft(last.mode || 'ko');
+  else if (last.kind === 'world') goWorld(last.mode || 'ko');
 });
 $('#home2').addEventListener('click', () => { show('home'); renderHome(); });
 $('#quit').addEventListener('click', () => { game = null; show('home'); renderHome(); });
@@ -146,6 +151,7 @@ $('#cartQuit').addEventListener('click', () => { stopCart(); saveProgress(progre
 $('#ngQuit').addEventListener('click', () => { stopNight(); saveProgress(progress); show('home'); renderHome(); });
 $('#mineQuit').addEventListener('click', () => { stopMine(); saveProgress(progress); show('home'); renderHome(); });
 $('#craftQuit').addEventListener('click', () => { stopCraft(); saveProgress(progress); show('home'); renderHome(); });
+$('#worldQuit').addEventListener('click', () => { stopWorldGame(); saveProgress(progress); show('home'); renderHome(); });
 
 // 잘 모르는 단어를 먼저: 처음 보는 단어, 틀린 적 많은 단어, 오래전에 본 단어 순.
 function pickWords(n) {
@@ -317,6 +323,38 @@ async function finishCraft(r) {
   });
 }
 
+/* ---------- 내 월드 탐험 ---------- */
+function goWorld(mode = 'ko') {
+  last = { kind: 'world', mode };
+  show('world');
+  startWorldGame({
+    words,
+    mode,
+    projects: all.projects,
+    onItem: (en, ok) => {
+      const w = words.find(x => x.en.toLowerCase() === en.toLowerCase());
+      if (w) recordWord(w, ok);
+    },
+    onEnd: finishWorld,
+    onQuit: () => {
+      saveProgress(progress);
+      show('home');
+      renderHome();
+    }
+  });
+  $('#world').scrollIntoView({ block: 'start' });
+}
+async function finishWorld(r) {
+  if ($('#world').hidden) return;
+  await reward(r.emeralds);
+  showDone({
+    title: r.title,
+    text: r.text,
+    gems: r.emeralds,
+    missed: r.wrong
+  });
+}
+
 /* ---------- 끝 ---------- */
 async function reward(gems) {
   progress.emeralds += gems;
@@ -332,7 +370,7 @@ function showDone({ title, text, gems, missed }) {
   $('#review').innerHTML = uniq.length
     ? `<p>다시 볼 단어</p><ul>${uniq.map(w => `<li><b lang="en">${esc(w.en)}</b><span>${esc(w.ko)}</span></li>`).join('')}</ul>`
     : '';
-  $('#again').textContent = last && last.kind === 'mine' ? '한 번 더 캐기' : last && last.kind === 'night' ? '다시 지키기' : last && last.kind === 'cart' ? '다시 달리기' : last && last.kind === 'craft' ? '다시 만들기' : '한 판 더 하기';
+  $('#again').textContent = last && last.kind === 'mine' ? '한 번 더 캐기' : last && last.kind === 'night' ? '다시 지키기' : last && last.kind === 'cart' ? '다시 달리기' : last && last.kind === 'craft' ? '다시 만들기' : last && last.kind === 'world' ? '다시 탐험하기' : '한 판 더 하기';
   renderBadges();
 }
 

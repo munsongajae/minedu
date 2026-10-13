@@ -1318,3 +1318,320 @@ kbd { font-family: var(--f-pixel); font-size: 12px; border: 2px solid var(--edge
   .craft-btn { min-height: 64px; font-size: 22px; padding-left: 48px; }
 }
 
+/* =========================================================
+   내 월드 탐험 (실제 마인크래프트 게임 화면 & 1인칭 HUD)
+   ========================================================= */
+.wg-game.g-world {
+  background: linear-gradient(180deg, #2b4c7e 0%, #3a7028 100%);
+  color: #fff;
+}
+
+.wg-art-world {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle, #4f86c6 0%, #1e3c1a 100%);
+}
+
+.world-hud-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.world-hud-preview .wh-tip {
+  background: #100010;
+  border: 2px solid #5000ff;
+  color: #ffff55;
+  padding: 2px 10px;
+  font-family: 'Silkscreen', monospace;
+  font-size: 13px;
+}
+
+.world-hud-preview .wh-hotbar {
+  display: flex;
+  gap: 3px;
+  background: #8b8b8b;
+  padding: 3px;
+  border: 2px solid #1e1e1e;
+}
+
+.world-hud-preview .wh-hotbar i {
+  width: 20px;
+  height: 20px;
+  background: #727272;
+  border: 2px solid #fff;
+  font-style: normal;
+  font-size: 10px;
+  display: grid;
+  place-items: center;
+}
+
+.world-scene-badge {
+  background: rgba(0, 0, 0, 0.45);
+  color: #95f8fd;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.world-viewport {
+  position: relative;
+  width: 100%;
+  height: clamp(300px, 52vh, 430px);
+  background: linear-gradient(180deg, #78a7ff 0%, #a8c8ff 55%, #4b8324 55%, #376318 100%);
+  border: 4px solid #222;
+  border-radius: 12px;
+  overflow: hidden;
+  user-select: none;
+}
+
+.world-real-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 1;
+  filter: brightness(0.92);
+}
+
+.world-canvas3d {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* 상단 마인크래프트 보스바 */
+.world-bossbar {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(380px, 82%);
+  text-align: center;
+  z-index: 5;
+}
+
+.world-boss-title {
+  color: #ff55ff;
+  font-family: 'Silkscreen', sans-serif;
+  font-size: 12px;
+  text-shadow: 2px 2px 0 #2a002a;
+  margin-bottom: 3px;
+}
+
+.world-boss-track {
+  height: 10px;
+  background: #2b092b;
+  border: 2px solid #140314;
+}
+
+.world-boss-fill {
+  height: 100%;
+  background: linear-gradient(180deg, #ff33ff, #990099);
+  transition: width 0.3s ease;
+}
+
+/* 좌측 상단 F3 좌표 오버레이 */
+.world-f3 {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(0, 0, 0, 0.4);
+  color: #eee;
+  font-size: 11px;
+  padding: 4px 8px;
+  z-index: 5;
+  text-shadow: 1px 1px 0 #000;
+}
+
+/* 정중앙 크로스헤어 */
+.world-crosshair {
+  position: absolute;
+  top: 38%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 24px;
+  font-weight: bold;
+  color: rgba(255, 255, 255, 0.9);
+  text-shadow: 1px 1px 0 #000;
+  z-index: 5;
+  pointer-events: none;
+}
+
+/* 마인크래프트 고유 보라색 테두리 아이템 툴팁 문제창 */
+.world-tooltip {
+  position: absolute;
+  bottom: 34px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(16, 0, 16, 0.92);
+  border: 3px solid #2c0863;
+  box-shadow: 0 0 0 2px #100010, 0 6px 16px rgba(0, 0, 0, 0.65);
+  padding: 10px 20px;
+  text-align: center;
+  z-index: 6;
+  min-width: min(380px, 88%);
+}
+
+.world-ask {
+  display: block;
+  color: #55ffff;
+  font-size: 0.88rem;
+  margin-bottom: 4px;
+}
+
+.world-word {
+  display: block;
+  color: #ffff55;
+  font-size: clamp(1.35rem, 3.5vw, 1.85rem);
+  text-shadow: 2px 2px 0 #3f3f15;
+}
+
+.world-sent-hint {
+  color: #d0d0d0;
+  font-size: 0.9rem;
+  margin-top: 4px;
+}
+
+/* 우측 하단 1인칭 오른손 다이아 곡괭이 */
+.world-hand {
+  position: absolute;
+  right: 22px;
+  bottom: -12px;
+  width: 115px;
+  height: 115px;
+  z-index: 6;
+  pointer-events: none;
+  transform-origin: bottom right;
+  animation: worldHandBob 2.2s ease-in-out infinite;
+}
+
+@keyframes worldHandBob {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  50% { transform: translate(-5px, 6px) rotate(-4deg); }
+}
+
+.world-hand.swing {
+  animation: worldHandSwing 0.28s ease-out;
+}
+
+@keyframes worldHandSwing {
+  0% { transform: rotate(0deg); }
+  45% { transform: rotate(-55deg) translate(-18px, -10px); }
+  100% { transform: rotate(0deg); }
+}
+
+/* 하단 XP 경험치 바 */
+.world-xp-wrap {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(420px, 90%);
+  z-index: 6;
+}
+
+.world-xp-lv {
+  position: absolute;
+  top: -16px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #80ff20;
+  font-family: 'Silkscreen', monospace;
+  font-size: 13px;
+  text-shadow: 2px 0 0 #000, -2px 0 0 #000, 0 2px 0 #000, 0 -2px 0 #000;
+}
+
+.world-xp-bar {
+  height: 9px;
+  background: #1b1b1b;
+  border: 2px solid #000;
+}
+
+.world-xp-fill {
+  height: 100%;
+  width: 20%;
+  background: linear-gradient(90deg, #55ff55, #b4ff55);
+  transition: width 0.25s ease;
+}
+
+/* 오답 시 마인크래프트 피격 효과 */
+.world-viewport.world-hurt {
+  animation: worldHurtShake 0.32s ease;
+  box-shadow: inset 0 0 0 1000px rgba(255, 0, 0, 0.32);
+}
+
+@keyframes worldHurtShake {
+  0%, 100% { transform: rotate(0deg); }
+  30% { transform: rotate(-3deg) translateX(-6px); }
+  70% { transform: rotate(3deg) translateX(6px); }
+}
+
+/* 하단 마인크래프트 핫바 스타일 보기 버튼 */
+.world-hotbar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  background: #8b8b8b;
+  border: 4px solid #1e1e1e;
+  padding: 6px;
+  border-radius: 6px;
+  margin-top: 8px;
+}
+
+.world-slot {
+  position: relative;
+  min-height: 64px;
+  background: #8b8b8b;
+  border-top: 4px solid #373737;
+  border-left: 4px solid #373737;
+  border-right: 4px solid #ffffff;
+  border-bottom: 4px solid #ffffff;
+  color: #fff;
+  font-family: inherit;
+  font-size: clamp(1rem, 2.5vw, 1.25rem);
+  text-shadow: 2px 2px 0 #2b2b2b;
+  padding: 10px 8px 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  word-break: keep-all;
+}
+
+.world-slot:hover {
+  background: #a0a0a0;
+  outline: 3px solid #fff;
+}
+
+.world-slot.good {
+  background: #2e8b2e;
+  color: #ffff55;
+}
+
+.world-slot.bad {
+  background: #a82e2e;
+}
+
+.world-slot-num {
+  position: absolute;
+  top: 4px;
+  left: 6px;
+  font-size: 11px;
+  color: #ddd;
+}
+
+@media (max-width: 600px) {
+  .world-hotbar {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+

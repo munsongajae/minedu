@@ -1,8 +1,8 @@
 // 부모님 대시보드: 곰이·난이의 학습 기록과 영상 작품을 한눈에 보고 칭찬하는 공간
 import * as store from './storage.js';
-import { CHILDREN, loadSentences, loadProgress, syncProgress, streak, mastered, isDue, nextDueDays, collectWords, loadGlossary, BOX_DAYS, esc, $ } from './learn.js';
+import { CHILDREN, keyOf, loadSentences, loadProgress, syncProgress, streak, mastered, isDue, nextDueDays, collectWords, loadGlossary, BOX_DAYS, esc, $ } from './learn.js';
 import { cloudAvailable, getDeviceName } from './cloud.js';
-import { getFamilyCode } from './ai.js';
+import { coach, getFamilyCode } from './ai.js';
 import { checkReset } from './reset.js';
 
 let currentTab = '곰이';
@@ -92,6 +92,83 @@ function bindEvents() {
       $('#syncBtn').textContent = '서버 기록 맞추기';
     }
   });
+
+  // 학습 기록 초기화 (영상 작품은 보존하고 아이들 학습 데이터만 삭제)
+  const resetOpen = $('#resetProgressOpen');
+  const resetConfirm = $('#resetProgressConfirm');
+  const resetWord = $('#resetWord');
+  const resetGo = $('#resetProgressGo');
+  const resetCancel = $('#resetProgressCancel');
+  const resetStatus = $('#resetStatus');
+
+  if (resetOpen && resetConfirm) {
+    resetOpen.addEventListener('click', () => {
+      resetConfirm.hidden = false;
+      resetOpen.hidden = true;
+      resetWord.value = '';
+      resetGo.disabled = true;
+      resetStatus.textContent = '';
+      resetWord.focus();
+    });
+
+    resetCancel.addEventListener('click', () => {
+      resetConfirm.hidden = true;
+      resetOpen.hidden = false;
+      resetWord.value = '';
+      resetStatus.textContent = '';
+    });
+
+    resetWord.addEventListener('input', () => {
+      resetGo.disabled = resetWord.value.trim() !== '초기화';
+    });
+
+    resetGo.addEventListener('click', async () => {
+      if (resetWord.value.trim() !== '초기화') return;
+      resetGo.disabled = true;
+      resetCancel.disabled = true;
+      resetStatus.textContent = '아이들의 학습 기록을 초기화하는 중이에요…';
+
+      try {
+        const at = Date.now();
+        for (const kid of CHILDREN) {
+          const emptyProgress = {
+            id: kid,
+            sentences: {},
+            words: {},
+            emeralds: 0,
+            days: [],
+            free: { day: todayStr(), gems: 0 },
+            updatedAt: at
+          };
+          await store.setItem('progress', kid, emptyProgress);
+          progressMap[kid] = emptyProgress;
+
+          if (cloudAvailable()) {
+            try {
+              await coach('cloud_put', { key: keyOf(kid), doc: emptyProgress });
+            } catch (err) {
+              console.warn('Failed to reset cloud progress for ' + kid, err);
+            }
+          }
+        }
+
+        // AI 단어장 캐시 정리 (영상 프로젝트 projects는 그대로 안전 보존)
+        await store.removeItem('meta', 'glossary');
+        glossary = {};
+
+        resetConfirm.hidden = true;
+        resetOpen.hidden = false;
+        resetStatus.textContent = '';
+        toast('아이들 학습 기록이 모두 초기화되었어요! (영상 작품은 안전하게 유지됩니다)');
+        render();
+      } catch (err) {
+        resetStatus.textContent = '초기화 중 오류가 발생했습니다: ' + (err.message || err);
+      } finally {
+        resetGo.disabled = false;
+        resetCancel.disabled = false;
+      }
+    });
+  }
 }
 
 function render() {

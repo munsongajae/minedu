@@ -1186,6 +1186,17 @@ kbd { font-family: var(--f-pixel); font-size: 12px; border: 2px solid var(--edge
 .parent-sync-info span { color: var(--muted); }
 .parent-empty { margin: 0; padding: 16px; text-align: center; color: var(--muted); font-size: 15px; }
 
+/* 학습 데이터 초기화 카드 */
+.parent-reset-card { border-color: var(--edge); }
+.parent-reset-box { display: grid; gap: 12px; }
+.parent-reset-desc { margin: 0; font-size: 15px; color: var(--ink); line-height: 1.5; }
+.parent-keep-badge { display: inline-block; margin-top: 6px; padding: 4px 10px; background: rgba(76, 138, 44, 0.15); border: 1px solid var(--grass); border-radius: 4px; color: var(--grass); font-size: 14px; }
+.parent-reset-actions { display: flex; flex-direction: column; gap: 8px; }
+.parent-reset-confirm { background: var(--panel-2); border: 2px dashed var(--redstone); padding: 12px 14px; display: grid; gap: 8px; }
+.parent-reset-confirm .confirm-msg { font-size: 14px; color: var(--ink); }
+.parent-reset-confirm .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.parent-reset-confirm input { min-height: 38px; font-size: 15px; width: 140px; }
+
 @media (prefers-reduced-motion: reduce) {
   .cart-me .cart-svg, .cart-me.hop, .cart-field.crash .cart-me, .cart-field.crash::after, .cart-block, .cart-sign.right b { animation: none; }
   .ng-mob.pop .ng-creature, .ng-mob.bump .ng-creature, .ng-field.hurt::after, .ng-field.hurt .ng-house, .ng-opt.swap .lbl { animation: none; }

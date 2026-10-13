@@ -1,4 +1,4 @@
-// 게임 효과음: WebAudio로 직접 만든 짧은 소리(파일 없음). 단어 광산·밤을 지켜라가 같이 쓴다.
+// 게임 효과음: WebAudio로 직접 만든 짧은 소리(파일 없음). 단어 광산·밤을 지켜라·광산 수레가 같이 쓴다.
 let ac = null, noise = null;
 export function sfx(kind) {
   try {
@@ -34,6 +34,9 @@ export function sfx(kind) {
       o.connect(f).connect(g).connect(out); o.start(t); o.stop(t + 0.17); }
     else if (kind === 'poof') { burst(0.22, 500, 0.7, 0.4); tone('square', 520, 1040, 0.1, 0.04, 0.04); tone('square', 780, 1560, 0.1, 0.04, 0.12); }
     else if (kind === 'hurt') { tone('sawtooth', 220, 90, 0.3, 0.12); burst(0.2, 300, 0.8, 0.35); }
+    else if (kind === 'switch') { burst(0.05, 1500, 3, 0.25); tone('square', 300, 300, 0.04, 0.04, 0.03); }
+    else if (kind === 'ding') { tone('triangle', 880, 880, 0.12, 0.13); tone('triangle', 1320, 1320, 0.22, 0.12, 0.09); }
+    else if (kind === 'crash') { burst(0.32, 260, 0.6, 0.55); tone('sawtooth', 160, 60, 0.3, 0.1); }
     else if (kind === 'win') { [523, 659, 784, 1047].forEach((f, i) => tone('triangle', f, f, 0.22, 0.12, i * 0.13)); }
     else if (kind === 'end') { tone('triangle', 784, 784, 0.18, 0.12); tone('triangle', 659, 659, 0.18, 0.12, 0.18); tone('triangle', 523, 523, 0.35, 0.12, 0.36); }
   } catch (e) { /* 소리가 안 되는 기기 */ }

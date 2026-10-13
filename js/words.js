@@ -3,6 +3,7 @@
 //   보고 고르기: 한글 뜻을 보고 영어 단어를, 또는 영어 단어를 보고 한글 뜻을 4개 중에서 고른다(10문제).
 //   단어 광산(mine.js): 1분 동안 뜻에 맞는(또는 들리는) 단어 블록을 세 번 두드려 캔다.
 //   밤을 지켜라(night.js): 뜻을 든 유령이 집으로 걸어오면 맞는 영어 단어를 눌러 막는다.
+//   광산 수레 달리기(cart.js): 갈림길이 오기 전에 뜻에 맞는 단어가 있는 선로로 수레를 옮긴다.
 // 처음 화면의 게임 판 버튼을 누르면 바로 시작한다. 아직 잘 모르는 단어가 먼저 나온다.
 import { $, esc, shuffle, getChild, setChild, childPickerHTML, loadSentences, loadProgress, saveProgress, syncProgress,
   markToday, streak, collectWords, loadGlossary, fillGlossary } from './learn.js';
@@ -10,6 +11,7 @@ import { aiEnabled, aiMessage } from './ai.js';
 import { canSpeak, speak } from './speech.js';
 import { startMine, stopMine } from './mine.js';
 import { startNight, stopNight } from './night.js';
+import { startCart, stopCart } from './cart.js';
 
 const SPEAK_OK = canSpeak();
 const QUIZ_LEN = 10;
@@ -25,7 +27,7 @@ let last = null;         // 마지막으로 한 게임 { kind, pairs | dir } —
 let game = null;         // 짝 맞추기
 let quiz = null;         // 보고 고르기
 
-function show(which) { ['home', 'game', 'quiz', 'mine', 'night', 'done'].forEach(k => { $('#' + k).hidden = k !== which; }); window.scrollTo(0, 0); }
+function show(which) { ['home', 'game', 'quiz', 'mine', 'night', 'cart', 'done'].forEach(k => { $('#' + k).hidden = k !== which; }); window.scrollTo(0, 0); }
 function say(text) { if (SPEAK_OK) speak(text, { speed: 'slow' }).catch(() => {}); }
 
 /* ---------- 아이·기록 ---------- */
@@ -69,8 +71,9 @@ function renderHome() {
 
   const ready = !!child && !!progress;
   document.querySelectorAll('[data-go="match"]').forEach(b => { b.disabled = !ready || words.length < 2; });
-  document.querySelectorAll('[data-go="quiz"], [data-go="mine"], [data-go="night"]').forEach(b => { b.disabled = !ready || words.length < 4; });
+  document.querySelectorAll('[data-go="quiz"], [data-go="mine"], [data-go="night"], [data-go="cart"]').forEach(b => { b.disabled = !ready || words.length < 4; });
   $('#mineListen').hidden = !SPEAK_OK;
+  $('#cartListen').hidden = !SPEAK_OK;
   $('#games').classList.toggle('locked', !ready);
 
   $('#openList').textContent = `내 단어장 ${words.length}개`;
@@ -93,6 +96,7 @@ $('#games').addEventListener('click', (e) => {
   if (b.dataset.go === 'match') startMatch(Number(b.dataset.pairs));
   else if (b.dataset.go === 'mine') goMine(b.dataset.mode);
   else if (b.dataset.go === 'night') goNight(b.dataset.speed);
+  else if (b.dataset.go === 'cart') goCart(b.dataset.mode);
   else startQuiz(b.dataset.dir);
 });
 $('#again').addEventListener('click', () => {
@@ -100,11 +104,13 @@ $('#again').addEventListener('click', () => {
   if (last.kind === 'match') startMatch(last.pairs);
   else if (last.kind === 'mine') goMine(last.mode);
   else if (last.kind === 'night') goNight(last.speed);
+  else if (last.kind === 'cart') goCart(last.mode);
   else startQuiz(last.dir);
 });
 $('#home2').addEventListener('click', () => { show('home'); renderHome(); });
 $('#qQuit').addEventListener('click', () => { quiz = null; show('home'); renderHome(); });
 $('#quit').addEventListener('click', () => { game = null; show('home'); renderHome(); });
+$('#cartQuit').addEventListener('click', () => { stopCart(); saveProgress(progress); show('home'); renderHome(); });
 $('#ngQuit').addEventListener('click', () => { stopNight(); saveProgress(progress); show('home'); renderHome(); });
 $('#mineQuit').addEventListener('click', () => { stopMine(); saveProgress(progress); show('home'); renderHome(); });
 
@@ -332,6 +338,24 @@ async function finishNight(r) {
   });
 }
 
+/* ---------- 광산 수레 달리기 ---------- */
+function goCart(mode) {
+  last = { kind: 'cart', mode };
+  show('cart');
+  startCart({ words, pickWords, recordWord, say, onEnd: finishCart }, mode);
+  $('#cart').scrollIntoView({ block: 'start' });
+}
+async function finishCart(r) {
+  if ($('#cart').hidden) return;     // 그사이 그만하기를 눌렀으면
+  const gems = r.win ? Math.min(8, Math.ceil(r.right / 2)) + (r.hearts === 3 ? 1 : 0) : Math.ceil(r.right / 3);
+  await reward(gems);
+  showDone({
+    title: r.win ? (r.hearts === 3 ? '한 번도 안 부딪히고 도착했어요!' : '끝까지 도착했어요!') : '다음엔 꼭 도착해요!',
+    text: `갈림길 ${r.total}개 중 ${r.right}개를 맞는 길로 지나갔어요.${r.best >= 3 ? ` 가장 길게 ${r.best}번 연속으로 맞혔어요.` : ''}`,
+    gems, missed: r.missed
+  });
+}
+
 /* ---------- 끝 ---------- */
 async function reward(gems) {
   progress.emeralds += gems;
@@ -347,7 +371,7 @@ function showDone({ title, text, gems, missed }) {
   $('#review').innerHTML = uniq.length
     ? `<p>다시 볼 단어</p><ul>${uniq.map(w => `<li><b lang="en">${esc(w.en)}</b><span>${esc(w.ko)}</span></li>`).join('')}</ul>`
     : '';
-  $('#again').textContent = last && last.kind === 'quiz' ? '한 판 더 풀기' : last && last.kind === 'mine' ? '한 번 더 캐기' : last && last.kind === 'night' ? '다시 지키기' : '한 판 더 하기';
+  $('#again').textContent = last && last.kind === 'quiz' ? '한 판 더 풀기' : last && last.kind === 'mine' ? '한 번 더 캐기' : last && last.kind === 'night' ? '다시 지키기' : last && last.kind === 'cart' ? '다시 달리기' : '한 판 더 하기';
   renderBadges();
 }
 

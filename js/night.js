@@ -282,48 +282,61 @@ function buildFirstPersonBow() {
   const matDarkWood = new THREE.MeshLambertMaterial({ color: 0x54371c });
   const matString = new THREE.MeshBasicMaterial({ color: 0xffffff });
 
-  // 스티브 팔
-  const armPivot = new THREE.Group();
-  armPivot.position.set(0.18, -0.28, -0.32);
-  armPivot.rotation.set(-0.4, -0.5, 0.35);
+function buildFirstPersonBow() {
+  const g = new THREE.Group();
+  g.position.set(0.24, -0.24, -0.56);
 
-  const sleeve = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.28), matCyan);
-  sleeve.position.set(0, 0, -0.12);
-  const hand = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.11, 0.16), matSkin);
-  hand.position.set(0, 0, -0.32);
-  armPivot.add(sleeve); armPivot.add(hand);
-  g.add(armPivot);
+  const matCyan = new THREE.MeshLambertMaterial({ color: 0x00c4c7 });
+  const matSkin = new THREE.MeshLambertMaterial({ color: 0xbc8965 });
+  const matWood = new THREE.MeshLambertMaterial({ color: 0x936339 });
+  const matDarkWood = new THREE.MeshLambertMaterial({ color: 0x54371c });
+  const matString = new THREE.MeshBasicMaterial({ color: 0xffffff });
 
-  // 마인크래프트 활
+  // 마인크래프트 활 본체: 정면 -Z를 향해 대칭으로 휘어진 형태
   const bow = new THREE.Group();
-  bow.position.set(-0.06, -0.06, -0.45);
-  bow.rotation.set(0.15, 0.35, -0.2);
+  bow.rotation.set(-0.06, 0.08, -0.25);
 
-  const segGeom = new THREE.BoxGeometry(0.04, 0.12, 0.04);
-  const addSeg = (x, y, z, mat = matWood, rx = 0) => {
+  const segGeom = new THREE.BoxGeometry(0.04, 0.11, 0.04);
+  const addSeg = (y, z, rx, mat) => {
     const s = new THREE.Mesh(segGeom, mat);
-    s.position.set(x, y, z);
-    s.rotation.z = rx;
+    s.position.set(0, y, z);
+    s.rotation.x = rx;
     bow.add(s);
   };
-  addSeg(0, 0, 0, matDarkWood);
-  addSeg(-0.03, 0.11, 0, matWood, 0.25);
-  addSeg(-0.08, 0.22, 0.02, matWood, 0.5);
-  addSeg(-0.15, 0.31, 0.05, matDarkWood, 0.8);
-  addSeg(-0.03, -0.11, 0, matWood, -0.25);
-  addSeg(-0.08, -0.22, 0.02, matWood, -0.5);
-  addSeg(-0.15, -0.31, 0.05, matDarkWood, -0.8);
 
-  const stringGeom = new THREE.CylinderGeometry(0.005, 0.005, 0.72);
+  // 손잡이 그립
+  addSeg(0, 0, 0, matDarkWood);
+  // 상단 림
+  addSeg(0.10, 0.03, -0.22, matWood);
+  addSeg(0.20, 0.08, -0.45, matWood);
+  addSeg(0.29, 0.15, -0.75, matDarkWood);
+  // 하단 림
+  addSeg(-0.10, 0.03, 0.22, matWood);
+  addSeg(-0.20, 0.08, 0.45, matWood);
+  addSeg(-0.29, 0.15, 0.75, matDarkWood);
+
+  // 활시위
+  const stringGeom = new THREE.CylinderGeometry(0.005, 0.005, 0.58);
   const bowString = new THREE.Mesh(stringGeom, matString);
-  bowString.position.set(-0.14, 0, 0.04);
+  bowString.position.set(0, 0, 0.15);
   bow.add(bowString);
 
+  // 장전된 화살 (활의 중앙 그립과 시위에 완벽하게 일치하는 전방 정조준)
   const arrow = buildArrowMesh();
-  arrow.position.set(-0.07, 0, -0.28);
-  arrow.rotation.y = 0;
+  arrow.position.set(0, 0, 0);
   bow.add(arrow);
   notchArrow = arrow;
+
+  // 스티브의 오른손 (그립을 쥔 손)
+  const hand = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.12), matSkin);
+  hand.position.set(0.05, 0, 0.02);
+  bow.add(hand);
+
+  // 스티브의 팔 & 청록색 소매
+  const arm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.28), matCyan);
+  arm.position.set(0.16, -0.12, 0.18);
+  arm.rotation.set(-0.4, 0.3, -0.1);
+  bow.add(arm);
 
   g.add(bow);
   return { group: g, bow, bowString, notchArrow };
@@ -332,22 +345,26 @@ function buildFirstPersonBow() {
 function buildArrowMesh() {
   const g = new THREE.Group();
   const matShaft = new THREE.MeshLambertMaterial({ color: 0x9e6a38 });
-  const matFlint = new THREE.MeshLambertMaterial({ color: 0x666666 });
+  const matFlint = new THREE.MeshLambertMaterial({ color: 0x555555 });
   const matFeather = new THREE.MeshLambertMaterial({ color: 0xffffff });
 
-  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.8), matShaft);
+  // 화살대 (z축 방향으로 전방 -Z를 향해 뻗음)
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.72), matShaft);
   shaft.rotation.x = Math.PI / 2;
+  shaft.position.z = -0.18;
   g.add(shaft);
 
-  const head = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.14, 4), matFlint);
+  // 화살촉 (부싯돌, 뾰족한 끝이 -Z 정면을 향함)
+  const head = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.14, 4), matFlint);
   head.rotation.x = -Math.PI / 2;
-  head.position.z = -0.42;
+  head.position.z = -0.58;
   g.add(head);
 
-  const f1 = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.01, 0.14), matFeather);
-  f1.position.z = 0.32;
-  const f2 = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.08, 0.14), matFeather);
-  f2.position.z = 0.32;
+  // 화살 깃털 (시위 쪽 +Z에 배치)
+  const f1 = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.01, 0.12), matFeather);
+  f1.position.z = 0.12;
+  const f2 = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.07, 0.12), matFeather);
+  f2.position.z = 0.12;
   g.add(f1); g.add(f2);
   return g;
 }
@@ -662,12 +679,12 @@ function choose(k) {
   sfx('bow');
   recoilImpulse = 0.28;
   if (notchArrow) {
-    notchArrow.position.z = -0.16; // 시위 당김
+    notchArrow.position.z = 0.12; // 시위 당기며 뒤로 후퇴
     setTimeout(() => {
       if (notchArrow) notchArrow.visible = false; // 화살 발사
       setTimeout(() => {
         if (notchArrow) {
-          notchArrow.position.z = -0.28;
+          notchArrow.position.z = 0;
           notchArrow.visible = true; // 새 화살 장전
         }
       }, 160);
@@ -681,7 +698,7 @@ function choose(k) {
 
 function launchArrow(targetMob) {
   const mesh = buildArrowMesh();
-  mesh.position.set(0.08, 1.32, -1.0);
+  mesh.position.set(0.18, 1.34, -1.05);
   scene.add(mesh);
 
   const start = mesh.position.clone();

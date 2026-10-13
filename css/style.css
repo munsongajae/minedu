@@ -21,6 +21,11 @@
   --on-color: #ffffff;
   --shade: rgba(0, 0, 0, .26);
   --shine: rgba(255, 255, 255, .28);
+  /* 단어 광산: 돌·광물·하늘 */
+  --stone: #8f8c85; --stone-dark: #6b6862; --stone-hi: #aeaba3;
+  --ore-diamond: #4fd0dc; --ore-coal: #232220; --ore-iron: #e4c29c;
+  --mine-day-top: #5fa9de; --mine-day: #bfe3f5; --mine-dusk-top: #2f2a66; --mine-dusk: #ef8a4c;
+  --mine-sun: #ffd84a; --mine-night: rgba(18, 16, 44, .72);
   --f-display: "Do Hyeon", "Jua", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
   --f-body: "Gowun Dodum", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
   --f-kid: "Jua", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
@@ -33,6 +38,8 @@
     --edge: #05080b; --line: #3a4553; --grass: #4f8f2f; --grass-hi: #77b850; --dirt: #a8754b;
     --redstone: #d9493e; --gold: #e8b43a; --gold-soft: #3a3120; --helper: #16302f; --helper-edge: #2fb3a7;
     --shade: rgba(0, 0, 0, .4); --shine: rgba(255, 255, 255, .16); color-scheme: dark;
+    --stone: #74716b; --stone-dark: #4e4c48; --stone-hi: #8f8c85;
+    --mine-day-top: #3f7fae; --mine-day: #8cbfdc; --mine-dusk-top: #1d1946; --mine-dusk: #c96c38;
   }
 }
 
@@ -396,8 +403,9 @@ kbd { font-family: var(--f-pixel); font-size: 12px; border: 2px solid var(--edge
 .wg-go { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
 .wg-go button { flex: 1 1 0; min-width: 118px; white-space: nowrap; min-height: 58px; padding: 8px 10px 12px; font-family: var(--f-display); font-size: 21px; cursor: pointer;
   border: 3px solid var(--edge); box-shadow: inset 0 -5px 0 var(--shade), inset 0 4px 0 var(--shine); }
-.wg-game:first-child .wg-go button { background: var(--gold); color: var(--gold-ink); }
-.wg-game:last-child .wg-go button { background: var(--helper-edge); color: var(--on-color); }
+.g-match .wg-go button { background: var(--gold); color: var(--gold-ink); }
+.g-quiz .wg-go button { background: var(--helper-edge); color: var(--on-color); }
+.g-mine .wg-go button { background: var(--stone-dark); color: var(--on-color); }
 .wg-go button:hover:not(:disabled) { filter: brightness(1.06); }
 .wg-go button:active:not(:disabled) { transform: translateY(3px); box-shadow: inset 0 -2px 0 var(--shade); }
 .wg-go button:disabled { opacity: .45; cursor: not-allowed; }
@@ -492,3 +500,126 @@ kbd { font-family: var(--f-pixel); font-size: 12px; border: 2px solid var(--edge
 .wg-again { background: var(--grass); color: var(--on-color); }
 .wg-other { background: var(--panel-2); color: var(--ink); }
 @media (prefers-reduced-motion: reduce) { .wg-opt.right, .wg-opt.wrong, .wg-tile.up, .wg-gems i { animation: none; } }
+
+/* ---------- 단어 광산 ---------- */
+/* 광물 블록 무늬: 돌 바탕 + 어두운·밝은 돌 조각 + 광물 알갱이(--ore). 직접 만든 무늬 */
+.ore-gold { --ore: var(--gold); }
+.ore-diamond { --ore: var(--ore-diamond); }
+.ore-emerald { --ore: var(--grass-hi); }
+.ore-ruby { --ore: var(--redstone); }
+.ore-iron { --ore: var(--ore-iron); }
+.ore-coal { --ore: var(--ore-coal); }
+.mine-block, .ore-ico {
+  background-color: var(--stone);
+  background-image:
+    linear-gradient(var(--ore, var(--stone-dark)) 0 0), linear-gradient(var(--ore, var(--stone-dark)) 0 0), linear-gradient(var(--ore, var(--stone-dark)) 0 0),
+    linear-gradient(var(--ore, var(--stone-dark)) 0 0), linear-gradient(var(--ore, var(--stone-dark)) 0 0),
+    linear-gradient(var(--stone-dark) 0 0), linear-gradient(var(--stone-dark) 0 0), linear-gradient(var(--stone-hi) 0 0), linear-gradient(var(--stone-hi) 0 0);
+  background-size: 11% 13%, 7% 9%, 10% 12%, 7% 9%, 9% 11%, 15% 10%, 10% 15%, 13% 9%, 9% 13%;
+  background-position: 10% 14%, 22% 30%, 86% 18%, 78% 80%, 14% 84%, 58% 8%, 42% 92%, 92% 50%, 4% 50%;
+  background-repeat: no-repeat;
+}
+.ore-ico { display: inline-block; width: 30px; height: 30px; border: 2px solid var(--edge); box-shadow: inset 0 -3px 0 var(--shade);
+  background-size: 22% 22%, 16% 16%, 22% 22%, 16% 16%, 18% 18%, 20% 14%, 14% 20%, 18% 14%, 14% 18%; }
+
+/* 처음 화면 판: 넓게 한 줄 */
+.wg-games .g-mine { grid-column: 1 / -1; grid-template-columns: minmax(240px, 340px) 1fr; column-gap: 20px; }
+.g-mine > :not(.wg-art) { grid-column: 2; }
+.g-mine .wg-art { grid-row: 1 / span 3; height: auto; min-height: 150px; }
+@media (max-width: 900px) {
+  .wg-games .g-mine { grid-template-columns: 1fr; }
+  .g-mine > :not(.wg-art) { grid-column: auto; }
+  .g-mine .wg-art { grid-row: auto; height: 132px; min-height: 0; }
+}
+.wg-new { font-family: var(--f-display); font-size: 15px; vertical-align: 6px; margin-left: 6px; padding: 1px 8px 3px; background: var(--gold); color: var(--gold-ink); border: 2px solid var(--edge); }
+.wg-art-mine { background: linear-gradient(var(--mine-day-top), var(--mine-day) 52%, var(--grass) 52% 60%, var(--stone-dark) 60%); align-items: flex-end; padding-bottom: 12px; gap: 8px; }
+.wg-art-mine .sun { position: absolute; top: 14px; left: 16%; width: 22px; height: 22px; background: var(--mine-sun); border: 2px solid var(--edge); }
+.wg-art-mine .ore-ico { width: 52px; height: 52px; border-width: 3px; }
+.wg-art-mine .ore-ico.big { width: 64px; height: 64px; position: relative; }
+.wg-art-mine .art-crack { position: absolute; inset: 0; background:
+  linear-gradient(var(--edge) 0 0) 58% 0 / 3px 34% no-repeat, linear-gradient(var(--edge) 0 0) 48% 40% / 30% 3px no-repeat, linear-gradient(var(--edge) 0 0) 46% 40% / 3px 34% no-repeat; }
+.wg-art-mine .art-pick { position: absolute; width: 58px; height: 58px; left: calc(50% + 8px); top: 10px; transform: rotate(-18deg); }
+.pick-svg { width: 100%; height: 100%; display: block; }
+.pick-svg .pk-head { fill: var(--stone-hi); }
+.pick-svg .pk-shine { fill: var(--panel); }
+.pick-svg .pk-handle { fill: var(--dirt); }
+.pick-svg rect { stroke: none; }
+.pick-svg { filter: drop-shadow(1px 0 0 var(--edge)) drop-shadow(-1px 0 0 var(--edge)) drop-shadow(0 1px 0 var(--edge)) drop-shadow(0 -1px 0 var(--edge)); }
+
+/* 게임 화면 */
+.wg-mine { max-width: 940px; gap: 14px; }
+.mine-count { font-family: var(--f-display); font-size: 24px; }
+.mine-combo { font-family: var(--f-display); font-size: 20px; padding: 0 10px 2px; background: var(--gold); color: var(--gold-ink); border: 2px solid var(--edge); }
+.mine-combo.pop { animation: wg-pop .3s ease-out; }
+.mine-time { margin-left: auto; font-family: var(--f-pixel); font-size: 24px; min-width: 64px; text-align: center; padding: 0 8px 2px; background: var(--panel); border: 3px solid var(--edge); font-variant-numeric: tabular-nums; }
+.mine-time.low { background: var(--redstone); color: var(--on-color); animation: blink 1s steps(2) infinite; }
+.mine-time + .wg-quit { margin-left: 0; }
+.mine-field { position: relative; border: 3px solid var(--edge); box-shadow: 0 7px 0 var(--shade); overflow: hidden; }
+
+.mine-sky { position: relative; height: 150px; display: grid; place-items: center; overflow: hidden;
+  background: linear-gradient(var(--mine-day-top), var(--mine-day)); }
+.mine-sky::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: var(--t, 0);
+  background: linear-gradient(var(--mine-dusk-top), var(--mine-dusk)); }
+.mine-sun { position: absolute; z-index: 1; width: 36px; height: 36px; transform: translate(-50%, -50%); left: 8%; top: 78%;
+  background: var(--mine-sun); border: 3px solid var(--edge); box-shadow: inset -6px -6px 0 var(--gold); }
+.mine-sign { position: relative; z-index: 2; min-width: 220px; max-width: calc(100% - 32px); text-align: center; padding: 6px 22px 10px;
+  background: var(--panel); border: 3px solid var(--edge); box-shadow: 0 6px 0 var(--dirt); display: grid; justify-items: center; gap: 2px; }
+.mine-sign small { font-family: var(--f-display); font-size: 17px; color: var(--helper-edge); }
+.mine-sign b { font-family: var(--f-kid); font-weight: 400; font-size: clamp(34px, 6vw, 54px); line-height: 1.1; overflow-wrap: anywhere; }
+.mine-sign .wg-say { margin-top: 4px; font-size: 20px; padding: 6px 18px 8px; }
+.mine-sign.pop { animation: wg-pop .3s ease-out; }
+.mine-grass { height: 18px; border-block: 3px solid var(--edge);
+  background: repeating-linear-gradient(90deg, var(--grass) 0 18px, var(--grass-hi) 18px 26px, var(--grass) 26px 40px, var(--dirt) 40px 46px); }
+
+.mine-wall { position: relative; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; padding: 12px; background: var(--stone-dark); }
+.mine-block { position: relative; aspect-ratio: 4 / 3; min-height: 96px; padding: 8px; display: grid; place-items: center; font: inherit; color: var(--ink);
+  border: 3px solid var(--edge); box-shadow: inset 0 -6px 0 var(--shade), inset 0 4px 0 var(--shine); cursor: pointer; touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent; user-select: none; }
+.mine-block.stone { cursor: default; box-shadow: inset 0 -6px 0 var(--shade); filter: saturate(.6); }
+.mine-block .plate { position: relative; z-index: 1; max-width: 100%; padding: 2px 10px 5px; background: var(--panel); border: 2px solid var(--edge);
+  font-family: var(--f-kid); font-size: clamp(20px, 2.8vw, 28px); line-height: 1.15; overflow-wrap: anywhere; text-align: center; }
+.mine-block:hover:not(:disabled):not(.stone) { filter: brightness(1.07); }
+.mine-block:focus-visible { outline: 4px solid var(--gold); outline-offset: -4px; }
+.mine-block .crack { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; }
+.mine-block .crack polyline { fill: none; stroke: var(--edge); stroke-width: 3.5; stroke-linejoin: miter; vector-effect: non-scaling-stroke; }
+.mine-block .crack g { opacity: 0; }
+.mine-block.h1 .k1, .mine-block.h2 .k1, .mine-block.h2 .k2, .mine-block.h3 g { opacity: 1; }
+.mine-block.hit { animation: mine-hit .14s ease-out; }
+.mine-block.bad { animation: wg-shake .35s; outline: 4px solid var(--redstone); outline-offset: -4px; }
+.mine-block.hint { outline: 5px dashed var(--gold); outline-offset: -6px; animation: mine-glow .8s ease-in-out infinite alternate; }
+.mine-block.broken { animation: mine-break .3s ease-in forwards; pointer-events: none; }
+.mine-block.fresh { animation: mine-fresh .35s ease-out; }
+.mine-tip { position: absolute; z-index: 3; left: 50%; bottom: 6px; transform: translateX(-50%); white-space: nowrap; pointer-events: none;
+  padding: 1px 10px 3px; background: var(--ink); color: var(--panel); font-family: var(--f-kid); font-size: 18px; }
+@keyframes mine-hit { 40% { transform: translate(2px, 2px) scale(.97); } }
+@keyframes mine-break { to { transform: scale(.6); opacity: 0; } }
+@keyframes mine-fresh { from { transform: translateY(-24px); opacity: 0; } }
+@keyframes mine-glow { to { filter: brightness(1.25); } }
+.mine-bit { position: absolute; z-index: 4; width: 10px; height: 10px; background: var(--stone-hi); border: 1px solid var(--edge); pointer-events: none; }
+.mine-bit[class*="ore-"] { background: var(--ore); }
+.mine-pick { position: absolute; z-index: 5; width: 84px; height: 84px; pointer-events: none; opacity: 0; transform-origin: 12% 88%; }
+.mine-pick.swing { animation: mine-swing .22s ease-out; }
+@keyframes mine-swing { 0% { opacity: 1; transform: rotate(-55deg); } 60% { opacity: 1; transform: rotate(18deg); } 100% { opacity: 0; transform: rotate(10deg); } }
+.mine-fly { position: fixed; z-index: 50; pointer-events: none; margin: 0; }
+.mine-over { position: absolute; inset: 0; z-index: 6; display: grid; place-items: center; background: var(--mine-night); }
+.mine-over p { margin: 0; padding: 10px 26px 14px; font-family: var(--f-display); font-size: clamp(34px, 6vw, 52px); background: var(--panel); border: 3px solid var(--edge);
+  box-shadow: 0 6px 0 var(--dirt); animation: wg-pop .4s ease-out; }
+
+.mine-hot { justify-self: center; list-style: none; margin: 0; padding: 6px; display: flex; gap: 6px; background: var(--edge); }
+.mine-hot li { position: relative; width: 56px; height: 56px; display: grid; place-items: center; background: var(--panel-2); border: 3px solid var(--stone-hi); }
+.mine-hot li.empty i { opacity: .25; }
+.mine-hot li b { position: absolute; right: 3px; bottom: 0; font-family: var(--f-pixel); font-size: 14px; font-weight: 400; color: var(--ink); }
+.mine-hot li.empty b { visibility: hidden; }
+.mine-hot li.pop { animation: wg-pop .3s ease-out; }
+/* 좁은 화면: 2줄 × 4칸, 블록을 납작하게 해서 한 화면에 */
+@media (max-width: 600px) {
+  .mine-wall { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 8px; }
+  .mine-block { aspect-ratio: 2 / 1; min-height: 76px; }
+  .mine-sky { height: 116px; }
+  .mine-pick { width: 64px; height: 64px; }
+}
+@media (max-width: 400px) { .mine-hot li { width: 46px; height: 46px; } .mine-hot li .ore-ico { width: 24px; height: 24px; } }
+@media (prefers-reduced-motion: reduce) {
+  .mine-block.hit, .mine-block.bad, .mine-block.fresh, .mine-block.hint, .mine-sign.pop, .mine-hot li.pop, .mine-pick.swing, .mine-time.low { animation: none; }
+  .mine-block.broken { animation: none; opacity: 0; }
+}

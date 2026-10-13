@@ -34,7 +34,20 @@
   <section class="wg-home" id="home">
     <p class="wg-msg" id="homeMsg" role="status"></p>
     <div class="wg-games" id="games">
-      <article class="wg-game">
+      <article class="wg-game g-mine">
+        <div class="wg-art wg-art-mine" aria-hidden="true">
+          <span class="sun"></span>
+          <i class="ore-ico ore-gold"></i><i class="ore-ico ore-diamond big"><b class="art-crack"></b></i><i class="ore-ico ore-emerald"></i>
+          <span class="art-pick"><svg class="pick-svg" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true"><g class="pk-head"><rect x="5" y="2" width="7" height="1"/><rect x="6" y="3" width="6" height="1"/><rect x="12" y="3" width="1" height="2"/><rect x="13" y="4" width="1" height="7"/><rect x="12" y="5" width="1" height="5"/></g><g class="pk-shine"><rect x="6" y="2" width="4" height="1"/><rect x="13" y="5" width="1" height="3"/></g><g class="pk-handle"><rect x="2" y="13" width="1" height="1"/><rect x="3" y="12" width="1" height="1"/><rect x="4" y="11" width="1" height="1"/><rect x="5" y="10" width="1" height="1"/><rect x="6" y="9" width="1" height="1"/><rect x="7" y="8" width="1" height="1"/><rect x="8" y="7" width="1" height="1"/><rect x="9" y="6" width="1" height="1"/><rect x="10" y="5" width="1" height="1"/><rect x="11" y="4" width="1" height="1"/><rect x="1" y="14" width="1" height="1"/></g></svg></span>
+        </div>
+        <h2>단어 광산 <small class="wg-new">새 게임</small></h2>
+        <p>해가 지기 전 1분 동안, 맞는 단어 블록을 세 번 두드려서 캐요</p>
+        <div class="wg-go" role="group" aria-label="단어 광산 시작">
+          <button type="button" data-go="mine" data-mode="ko">뜻 보고 캐기</button>
+          <button type="button" data-go="mine" data-mode="listen" id="mineListen">듣고 캐기</button>
+        </div>
+      </article>
+      <article class="wg-game g-match">
         <div class="wg-art wg-art-match" aria-hidden="true"><i>?</i><i class="b">?</i><i>?</i></div>
         <h2>짝 맞추기</h2>
         <p>카드를 뒤집어서 영어와 한글 짝을 찾아요</p>
@@ -44,7 +57,7 @@
           <button type="button" data-go="match" data-pairs="8">8쌍</button>
         </div>
       </article>
-      <article class="wg-game">
+      <article class="wg-game g-quiz">
         <div class="wg-art wg-art-quiz" aria-hidden="true"><span class="sign">집</span><span class="ops"><i></i><i></i><i></i><i></i></span></div>
         <h2>보고 고르기</h2>
         <p>뜻이나 단어를 보고 맞는 것을 4개 중에서 골라요</p>
@@ -92,6 +105,31 @@
       <button type="button" class="wg-quit" id="quit">그만하기</button>
     </div>
     <div class="wg-board" id="board"></div>
+  </section>
+
+  <!-- 단어 광산 -->
+  <section class="wg-play wg-mine" id="mine" hidden>
+    <div class="wg-bar">
+      <span class="mine-count" id="mineCount">캔 단어 0개</span>
+      <span class="mine-combo" id="mineCombo" hidden></span>
+      <span class="mine-time" id="mineTime" aria-label="남은 시간">60</span>
+      <button type="button" class="wg-quit" id="mineQuit">그만하기</button>
+    </div>
+    <div class="mine-field">
+      <div class="mine-sky" id="mineSky">
+        <span class="mine-sun" id="mineSun" aria-hidden="true"></span>
+        <div class="mine-sign" id="mineSign">
+          <small id="mineAsk">이 뜻의 단어를 캐요</small>
+          <b id="mineWord"></b>
+          <button type="button" class="wg-say" id="mineSay" hidden>다시 듣기</button>
+        </div>
+      </div>
+      <div class="mine-grass" aria-hidden="true"></div>
+      <div class="mine-wall" id="mineWall"></div>
+      <span class="mine-pick" id="minePick" aria-hidden="true"><svg class="pick-svg" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true"><g class="pk-head"><rect x="5" y="2" width="7" height="1"/><rect x="6" y="3" width="6" height="1"/><rect x="12" y="3" width="1" height="2"/><rect x="13" y="4" width="1" height="7"/><rect x="12" y="5" width="1" height="5"/></g><g class="pk-shine"><rect x="6" y="2" width="4" height="1"/><rect x="13" y="5" width="1" height="3"/></g><g class="pk-handle"><rect x="2" y="13" width="1" height="1"/><rect x="3" y="12" width="1" height="1"/><rect x="4" y="11" width="1" height="1"/><rect x="5" y="10" width="1" height="1"/><rect x="6" y="9" width="1" height="1"/><rect x="7" y="8" width="1" height="1"/><rect x="8" y="7" width="1" height="1"/><rect x="9" y="6" width="1" height="1"/><rect x="10" y="5" width="1" height="1"/><rect x="11" y="4" width="1" height="1"/><rect x="1" y="14" width="1" height="1"/></g></svg></span>
+      <div class="mine-over" id="mineOver" hidden><p>해가 졌어요!</p></div>
+    </div>
+    <ol class="mine-hot" id="mineHot" aria-label="캔 광물"></ol>
   </section>
 
   <!-- 끝 -->

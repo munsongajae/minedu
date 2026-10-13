@@ -1,11 +1,13 @@
 // 단어 게임: 아이가 만든 문장에서 나온 단어로 한다. 기록은 아이별로 따로.
 //   짝 맞추기: 영어 카드와 한글 카드의 짝을 찾는다(4·6·8쌍).
 //   보고 고르기: 한글 뜻을 보고 영어 단어를, 또는 영어 단어를 보고 한글 뜻을 4개 중에서 고른다(10문제).
+//   단어 광산(mine.js): 1분 동안 뜻에 맞는(또는 들리는) 단어 블록을 세 번 두드려 캔다.
 // 처음 화면의 게임 판 버튼을 누르면 바로 시작한다. 아직 잘 모르는 단어가 먼저 나온다.
 import { $, esc, shuffle, getChild, setChild, childPickerHTML, loadSentences, loadProgress, saveProgress, syncProgress,
   markToday, streak, collectWords, loadGlossary, fillGlossary } from './learn.js';
 import { aiEnabled, aiMessage } from './ai.js';
 import { canSpeak, speak } from './speech.js';
+import { startMine, stopMine } from './mine.js';
 
 const SPEAK_OK = canSpeak();
 const QUIZ_LEN = 10;
@@ -21,7 +23,7 @@ let last = null;         // 마지막으로 한 게임 { kind, pairs | dir } —
 let game = null;         // 짝 맞추기
 let quiz = null;         // 보고 고르기
 
-function show(which) { ['home', 'game', 'quiz', 'done'].forEach(k => { $('#' + k).hidden = k !== which; }); window.scrollTo(0, 0); }
+function show(which) { ['home', 'game', 'quiz', 'mine', 'done'].forEach(k => { $('#' + k).hidden = k !== which; }); window.scrollTo(0, 0); }
 function say(text) { if (SPEAK_OK) speak(text, { speed: 'slow' }).catch(() => {}); }
 
 /* ---------- 아이·기록 ---------- */
@@ -65,7 +67,8 @@ function renderHome() {
 
   const ready = !!child && !!progress;
   document.querySelectorAll('[data-go="match"]').forEach(b => { b.disabled = !ready || words.length < 2; });
-  document.querySelectorAll('[data-go="quiz"]').forEach(b => { b.disabled = !ready || words.length < 4; });
+  document.querySelectorAll('[data-go="quiz"], [data-go="mine"]').forEach(b => { b.disabled = !ready || words.length < 4; });
+  $('#mineListen').hidden = !SPEAK_OK;
   $('#games').classList.toggle('locked', !ready);
 
   $('#openList').textContent = `내 단어장 ${words.length}개`;
@@ -86,15 +89,19 @@ $('#games').addEventListener('click', (e) => {
   const b = e.target.closest('[data-go]');
   if (!b || b.disabled) return;
   if (b.dataset.go === 'match') startMatch(Number(b.dataset.pairs));
+  else if (b.dataset.go === 'mine') goMine(b.dataset.mode);
   else startQuiz(b.dataset.dir);
 });
 $('#again').addEventListener('click', () => {
   if (!last) return show('home');
-  if (last.kind === 'match') startMatch(last.pairs); else startQuiz(last.dir);
+  if (last.kind === 'match') startMatch(last.pairs);
+  else if (last.kind === 'mine') goMine(last.mode);
+  else startQuiz(last.dir);
 });
 $('#home2').addEventListener('click', () => { show('home'); renderHome(); });
 $('#qQuit').addEventListener('click', () => { quiz = null; show('home'); renderHome(); });
 $('#quit').addEventListener('click', () => { game = null; show('home'); renderHome(); });
+$('#mineQuit').addEventListener('click', () => { stopMine(); saveProgress(progress); show('home'); renderHome(); });
 
 // 잘 모르는 단어를 먼저: 처음 보는 단어, 틀린 적 많은 단어, 오래전에 본 단어 순.
 function pickWords(n) {
@@ -284,6 +291,24 @@ async function finishQuiz() {
   quiz = null;
 }
 
+/* ---------- 단어 광산 ---------- */
+function goMine(mode) {
+  last = { kind: 'mine', mode };
+  show('mine');
+  startMine({ words, pickWords, recordWord, say, onEnd: finishMine }, mode);
+  $('#mine').scrollIntoView({ block: 'start' });
+}
+async function finishMine(r) {
+  if ($('#mine').hidden) return;     // 그사이 그만하기를 눌렀으면
+  const gems = Math.min(8, Math.ceil(r.mined / 3)) + (r.mined >= 6 && !r.missed.length ? 1 : 0);
+  await reward(gems);
+  showDone({
+    title: r.mined ? `${r.mined}개 캤어요!` : '해가 졌어요!',
+    text: r.mined ? `1분 동안 단어 ${r.mined}개를 캤어요.${r.best >= 3 ? ` 가장 길게 ${r.best}번 연속으로 캤어요.` : ''}` : '다음에는 더 많이 캐 봐요.',
+    gems, missed: r.missed
+  });
+}
+
 /* ---------- 끝 ---------- */
 async function reward(gems) {
   progress.emeralds += gems;
@@ -294,12 +319,12 @@ function showDone({ title, text, gems, missed }) {
   show('done');
   $('#gems').innerHTML = Array.from({ length: gems }, (_, i) => `<i style="--d:${i * 120}ms"></i>`).join('');
   $('#doneTitle').textContent = title;
-  $('#doneText').textContent = `${text} 에메랄드 ${gems}개를 얻었어요. (모두 ${progress.emeralds}개)`;
+  $('#doneText').textContent = gems ? `${text} 에메랄드 ${gems}개를 얻었어요. (모두 ${progress.emeralds}개)` : text;
   const uniq = [...new Map(missed.map(w => [w.key, w])).values()];
   $('#review').innerHTML = uniq.length
     ? `<p>다시 볼 단어</p><ul>${uniq.map(w => `<li><b lang="en">${esc(w.en)}</b><span>${esc(w.ko)}</span></li>`).join('')}</ul>`
     : '';
-  $('#again').textContent = last && last.kind === 'quiz' ? '한 판 더 풀기' : '한 판 더 하기';
+  $('#again').textContent = last && last.kind === 'quiz' ? '한 판 더 풀기' : last && last.kind === 'mine' ? '한 번 더 캐기' : '한 판 더 하기';
   renderBadges();
 }
 

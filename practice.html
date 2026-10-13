@@ -51,12 +51,46 @@
         <button class="btn big gold" id="memorize" type="button" disabled>말하며 외우기</button>
         <p class="hint">한글 뜻만 보고 영어로 말할 수 있을 때까지, 영어를 점점 가려 가며 외워요. 언제든 할 수 있어요.</p>
       </div>
+      <div class="mode">
+        <button class="btn big emerald" id="viewAll" type="button" disabled>한꺼번에 보기</button>
+        <p class="hint">내가 만든 모든 문장을 카드 목록으로 한눈에 보고, 발음과 내 목소리를 하나씩 또는 차례대로 들어봐요.</p>
+      </div>
     </div>
     <p class="note" id="homeNote"></p>
-    <details class="sent-list">
-      <summary>내 문장 모두 보기</summary>
+    <details class="sent-list" id="sentListDetails">
+      <summary>내 문장 간단 목록 (<span id="sentListCount">0</span>)</summary>
+      <div class="sent-list-bar">
+        <button class="btn small emerald" id="quickOpenAll" type="button">큰 화면으로 한꺼번에 보기 ↗</button>
+      </div>
       <ul id="sentList"></ul>
     </details>
+  </section>
+
+  <section class="all-view" id="allView" hidden>
+    <div class="all-header">
+      <div class="all-title-row">
+        <button class="btn small" id="allBack" type="button">← 돌아가기</button>
+        <h2>모든 문장 한꺼번에 보기</h2>
+        <span class="all-count-badge" id="allCountBadge">총 0개 문장</span>
+      </div>
+      <div class="all-toolbar">
+        <div class="all-filter-group">
+          <label class="sr" for="allProj">영상 선택</label>
+          <select id="allProj"></select>
+          <input type="search" id="allSearch" placeholder="문장이나 단어 검색..." aria-label="문장 검색">
+        </div>
+        <div class="all-action-group">
+          <button class="btn gold" id="allAutoPlay" type="button">▶ 차례대로 모두 듣기</button>
+          <button class="btn" id="allToggleKo" type="button" aria-pressed="false">한글 뜻 숨기기</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="all-grid" id="allGrid"></div>
+
+    <div class="all-footer-bar">
+      <button class="btn big" id="allBackBottom" type="button">처음으로 돌아가기</button>
+    </div>
   </section>
 
   <section class="session" id="session" hidden>

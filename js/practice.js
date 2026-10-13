@@ -20,6 +20,9 @@ let pool = [];          // 지금 고른 영상의 문장
 let queue = [], idx = 0, retried = new Set();
 let session = { right: 0, wrong: 0, gems: 0, kind: 'review' };
 let talk = null, voice = null;
+let singleSentence = null;
+let hideKo = false;
+let autoPlaying = false, autoPlayToken = 0;
 
 let toastTimer;
 function toast(msg) { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 3000); }
@@ -40,7 +43,12 @@ async function loadKid() {
   if (!child) { renderHome(); return; }
   progress = await loadProgress(child);
   renderHome();
-  try { await syncProgress(progress); renderHome(); } catch (e) { /* 인터넷이 없으면 이 기기 기록만 */ }
+  if (!$('#allView').hidden) renderAllSentences();
+  try {
+    await syncProgress(progress);
+    renderHome();
+    if (!$('#allView').hidden) renderAllSentences();
+  } catch (e) { /* 인터넷이 없으면 이 기기 기록만 */ }
 }
 
 function filtered() {
@@ -52,16 +60,18 @@ function renderHome() {
   pool = filtered();
   const who = $('#who');
   const start = $('#start');
+  const viewAll = $('#viewAll');
   if (!all.sentences.length) {
     who.textContent = '아직 연습할 문장이 없어요. 만들기에서 영어 문장을 먼저 써 주세요.';
-    start.disabled = true; $('#memorize').disabled = true; $('#free').disabled = true; $('#stats').innerHTML = ''; return;
+    start.disabled = true; $('#memorize').disabled = true; $('#free').disabled = true; if (viewAll) viewAll.disabled = true; $('#stats').innerHTML = ''; return;
   }
   if (!child || !progress) {
     who.textContent = '누가 연습하나요? 위에서 이름을 눌러 주세요.';
-    start.disabled = true; $('#memorize').disabled = true; $('#free').disabled = true; $('#stats').innerHTML = ''; renderList(); return;
+    start.disabled = true; $('#memorize').disabled = true; $('#free').disabled = true; if (viewAll) viewAll.disabled = true; $('#stats').innerHTML = ''; renderList(); return;
   }
   $('#memorize').disabled = !pool.length;
   $('#free').disabled = !pool.length;
+  if (viewAll) viewAll.disabled = !pool.length;
   const left = freeGemsLeft(progress);
   $('#freeGems').textContent = left ? `오늘 자유 연습 에메랄드 ${left}개 남았어요.` : '오늘 자유 연습 에메랄드는 다 받았어요. 연습은 계속 할 수 있어요.';
   who.textContent = `${child}의 연습`;
@@ -86,10 +96,13 @@ function doneNote() {
 
 function renderList() {
   const box = (k) => (progress && progress.sentences[k] ? progress.sentences[k].box : 0);
+  const cnt = $('#sentListCount');
+  if (cnt) cnt.textContent = pool.length;
   $('#sentList').innerHTML = pool.map(s => {
     const b = box(s.key);
     return `<li><span class="boxes" aria-label="${b ? `${b}번 상자` : '아직 안 함'}">${[1, 2, 3, 4, 5].map(i => `<i class="${i <= b ? 'on' : ''}"></i>`).join('')}</span>
-      <span class="en">${esc(s.en)}</span><span class="ko">${esc(s.ko)}</span></li>`;
+      <div class="sent-list-text"><span class="en">${esc(s.en)}</span><span class="ko">${esc(s.ko)}</span></div>
+      <div class="sent-list-tools">${SPEAK_OK ? `<button type="button" class="wl-say" data-list-say="${esc(s.en)}" title="발음 듣기" aria-label="발음 듣기"></button>` : ''}</div></li>`;
   }).join('');
 }
 
@@ -97,19 +110,313 @@ $('#proj').addEventListener('change', renderHome);
 $('#start').addEventListener('click', () => startSession());
 $('#memorize').addEventListener('click', () => startMemorize());
 $('#free').addEventListener('click', () => startFree());
+$('#viewAll').addEventListener('click', () => openAllView());
+const qoa = $('#quickOpenAll');
+if (qoa) qoa.addEventListener('click', () => openAllView());
+$('#allBack').addEventListener('click', () => closeAllView());
+$('#allBackBottom').addEventListener('click', () => closeAllView());
+$('#allProj').addEventListener('change', () => renderAllSentences());
+$('#allSearch').addEventListener('input', () => renderAllSentences());
+$('#allToggleKo').addEventListener('click', () => toggleHideKo());
+$('#allAutoPlay').addEventListener('click', () => toggleAutoPlay());
+
 $('#again').addEventListener('click', () => {
-  if (session.kind === 'memorize') startMemorize();
+  if (session.source === 'all' && singleSentence) {
+    if (session.kind === 'memorize') startSingleMemorize(singleSentence);
+    else startSinglePractice(singleSentence);
+  } else if (session.kind === 'memorize') startMemorize();
   else if (session.kind === 'review' && todayQueue(pool, progress).length) startSession();
   else startFree();
 });
-$('#home2').addEventListener('click', () => { show('home'); renderHome(); });
-$('#quit').addEventListener('click', () => { stopAudio(); finish(); });
+$('#home2').addEventListener('click', () => {
+  if (session.source === 'all') {
+    openAllView();
+  } else {
+    show('home');
+    renderHome();
+  }
+});
+$('#quit').addEventListener('click', () => {
+  stopAudio();
+  if (session.source === 'all') {
+    openAllView();
+  } else {
+    finish();
+  }
+});
 
 function show(which) {
   $('#home').hidden = which !== 'home';
   $('#session').hidden = which !== 'session';
   $('#done').hidden = which !== 'done';
+  $('#allView').hidden = which !== 'all';
 }
+
+/* ---------- 모든 문장 한꺼번에 보기 ---------- */
+function openAllView() {
+  stopAudio();
+  stopAutoPlay();
+  show('all');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  $('#allProj').innerHTML = `<option value="">모든 영상 (${all.sentences.length}문장)</option>` +
+    all.projects.map(p => `<option value="${esc(p.id)}">${esc(p.title || '제목 없는 영상')} (${all.sentences.filter(s => s.projectId === p.id).length}문장)</option>`).join('');
+  $('#allProj').value = $('#proj').value || '';
+
+  renderAllSentences();
+}
+
+function closeAllView() {
+  stopAudio();
+  stopAutoPlay();
+  show('home');
+  renderHome();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function toggleHideKo() {
+  hideKo = !hideKo;
+  const btn = $('#allToggleKo');
+  btn.setAttribute('aria-pressed', String(hideKo));
+  btn.textContent = hideKo ? '한글 뜻 모두 보이기' : '한글 뜻 숨기기';
+  renderAllSentences();
+}
+
+function highlightCard(key) {
+  document.querySelectorAll('.all-card.now-playing').forEach(el => el.classList.remove('now-playing'));
+  const card = document.getElementById(`card-${key}`);
+  if (card) card.classList.add('now-playing');
+}
+
+async function saySentence(text, speed = 'slow', key = null) {
+  if (!SPEAK_OK) return;
+  stopAudio();
+  if (key) highlightCard(key);
+  talk = await speak(text, {
+    speed,
+    onEnd: () => {
+      talk = null;
+      if (key && !autoPlaying) {
+        const card = document.getElementById(`card-${key}`);
+        if (card) card.classList.remove('now-playing');
+      }
+    }
+  });
+}
+
+function playCardAudio(s) {
+  if (!s.audio) return;
+  stopAudio();
+  stopAutoPlay();
+  highlightCard(s.key);
+  voice = new Audio(blobURL(s.audio));
+  const card = document.getElementById(`card-${s.key}`);
+  const clear = () => { voice = null; if (card && !autoPlaying) card.classList.remove('now-playing'); };
+  voice.onended = clear;
+  voice.onerror = clear;
+  voice.play().catch(clear);
+}
+
+function stopAutoPlay() {
+  if (!autoPlaying) return;
+  autoPlaying = false;
+  autoPlayToken++;
+  stopAudio();
+  const btn = $('#allAutoPlay');
+  if (btn) {
+    btn.textContent = '▶ 차례대로 모두 듣기';
+    btn.classList.remove('playing', 'red');
+    btn.classList.add('gold');
+  }
+  document.querySelectorAll('.all-card.now-playing').forEach(el => el.classList.remove('now-playing'));
+}
+
+async function startAutoPlay() {
+  if (!SPEAK_OK) {
+    toast('이 기기에서는 음성 읽기를 지원하지 않아요.');
+    return;
+  }
+  const cards = [...document.querySelectorAll('#allGrid .all-card')];
+  if (!cards.length) {
+    toast('들을 문장이 없어요.');
+    return;
+  }
+  autoPlaying = true;
+  const currentToken = ++autoPlayToken;
+  const btn = $('#allAutoPlay');
+  btn.textContent = '⏹ 듣기 멈추기';
+  btn.classList.remove('gold');
+  btn.classList.add('playing', 'red');
+
+  for (let i = 0; i < cards.length; i++) {
+    if (!autoPlaying || autoPlayToken !== currentToken) break;
+    const card = cards[i];
+    const key = card.dataset.key;
+    const s = all.sentences.find(item => item.key === key);
+    if (!s) continue;
+
+    highlightCard(key);
+    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    await new Promise(resolve => {
+      stopAudio();
+      speak(s.en, {
+        speed: getSpeed(),
+        onEnd: () => {
+          talk = null;
+          resolve();
+        }
+      }).then(t => {
+        talk = t;
+      }).catch(() => resolve());
+    });
+
+    if (!autoPlaying || autoPlayToken !== currentToken) break;
+    await new Promise(resolve => setTimeout(resolve, 900));
+  }
+
+  stopAutoPlay();
+}
+
+function toggleAutoPlay() {
+  if (autoPlaying) stopAutoPlay();
+  else startAutoPlay();
+}
+
+function renderAllSentences() {
+  const pid = $('#allProj').value;
+  const q = ($('#allSearch').value || '').trim().toLowerCase();
+
+  let list = pid ? all.sentences.filter(s => s.projectId === pid) : all.sentences;
+  if (q) {
+    list = list.filter(s =>
+      s.en.toLowerCase().includes(q) ||
+      (s.ko && s.ko.toLowerCase().includes(q)) ||
+      (s.words && s.words.some(w => (typeof w === 'string' ? w : (w.en + ' ' + (w.ko || ''))).toLowerCase().includes(q)))
+    );
+  }
+
+  const boxOf = (k) => (progress && progress.sentences[k] ? progress.sentences[k].box : 0);
+  const mCount = list.filter(s => boxOf(s.key) >= 5).length;
+  $('#allCountBadge').textContent = `총 ${list.length}문장 (다 외움 ${mCount}개)`;
+
+  if (!list.length) {
+    $('#allGrid').innerHTML = `
+      <div class="all-empty">
+        <p>조건에 맞는 문장이 없어요.</p>
+        ${q ? '<button class="btn small" type="button" id="clearSearch">검색 지우기</button>' : ''}
+      </div>`;
+    const clr = $('#clearSearch');
+    if (clr) clr.addEventListener('click', () => { $('#allSearch').value = ''; renderAllSentences(); });
+    return;
+  }
+
+  $('#allGrid').innerHTML = list.map((s, idx) => {
+    const box = boxOf(s.key);
+    const boxLabel = box === 5 ? '⭐ 다 외움' : box > 0 ? `📦 ${box}번 상자` : '🌱 새로움';
+    const thumbHTML = s.image
+      ? `<div class="all-card-thumb"><img src="${blobURL(s.image)}" alt="${esc(s.en)}" loading="lazy"></div>`
+      : `<div class="all-card-thumb no-img" aria-hidden="true"><span>🎬</span></div>`;
+
+    const wordsHTML = (s.words && s.words.length)
+      ? `<div class="all-card-words">${s.words.map(w => `<span class="all-word-tag">${typeof w === 'string' ? esc(w) : `${esc(w.en)}${w.ko ? ` <small>(${esc(w.ko)})</small>` : ''}`}</span>`).join('')}</div>`
+      : '';
+
+    return `
+      <article class="all-card" id="card-${esc(s.key)}" data-key="${esc(s.key)}">
+        <div class="all-card-top">
+          <div class="all-card-tags">
+            <span class="all-num">#${idx + 1}</span>
+            <span class="all-proj-tag" title="${esc(s.projectTitle)}">${esc(s.projectTitle)}</span>
+          </div>
+          <div class="all-box-badge ${box === 5 ? 'master' : ''}">
+            <span class="all-box-name">${boxLabel}</span>
+            <span class="boxes" aria-label="${box ? `${box}번 상자` : '새 문장'}">${[1, 2, 3, 4, 5].map(i => `<i class="${i <= box ? 'on' : ''}"></i>`).join('')}</span>
+          </div>
+        </div>
+        <div class="all-card-body">
+          ${thumbHTML}
+          <div class="all-card-content">
+            <p class="all-card-en" lang="en">${esc(s.en)}</p>
+            <p class="all-card-ko ${hideKo ? 'masked-ko' : ''}" data-ko="${esc(s.ko || '')}">
+              <span class="ko-text">${esc(s.ko || '(한글 뜻 없음)')}</span>
+              ${hideKo ? '<span class="ko-peek-hint">뜻 보기</span>' : ''}
+            </p>
+            ${wordsHTML}
+          </div>
+        </div>
+        <div class="all-card-footer">
+          <div class="all-audio-btns">
+            ${SPEAK_OK ? `<button type="button" class="btn small listen" data-act="say" data-key="${esc(s.key)}">🔊 발음</button><button type="button" class="btn small listen" data-act="slow" data-key="${esc(s.key)}">🐢 천천히</button>` : ''}
+            ${s.audio ? `<button type="button" class="btn small grass" data-act="mine" data-key="${esc(s.key)}">🎤 내 목소리</button>` : ''}
+          </div>
+          <div class="all-act-btns">
+            <button type="button" class="btn small gold" data-act="memo" data-key="${esc(s.key)}" title="이 문장 말하며 외우기">외우기</button>
+            <button type="button" class="btn small grass" data-act="test" data-key="${esc(s.key)}" title="이 문장 블록 쌓기/빈칸 연습">연습</button>
+          </div>
+        </div>
+      </article>`;
+  }).join('');
+}
+
+function startSingleMemorize(s) {
+  stopAudio();
+  stopAutoPlay();
+  singleSentence = s;
+  queue = [s];
+  idx = 0;
+  retried = new Set();
+  session = { right: 0, wrong: 0, gems: 0, kind: 'memorize', source: 'all' };
+  show('session');
+  nextCard();
+}
+
+function startSinglePractice(s) {
+  stopAudio();
+  stopAutoPlay();
+  singleSentence = s;
+  queue = [s];
+  idx = 0;
+  retried = new Set();
+  session = { right: 0, wrong: 0, gems: 0, kind: 'review', source: 'all' };
+  show('session');
+  nextCard();
+}
+
+$('#sentList').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-list-say]');
+  if (!b) return;
+  stopAudio();
+  saySentence(b.dataset.listSay, 'slow');
+});
+
+$('#allGrid').addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-act]');
+  if (btn) {
+    const act = btn.dataset.act;
+    const key = btn.dataset.key;
+    const s = all.sentences.find(item => item.key === key);
+    if (!s) return;
+
+    if (act === 'say') {
+      saySentence(s.en, 'slow', key);
+    } else if (act === 'slow') {
+      saySentence(s.en, 'slower', key);
+    } else if (act === 'mine') {
+      playCardAudio(s);
+    } else if (act === 'memo') {
+      startSingleMemorize(s);
+    } else if (act === 'test') {
+      startSinglePractice(s);
+    }
+    return;
+  }
+
+  const koEl = e.target.closest('.masked-ko');
+  if (koEl) {
+    koEl.classList.toggle('revealed');
+  }
+});
 
 /* ---------- 연습 진행 ---------- */
 function startSession() {
@@ -475,9 +782,15 @@ function finish() {
     ? `맞힌 문장 <b>${session.right}</b>개 · 에메랄드 <b>+${session.gems}</b> (모두 ${progress.emeralds}개) · <b>${streak(progress)}</b>일째 연습${capNote}`
     : '';
   $('#again').hidden = false;
-  if (session.kind === 'memorize') $('#again').textContent = '다시 외우기';
-  else if (session.kind === 'review' && todayQueue(pool, progress).length) $('#again').textContent = '더 연습하기';
-  else $('#again').textContent = free ? '자유 연습 한 번 더' : '자유 연습 하기';
+  if (session.source === 'all') {
+    $('#home2').textContent = '한꺼번에 보기로';
+    $('#again').textContent = '이 문장 다시 하기';
+  } else {
+    $('#home2').textContent = '처음으로';
+    if (session.kind === 'memorize') $('#again').textContent = '다시 외우기';
+    else if (session.kind === 'review' && todayQueue(pool, progress).length) $('#again').textContent = '더 연습하기';
+    else $('#again').textContent = free ? '자유 연습 한 번 더' : '자유 연습 하기';
+  }
 }
 
 /* ---------- 시작 ---------- */

@@ -102,6 +102,7 @@ input[type=text] { width: 100%; font-family: var(--f-kid); font-size: 18px; }
 .btn.grass { background: var(--grass); color: var(--on-color); }
 .btn.red { background: var(--redstone); color: var(--on-color); }
 .btn.gold { background: var(--gold); color: var(--gold-ink); }
+.btn.emerald { background: #229954; color: var(--on-color); }
 .btn.small { font-size: 15px; min-height: 38px; padding: 5px 11px 8px; }
 .btn.big { font-size: 24px; min-height: 60px; padding: 10px 28px 14px; }
 .btn svg { width: 18px; height: 18px; flex: none; }
@@ -314,11 +315,14 @@ kbd { font-family: var(--f-pixel); font-size: 12px; border: 2px solid var(--edge
 .learn-filter { gap: 10px; }
 .learn-filter .lab { margin: 0; }
 .learn-filter select { max-width: 100%; }
-.sent-list summary { cursor: pointer; color: var(--muted); }
+.sent-list summary { cursor: pointer; color: var(--muted); font-family: var(--f-display); font-size: 17px; }
+.sent-list-bar { margin: 8px 0 10px; display: flex; justify-content: flex-end; }
 .sent-list ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
-.sent-list li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 10px; padding: 6px 8px; border: 2px solid var(--line); background: var(--panel); align-items: center; }
-.sent-list li .ko { grid-column: 2; font-size: 13px; color: var(--muted); }
-.sent-list li .en { font-family: var(--f-kid); font-size: 17px; }
+.sent-list li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 10px; padding: 6px 10px; border: 2px solid var(--line); background: var(--panel); align-items: center; }
+.sent-list-text { display: grid; gap: 2px; min-width: 0; }
+.sent-list li .ko { font-size: 13px; color: var(--muted); }
+.sent-list li .en { font-family: var(--f-kid); font-size: 18px; }
+.sent-list-tools { display: flex; align-items: center; gap: 6px; }
 .boxes { display: inline-flex; gap: 2px; grid-row: span 2; }
 .boxes i { width: 10px; height: 10px; border: 2px solid var(--edge); background: var(--panel-2); }
 .boxes i.on { background: var(--grass-hi); }
@@ -375,6 +379,58 @@ kbd { font-family: var(--f-pixel); font-size: 12px; border: 2px solid var(--edge
 .mask { font: inherit; letter-spacing: .12em; color: var(--muted); background: var(--panel-2); border: 0; border-bottom: 4px solid var(--edge);
   padding: 0 6px; cursor: pointer; min-height: 44px; }
 .mask.peek { color: var(--gold-ink); background: var(--gold); letter-spacing: 0; }
+
+/* ---------- 모든 문장 한꺼번에 보기 ---------- */
+.all-view { background: var(--panel); border: 2px solid var(--edge); box-shadow: 0 5px 0 var(--shade); padding: 18px; display: grid; gap: 16px; }
+.all-header { display: grid; gap: 12px; border-bottom: 2px solid var(--line); padding-bottom: 14px; }
+.all-title-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.all-title-row h2 { margin: 0; font-family: var(--f-display); font-weight: 400; font-size: clamp(24px, 4.5vw, 32px); line-height: 1.1; }
+.all-count-badge { font-family: var(--f-display); font-size: 16px; padding: 4px 12px; background: var(--panel-2); border: 2px solid var(--edge); color: var(--muted); }
+.all-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.all-filter-group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; flex: 1 1 300px; }
+.all-filter-group select { max-width: 220px; }
+.all-filter-group input[type="search"] { flex: 1; min-width: 160px; max-width: 320px; font-size: 15px; }
+.all-action-group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+#allAutoPlay.playing { animation: blink 1s steps(2) infinite; }
+
+.all-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+.all-card { background: var(--panel-2); border: 2px solid var(--edge); box-shadow: 0 4px 0 var(--shade); display: flex; flex-direction: column; position: relative; transition: transform .12s, box-shadow .12s; }
+.all-card:hover { transform: translateY(-2px); }
+.all-card.now-playing { outline: 4px solid var(--gold); outline-offset: -1px; background: var(--gold-soft); box-shadow: 0 0 16px rgba(227, 173, 31, .6); transform: scale(1.01); }
+
+.all-card-top { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; background: var(--panel); border-bottom: 2px solid var(--line); font-size: 13px; gap: 8px; }
+.all-card-tags { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.all-num { font-family: var(--f-pixel); font-size: 12px; padding: 1px 6px; background: var(--shade); color: var(--on-color); }
+.all-proj-tag { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; font-size: 13px; }
+.all-box-badge { display: flex; align-items: center; gap: 6px; }
+.all-box-name { font-family: var(--f-display); font-size: 14px; color: var(--muted); }
+.all-box-badge.master .all-box-name { color: var(--grass); font-weight: bold; }
+
+.all-card-body { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 12px; padding: 12px; flex: 1; align-items: start; }
+@media (max-width: 480px) {
+  .all-card-body { grid-template-columns: 80px minmax(0, 1fr); gap: 10px; padding: 10px; }
+}
+.all-card-thumb { width: 100%; aspect-ratio: 16 / 10; border: 2px solid var(--edge); background: #0d1014; display: grid; place-items: center; overflow: hidden; }
+.all-card-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.all-card-thumb.no-img { font-size: 26px; background: var(--panel); }
+
+.all-card-content { display: grid; gap: 6px; min-width: 0; }
+.all-card-en { margin: 0; font-family: var(--f-kid); font-size: 21px; line-height: 1.25; word-break: keep-all; overflow-wrap: anywhere; }
+.all-card-ko { margin: 0; font-size: 15px; color: var(--muted); line-height: 1.35; word-break: keep-all; position: relative; }
+.all-card-ko.masked-ko { background: var(--panel); border: 2px dashed var(--line); padding: 4px 8px; cursor: pointer; border-radius: 0; min-height: 32px; display: flex; align-items: center; }
+.all-card-ko.masked-ko .ko-text { visibility: hidden; }
+.all-card-ko.masked-ko .ko-peek-hint { display: inline-block; position: absolute; inset: 0; text-align: center; line-height: 30px; font-size: 13px; color: var(--muted); font-family: var(--f-display); }
+.all-card-ko.masked-ko.revealed .ko-text { visibility: visible; }
+.all-card-ko.masked-ko.revealed .ko-peek-hint { display: none; }
+
+.all-card-words { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+.all-word-tag { font-size: 12px; background: var(--panel); border: 1px solid var(--line); padding: 1px 6px; color: var(--muted); }
+
+.all-card-footer { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; background: var(--panel); border-top: 2px solid var(--line); gap: 6px; flex-wrap: wrap; }
+.all-audio-btns, .all-act-btns { display: flex; gap: 5px; align-items: center; }
+
+.all-empty { grid-column: 1 / -1; padding: 40px 20px; text-align: center; border: 2px dashed var(--line); background: var(--panel); display: grid; gap: 12px; justify-items: center; font-size: 18px; color: var(--muted); font-family: var(--f-display); }
+.all-footer-bar { display: flex; justify-content: center; margin-top: 8px; }
 
 /* ==========================================================
    단어 게임 (words.html) — 게임기처럼: 큰 게임 판에서 바로 시작,

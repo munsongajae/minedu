@@ -1,16 +1,17 @@
 // 밤을 지켜라: 마인크래프트 1인칭 3D 활 쏘기 디펜스 게임.
-// 저 멀리 어두운 밤 평원에서 좀비·스켈레톤·크리퍼·엔더맨이 한글/영어 간판을 달고 플레이어에게 다가온다.
-// 아래 4개 단어 보기(또는 간판 터치, PC 숫자키 1~4)로 맞는 단어를 고르면 1인칭 시점의 활시위를 당겨
-// 3차원 포물선 화살을 날려 몹을 명중시키고 쓰러뜨린다!
-//   - Three.js 경량 모듈 기반 리얼 3D 복셀 모델 & 걷기/피격/사망/폭발 연출.
-//   - 크리퍼: 플레이어 앞까지 오면 하얗게 부풀어 오르며 취이이익- 쾅! 자폭.
-//   - 몹 12마리를 모두 막아내면 밤하늘에 서서히 아침 해가 떠오르며 "아침이 왔어요!".
+// 저 멀리 밤 평원에서 좀비·스켈레톤·크리퍼·엔더맨이 한글/영어 간판을 달고 다가온다.
+// 아래 4개 단어 보기(PC 숫자키 1~4)로 맞는 단어를 골라 활시위를 당겨 화살을 쏘아 막는다!
 import * as THREE from './three.module.min.js';
 import { $, esc, shuffle } from './learn.js';
 import { sfx } from './sfx.js';
 
 const TOTAL = 12, HEARTS = 3, MAX_ALIVE = 3, LANES = 3;
-const LANE_X = [-4.0, 0, 4.0];
+// 3개 레인: 화면 전체에 넓게 분산 (왼쪽 / 중앙 / 오른쪽)
+const LANES_CONFIG = [
+  { startX: -7.5, endX: -4.6 }, // 왼쪽 레인
+  { startX: 0.0,  endX: 0.0 },  // 중앙 레인
+  { startX: 7.5,  endX: 4.6 }   // 오른쪽 레인
+];
 const Z_SPAWN = -34;
 const Z_REACH = -3.8;
 const SPEEDS = {
@@ -19,7 +20,6 @@ const SPEEDS = {
   fast: { walk: 10, gap: 2.8 }
 };
 const MATERIALS = ['grass', 'sky', 'gold', 'dirt'];
-const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /* ---------- 기존 호환용 SVG 에셋 (다른 게임/홈 화면 카드에서 참조) ---------- */
 export const HEART = `<svg viewBox="0 0 7 6" shape-rendering="crispEdges" aria-hidden="true"><rect x="1" y="0" width="2" height="1"/><rect x="4" y="0" width="2" height="1"/><rect x="0" y="1" width="7" height="2"/><rect x="1" y="3" width="5" height="1"/><rect x="2" y="4" width="3" height="1"/><rect x="3" y="5" width="1" height="1"/></svg>`;
@@ -48,49 +48,49 @@ function createPixelTexture(w, h, draw) {
   return tex;
 }
 
-// 몹 얼굴 픽셀 텍스처들
+// 몹 얼굴 픽셀 텍스처 (선명하고 밝은 색감)
 const TEX_ZOMBIE_FACE = createPixelTexture(8, 8, (c) => {
-  c.fillStyle = '#4f7e2c'; c.fillRect(0, 0, 8, 8);
-  c.fillStyle = '#36571b'; c.fillRect(0, 0, 8, 2); c.fillRect(0, 2, 1, 2); c.fillRect(7, 2, 1, 2);
-  c.fillStyle = '#1c2c44'; c.fillRect(1, 3, 2, 1); c.fillRect(5, 3, 2, 1);
-  c.fillStyle = '#d0d5dc'; c.fillRect(1, 4, 1, 1); c.fillRect(5, 4, 1, 1);
-  c.fillStyle = '#3a5c1f'; c.fillRect(3, 4, 2, 1); c.fillRect(2, 6, 4, 1);
+  c.fillStyle = '#5cb232'; c.fillRect(0, 0, 8, 8);
+  c.fillStyle = '#3c7a1e'; c.fillRect(0, 0, 8, 2); c.fillRect(0, 2, 1, 2); c.fillRect(7, 2, 1, 2);
+  c.fillStyle = '#14243b'; c.fillRect(1, 3, 2, 1); c.fillRect(5, 3, 2, 1);
+  c.fillStyle = '#ffffff'; c.fillRect(1, 4, 1, 1); c.fillRect(5, 4, 1, 1);
+  c.fillStyle = '#418224'; c.fillRect(3, 4, 2, 1); c.fillRect(2, 6, 4, 1);
 });
 
 const TEX_SKELETON_FACE = createPixelTexture(8, 8, (c) => {
-  c.fillStyle = '#d2cebd'; c.fillRect(0, 0, 8, 8);
-  c.fillStyle = '#a8a494'; c.fillRect(0, 0, 8, 1); c.fillRect(0, 7, 8, 1);
-  c.fillStyle = '#141414';
+  c.fillStyle = '#e8e4d2'; c.fillRect(0, 0, 8, 8);
+  c.fillStyle = '#b8b4a2'; c.fillRect(0, 0, 8, 1); c.fillRect(0, 7, 8, 1);
+  c.fillStyle = '#0a0a0a';
   c.fillRect(1, 2, 2, 2); c.fillRect(5, 2, 2, 2); // 눈
   c.fillRect(3, 4, 2, 1); // 코
   c.fillRect(2, 6, 4, 1); // 입
 });
 
 const TEX_CREEPER_FACE = createPixelTexture(8, 8, (c) => {
-  c.fillStyle = '#5db03e'; c.fillRect(0, 0, 8, 8);
-  c.fillStyle = '#72c350'; c.fillRect(0, 1, 2, 2); c.fillRect(6, 4, 2, 2); c.fillRect(1, 6, 2, 2);
-  c.fillStyle = '#46882c'; c.fillRect(2, 0, 2, 2); c.fillRect(5, 1, 2, 2); c.fillRect(0, 4, 2, 2);
-  c.fillStyle = '#0d180b'; // 크리퍼 고유 얼굴
-  c.fillRect(1, 2, 2, 2); c.fillRect(5, 2, 2, 2); // 눈
-  c.fillRect(3, 3, 2, 2); // 코
-  c.fillRect(2, 5, 4, 2); c.fillRect(2, 7, 1, 1); c.fillRect(5, 7, 1, 1); // 입
+  c.fillStyle = '#6ade3e'; c.fillRect(0, 0, 8, 8);
+  c.fillStyle = '#82f250'; c.fillRect(0, 1, 2, 2); c.fillRect(6, 4, 2, 2); c.fillRect(1, 6, 2, 2);
+  c.fillStyle = '#4da828'; c.fillRect(2, 0, 2, 2); c.fillRect(5, 1, 2, 2); c.fillRect(0, 4, 2, 2);
+  c.fillStyle = '#050a04'; // 크리퍼 고유 얼굴
+  c.fillRect(1, 2, 2, 2); c.fillRect(5, 2, 2, 2);
+  c.fillRect(3, 3, 2, 2);
+  c.fillRect(2, 5, 4, 2); c.fillRect(2, 7, 1, 1); c.fillRect(5, 7, 1, 1);
 });
 
 const TEX_ENDERMAN_FACE = createPixelTexture(8, 8, (c) => {
-  c.fillStyle = '#121216'; c.fillRect(0, 0, 8, 8);
-  c.fillStyle = '#d645f5'; c.fillRect(0, 3, 3, 1); c.fillRect(5, 3, 3, 1);
+  c.fillStyle = '#1e1e28'; c.fillRect(0, 0, 8, 8);
+  c.fillStyle = '#e04df5'; c.fillRect(0, 3, 3, 1); c.fillRect(5, 3, 3, 1);
   c.fillStyle = '#ffffff'; c.fillRect(1, 3, 1, 1); c.fillRect(6, 3, 1, 1);
 });
 
 /* ---------- 전역 상태 ---------- */
 let n = null, ctx = null, raf = 0, seq = 0;
 let scene = null, camera = null, renderer = null;
-let bowGroup = null, arrowMesh = null, notchArrow = null;
+let bowGroup = null, notchArrow = null;
 let activeArrows = [];
 let particles = [];
 let droppedItems = [];
 let torchLights = [];
-let skySun = null, skyMoon = null, starPoints = null;
+let skySun = null, skyMoon = null;
 let recoilImpulse = 0, cameraShake = 0;
 
 /* ---------- 3D 마인크래프트 복셀 몹 팩토리 ---------- */
@@ -117,14 +117,14 @@ function buildMobModel(kind) {
     return mesh;
   };
 
-  let head = null, torso = null, leftArm = null, rightArm = null, leftLeg = null, rightLeg = null;
+  let head = null, leftArm = null, rightArm = null, leftLeg = null, rightLeg = null;
   let creeperLegs = [];
   let height = 2.0;
 
   if (kind === 'zombie') {
-    const matGreen = new THREE.MeshLambertMaterial({ color: 0x4f7e2c });
-    const matShirt = new THREE.MeshLambertMaterial({ color: 0x1ea8aa });
-    const matPants = new THREE.MeshLambertMaterial({ color: 0x2a2350 });
+    const matGreen = new THREE.MeshLambertMaterial({ color: 0x5cb232 });
+    const matShirt = new THREE.MeshLambertMaterial({ color: 0x20cbcf });
+    const matPants = new THREE.MeshLambertMaterial({ color: 0x393275 });
     const matHead = [
       matGreen, matGreen, matGreen, matGreen,
       new THREE.MeshLambertMaterial({ map: TEX_ZOMBIE_FACE }), matGreen
@@ -132,7 +132,7 @@ function buildMobModel(kind) {
     head = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 0.7), matHead);
     head.position.set(0, 1.75, 0); root.add(head); meshes.push(head);
 
-    torso = regMesh(new THREE.BoxGeometry(0.7, 0.9, 0.35), matShirt, 0, 1.05, 0);
+    regMesh(new THREE.BoxGeometry(0.7, 0.9, 0.35), matShirt, 0, 1.05, 0);
     leftArm = makeLimb(0.25, 0.85, 0.25, matShirt, -0.48, 1.45, 0);
     rightArm = makeLimb(0.25, 0.85, 0.25, matShirt, 0.48, 1.45, 0);
     leftArm.pivot.rotation.x = -Math.PI / 2;
@@ -147,8 +147,8 @@ function buildMobModel(kind) {
     height = 2.1;
   }
   else if (kind === 'skeleton') {
-    const matBone = new THREE.MeshLambertMaterial({ color: 0xd2cebd });
-    const matDark = new THREE.MeshLambertMaterial({ color: 0x333333 });
+    const matBone = new THREE.MeshLambertMaterial({ color: 0xe8e4d2 });
+    const matDark = new THREE.MeshLambertMaterial({ color: 0x444444 });
     const matHead = [
       matBone, matBone, matBone, matBone,
       new THREE.MeshLambertMaterial({ map: TEX_SKELETON_FACE }), matBone
@@ -156,7 +156,7 @@ function buildMobModel(kind) {
     head = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.65, 0.65), matHead);
     head.position.set(0, 1.7, 0); root.add(head); meshes.push(head);
 
-    torso = regMesh(new THREE.BoxGeometry(0.55, 0.85, 0.28), matBone, 0, 1.05, 0);
+    regMesh(new THREE.BoxGeometry(0.55, 0.85, 0.28), matBone, 0, 1.05, 0);
     leftArm = makeLimb(0.18, 0.85, 0.18, matBone, -0.38, 1.45, 0);
     rightArm = makeLimb(0.18, 0.85, 0.18, matBone, 0.38, 1.45, 0);
     // 스켈레톤 미니 활
@@ -176,7 +176,7 @@ function buildMobModel(kind) {
     height = 2.05;
   }
   else if (kind === 'creeper') {
-    const matGreen = new THREE.MeshLambertMaterial({ color: 0x5db03e });
+    const matGreen = new THREE.MeshLambertMaterial({ color: 0x6ade3e });
     const matHead = [
       matGreen, matGreen, matGreen, matGreen,
       new THREE.MeshLambertMaterial({ map: TEX_CREEPER_FACE }), matGreen
@@ -184,8 +184,7 @@ function buildMobModel(kind) {
     head = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 0.7), matHead);
     head.position.set(0, 1.45, 0); root.add(head); meshes.push(head);
 
-    torso = regMesh(new THREE.BoxGeometry(0.65, 0.85, 0.35), matGreen, 0, 0.82, 0);
-    // 4개 다리
+    regMesh(new THREE.BoxGeometry(0.65, 0.85, 0.35), matGreen, 0, 0.82, 0);
     const legCoords = [
       [-0.2, 0.45, 0.2], [0.2, 0.45, 0.2],
       [-0.2, 0.45, -0.2], [0.2, 0.45, -0.2]
@@ -199,15 +198,15 @@ function buildMobModel(kind) {
     height = 1.8;
   }
   else if (kind === 'enderman') {
-    const matBlack = new THREE.MeshLambertMaterial({ color: 0x121216 });
+    const matBlack = new THREE.MeshLambertMaterial({ color: 0x1e1e28 });
     const matHead = [
       matBlack, matBlack, matBlack, matBlack,
-      new THREE.MeshLambertMaterial({ map: TEX_ENDERMAN_FACE, emissive: 0x7711aa, emissiveIntensity: 0.6 }), matBlack
+      new THREE.MeshLambertMaterial({ map: TEX_ENDERMAN_FACE, emissive: 0xd645f5, emissiveIntensity: 1.0 }), matBlack
     ];
     head = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.6), matHead);
     head.position.set(0, 2.5, 0); root.add(head); meshes.push(head);
 
-    torso = regMesh(new THREE.BoxGeometry(0.45, 0.9, 0.22), matBlack, 0, 1.85, 0);
+    regMesh(new THREE.BoxGeometry(0.45, 0.9, 0.22), matBlack, 0, 1.85, 0);
     leftArm = makeLimb(0.14, 1.4, 0.14, matBlack, -0.32, 2.25, 0);
     rightArm = makeLimb(0.14, 1.4, 0.14, matBlack, 0.32, 2.25, 0);
     root.add(leftArm.pivot); root.add(rightArm.pivot);
@@ -220,11 +219,10 @@ function buildMobModel(kind) {
     height = 2.85;
   }
 
-  // 피격 붉은색 플래시 / 폭발 점멸 처리
   const originalColors = meshes.map(m => Array.isArray(m.material) ? m.material.map(x => x.color.getHex()) : m.material.color.getHex());
 
   function setFlash(colorHex) {
-    meshes.forEach((m, i) => {
+    meshes.forEach((m) => {
       if (Array.isArray(m.material)) {
         m.material.forEach(mat => mat.color.setHex(colorHex || 0xffffff));
       } else {
@@ -278,13 +276,13 @@ function buildMobModel(kind) {
 /* ---------- 1인칭 활 & 스티브 팔 제작 ---------- */
 function buildFirstPersonBow() {
   const g = new THREE.Group();
-  const matCyan = new THREE.MeshLambertMaterial({ color: 0x00a8aa });
+  const matCyan = new THREE.MeshLambertMaterial({ color: 0x00c4c7 });
   const matSkin = new THREE.MeshLambertMaterial({ color: 0xbc8965 });
-  const matWood = new THREE.MeshLambertMaterial({ color: 0x845932 });
-  const matDarkWood = new THREE.MeshLambertMaterial({ color: 0x4a3219 });
-  const matString = new THREE.MeshBasicMaterial({ color: 0xeeeeee });
+  const matWood = new THREE.MeshLambertMaterial({ color: 0x936339 });
+  const matDarkWood = new THREE.MeshLambertMaterial({ color: 0x54371c });
+  const matString = new THREE.MeshBasicMaterial({ color: 0xffffff });
 
-  // 스티브 팔 (화면 오른쪽 아래에서 앞으로 뻗음)
+  // 스티브 팔
   const armPivot = new THREE.Group();
   armPivot.position.set(0.18, -0.28, -0.32);
   armPivot.rotation.set(-0.4, -0.5, 0.35);
@@ -301,7 +299,6 @@ function buildFirstPersonBow() {
   bow.position.set(-0.06, -0.06, -0.45);
   bow.rotation.set(0.15, 0.35, -0.2);
 
-  // 활 몸통 세그먼트
   const segGeom = new THREE.BoxGeometry(0.04, 0.12, 0.04);
   const addSeg = (x, y, z, mat = matWood, rx = 0) => {
     const s = new THREE.Mesh(segGeom, mat);
@@ -309,7 +306,7 @@ function buildFirstPersonBow() {
     s.rotation.z = rx;
     bow.add(s);
   };
-  addSeg(0, 0, 0, matDarkWood); // 그립
+  addSeg(0, 0, 0, matDarkWood);
   addSeg(-0.03, 0.11, 0, matWood, 0.25);
   addSeg(-0.08, 0.22, 0.02, matWood, 0.5);
   addSeg(-0.15, 0.31, 0.05, matDarkWood, 0.8);
@@ -317,13 +314,11 @@ function buildFirstPersonBow() {
   addSeg(-0.08, -0.22, 0.02, matWood, -0.5);
   addSeg(-0.15, -0.31, 0.05, matDarkWood, -0.8);
 
-  // 활시위
   const stringGeom = new THREE.CylinderGeometry(0.005, 0.005, 0.72);
   const bowString = new THREE.Mesh(stringGeom, matString);
   bowString.position.set(-0.14, 0, 0.04);
   bow.add(bowString);
 
-  // 화살 (장전 상태)
   const arrow = buildArrowMesh();
   arrow.position.set(-0.07, 0, -0.05);
   arrow.rotation.y = Math.PI;
@@ -336,9 +331,9 @@ function buildFirstPersonBow() {
 
 function buildArrowMesh() {
   const g = new THREE.Group();
-  const matShaft = new THREE.MeshLambertMaterial({ color: 0x8b5a2b });
-  const matFlint = new THREE.MeshLambertMaterial({ color: 0x555555 });
-  const matFeather = new THREE.MeshLambertMaterial({ color: 0xdddddd });
+  const matShaft = new THREE.MeshLambertMaterial({ color: 0x9e6a38 });
+  const matFlint = new THREE.MeshLambertMaterial({ color: 0x666666 });
+  const matFeather = new THREE.MeshLambertMaterial({ color: 0xffffff });
 
   const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.8), matShaft);
   shaft.rotation.x = Math.PI / 2;
@@ -368,90 +363,107 @@ function init3DScene(canvas) {
   renderer.setSize(w, h, false);
 
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x060914);
-  scene.fog = new THREE.FogExp2(0x060914, 0.036);
+  // 환하고 맑은 마인크래프트 밤하늘 & 온화한 원거리 안개
+  scene.background = new THREE.Color(0x182844);
+  scene.fog = new THREE.Fog(0x182844, 18, 55);
 
   camera = new THREE.PerspectiveCamera(65, w / h, 0.1, 75);
   camera.position.set(0, 1.6, 0);
 
-  // 조명 (달빛 + 쿨 블루 환경광)
-  const ambient = new THREE.AmbientLight(0x283855, 0.95);
+  // 충분한 조명 (풍부한 밤하늘 환경광 + 밝은 달빛)
+  const ambient = new THREE.AmbientLight(0x829ec8, 1.45);
   scene.add(ambient);
-  const moonLight = new THREE.DirectionalLight(0x7899cc, 0.65);
-  moonLight.position.set(8, 16, -15);
+  const moonLight = new THREE.DirectionalLight(0xdde8ff, 1.15);
+  moonLight.position.set(10, 22, -12);
   scene.add(moonLight);
 
-  // 바닥 (풀밭 평원 + 중앙 자갈길)
-  const groundMat = new THREE.MeshLambertMaterial({ color: 0x1f3612 });
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(24, 60), groundMat);
+  const fillLight = new THREE.DirectionalLight(0x48648e, 0.65);
+  fillLight.position.set(-8, 14, 10);
+  scene.add(fillLight);
+
+  // 바닥 (넓고 산뜻한 마인크래프트 밤 잔디)
+  const groundMat = new THREE.MeshLambertMaterial({ color: 0x346322 });
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(36, 60), groundMat);
   ground.rotation.x = -Math.PI / 2;
   ground.position.set(0, 0, -22);
   scene.add(ground);
 
-  const pathMat = new THREE.MeshLambertMaterial({ color: 0x3d3326 });
-  const path = new THREE.Mesh(new THREE.PlaneGeometry(12, 60), pathMat);
-  path.rotation.x = -Math.PI / 2;
-  path.position.set(0, 0.02, -22);
-  scene.add(path);
+  // 3개 뚜렷한 길 (왼쪽, 중앙, 오른쪽 레인)
+  const pathMat = new THREE.MeshLambertMaterial({ color: 0x6e624f });
+  [-7.0, 0, 7.0].forEach(px => {
+    const p = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 60), pathMat);
+    p.rotation.x = -Math.PI / 2;
+    p.position.set(px, 0.02, -22);
+    scene.add(p);
+  });
 
-  // 플레이어 앞 나무 발판 & 울타리 난간
-  const deckMat = new THREE.MeshLambertMaterial({ color: 0x6e4c2b });
-  const deck = new THREE.Mesh(new THREE.BoxGeometry(16, 0.4, 4), deckMat);
+  // 플레이어 앞 나무 발판 & 난간
+  const deckMat = new THREE.MeshLambertMaterial({ color: 0x825932 });
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(20, 0.4, 4), deckMat);
   deck.position.set(0, -0.2, -1);
   scene.add(deck);
 
-  const fenceMat = new THREE.MeshLambertMaterial({ color: 0x4d341d });
-  [-4.5, -2.2, 0, 2.2, 4.5].forEach(fx => {
+  const fenceMat = new THREE.MeshLambertMaterial({ color: 0x563a21 });
+  [-6.5, -3.5, 0, 3.5, 6.5].forEach(fx => {
     const post = new THREE.Mesh(new THREE.BoxGeometry(0.18, 1.1, 0.18), fenceMat);
     post.position.set(fx, 0.55, -2.5);
     scene.add(post);
   });
-  const rail = new THREE.Mesh(new THREE.BoxGeometry(9.6, 0.12, 0.12), fenceMat);
+  const rail = new THREE.Mesh(new THREE.BoxGeometry(13.6, 0.12, 0.12), fenceMat);
   rail.position.set(0, 0.9, -2.5);
   scene.add(rail);
 
-  // 횃불 2개 (플레이어 양옆)
+  // 횃불 조명들 (플레이어 난간 + 전방 길목)
   torchLights = [];
-  [-3.8, 3.8].forEach(tx => {
-    const torchWood = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.45, 0.1), fenceMat);
-    torchWood.position.set(tx, 0.9, -2.4);
-    scene.add(torchWood);
+  const addTorch = (tx, ty, tz, intensity = 1.4, dist = 12) => {
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.6, 0.12), fenceMat);
+    post.position.set(tx, ty - 0.25, tz);
+    scene.add(post);
 
-    const flameMat = new THREE.MeshBasicMaterial({ color: 0xffaa22 });
-    const flame = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.14, 0.12), flameMat);
-    flame.position.set(tx, 1.2, -2.4);
+    const flame = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.16, 0.14), new THREE.MeshBasicMaterial({ color: 0xffaa22 }));
+    flame.position.set(tx, ty + 0.1, tz);
     scene.add(flame);
 
-    const light = new THREE.PointLight(0xff9933, 1.3, 10);
-    light.position.set(tx, 1.3, -2.4);
+    const light = new THREE.PointLight(0xffa544, intensity, dist);
+    light.position.set(tx, ty + 0.2, tz);
     scene.add(light);
     torchLights.push(light);
-  });
+  };
+
+  // 플레이어 난간 횃불 2개
+  addTorch(-5.2, 1.1, -2.4, 1.8, 14);
+  addTorch(5.2, 1.1, -2.4, 1.8, 14);
+
+  // 길목 전방 횃불 기둥 4개 (원거리 시야 확보)
+  addTorch(-7.5, 1.2, -12, 1.5, 14);
+  addTorch(7.5, 1.2, -12, 1.5, 14);
+  addTorch(-7.5, 1.2, -24, 1.5, 14);
+  addTorch(7.5, 1.2, -24, 1.5, 14);
 
   // 배경 숲 나무들
-  const logMat = new THREE.MeshLambertMaterial({ color: 0x3d2612 });
-  const leafMat = new THREE.MeshLambertMaterial({ color: 0x16340f });
+  const logMat = new THREE.MeshLambertMaterial({ color: 0x4a2e16 });
+  const leafMat = new THREE.MeshLambertMaterial({ color: 0x1f4716 });
   const addTree = (tx, tz) => {
-    const trunk = new THREE.Mesh(new THREE.BoxGeometry(0.6, 3.5, 0.6), logMat);
-    trunk.position.set(tx, 1.75, tz);
-    const leaves = new THREE.Mesh(new THREE.BoxGeometry(2.4, 2.8, 2.4), leafMat);
-    leaves.position.set(tx, 4.2, tz);
+    const trunk = new THREE.Mesh(new THREE.BoxGeometry(0.7, 3.8, 0.7), logMat);
+    trunk.position.set(tx, 1.9, tz);
+    const leaves = new THREE.Mesh(new THREE.BoxGeometry(2.6, 3.0, 2.6), leafMat);
+    leaves.position.set(tx, 4.4, tz);
     scene.add(trunk); scene.add(leaves);
   };
-  [-7, -9, -11, 7, 9, 11].forEach((tx, i) => {
+  [-11, -13, -15, 11, 13, 15].forEach((tx, i) => {
     addTree(tx, -14 - (i % 3) * 8);
   });
 
   // 네모난 마인크래프트 달
-  const moonMat = new THREE.MeshBasicMaterial({ color: 0xf5f3ce });
-  skyMoon = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 3.6), moonMat);
-  skyMoon.position.set(9, 14, -36);
+  const moonMat = new THREE.MeshBasicMaterial({ color: 0xfbf8d6 });
+  skyMoon = new THREE.Mesh(new THREE.PlaneGeometry(4.0, 4.0), moonMat);
+  skyMoon.position.set(12, 18, -36);
   skyMoon.lookAt(camera.position);
   scene.add(skyMoon);
 
   // 떠오를 해 (클리어 시 사용)
   const sunMat = new THREE.MeshBasicMaterial({ color: 0xffec44 });
-  skySun = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 4.2), sunMat);
+  skySun = new THREE.Mesh(new THREE.PlaneGeometry(4.6, 4.6), sunMat);
   skySun.position.set(0, -6, -40);
   skySun.lookAt(camera.position);
   scene.add(skySun);
@@ -476,7 +488,7 @@ export function startNight(c, mode = 'ko', speed = 'normal') {
     mode, speed: SPEEDS[speed] ? speed : 'normal', order, oi: 0, t: 0, last: 0, over: false,
     mobs: [], spawned: 0, killed: 0, reached: 0, hearts: HEARTS, nextSpawn: 1.2,
     opts: [], lock: 0, missed: [], combo: 0, best: 0, mobOrder: shuffle(MOB_TYPES),
-    dawnProgress: 0
+    dawnProgress: 0, lastLane: -1
   };
 
   const canvas = $('#ngCanvas3D');
@@ -511,7 +523,6 @@ export function stopNight() {
   cancelAnimationFrame(raf);
   if (n) n.over = true;
   if (scene) {
-    // 3D 리소스 정리
     activeArrows = [];
     particles = [];
     droppedItems = [];
@@ -559,25 +570,35 @@ function nextWord() {
 
 function spawn() {
   const w = nextWord();
-  const usedLanes = alive().filter(m => m.z < -22).map(m => m.lane);
-  const freeLanes = [...Array(LANES).keys()].filter(l => !usedLanes.includes(l));
-  const lane = freeLanes.length ? freeLanes[Math.floor(Math.random() * freeLanes.length)] : Math.floor(Math.random() * LANES);
+  // 3개 레인에 몹을 고르게 분산 (현재 몹이 없는 레인 우선 + 직전 레인 회피)
+  const activeLanes = alive().map(m => m.lane);
+  const freeLanes = [0, 1, 2].filter(l => !activeLanes.includes(l));
+  let lane;
+  if (freeLanes.length > 0) {
+    const prefer = freeLanes.filter(l => l !== n.lastLane);
+    lane = prefer.length ? prefer[Math.floor(Math.random() * prefer.length)] : freeLanes[0];
+  } else {
+    const sorted = [...alive()].sort((a, b) => a.z - b.z);
+    lane = sorted[0].lane;
+  }
+  n.lastLane = lane;
+
   const base = SPEEDS[n.speed];
-  const walkDur = base.walk * (1 - 0.28 * (n.spawned / TOTAL)); // 뒤로 갈수록 빨라짐
+  const walkDur = base.walk * (1 - 0.28 * (n.spawned / TOTAL));
   const type = n.mobOrder[n.spawned % n.mobOrder.length];
 
   const model = buildMobModel(type.kind);
-  const startX = LANE_X[lane];
+  const laneCfg = LANES_CONFIG[lane];
+  const startX = laneCfg.startX;
   model.root.position.set(startX, 0, Z_SPAWN);
   scene.add(model.root);
 
-  // 3D 연동 DOM 간판
+  // 3D 연동 DOM 간판 (질문 표시용, 클릭으로 자동 정답 제출되지 않음)
   const signEl = document.createElement('div');
   signEl.className = 'ng-sign3d';
   const signText = n.mode === 'en' ? w.en : w.ko;
   if (n.mode === 'en') signEl.setAttribute('lang', 'en');
   signEl.textContent = signText;
-  signEl.title = '이 몹을 조준해 활 쏘기';
   $('#ngSigns').appendChild(signEl);
 
   const m = {
@@ -585,12 +606,6 @@ function spawn() {
     walkDur, model, signEl, state: 'walk',
     fuseTimer: 0, hitTimer: 0, dieTimer: 0
   };
-
-  // 간판 클릭 시 해당 몹 공격 트리거
-  signEl.addEventListener('click', () => {
-    const idx = n.opts.findIndex(o => o.key === w.key);
-    if (idx !== -1) choose(idx);
-  });
 
   n.mobs.push(m);
   n.spawned++;
@@ -643,7 +658,7 @@ function choose(k) {
   setTimeout(() => b.classList.remove('right'), 400);
   $('#ngFb').innerHTML = `<b lang="en">${esc(w.en)}</b> = ${esc(w.ko)}${n.combo >= 3 ? ` · ${n.combo}연속 명중!` : ''}`;
 
-  // 활 쏘기 액션 (손 반동 + 화살 생성)
+  // 활 쏘기 사운드 & 손 반동
   sfx('bow');
   recoilImpulse = 0.28;
   setTimeout(() => sfx('shoot'), 70);
@@ -654,14 +669,13 @@ function choose(k) {
 
 function launchArrow(targetMob) {
   const mesh = buildArrowMesh();
-  // 카메라 앞 활 위치에서 발사
   mesh.position.set(0.28, 1.32, -0.7);
   scene.add(mesh);
 
   const start = mesh.position.clone();
   const end = new THREE.Vector3(targetMob.x, targetMob.model.height * 0.6, targetMob.z);
   const mid = start.clone().lerp(end, 0.5);
-  mid.y += 0.8; // 포물선 곡선
+  mid.y += 0.8;
 
   activeArrows.push({
     mesh, targetMob, start, mid, end,
@@ -669,13 +683,15 @@ function launchArrow(targetMob) {
   });
 }
 
-// 몹 피격 및 사망 연출
 function hitMob(m) {
   m.state = 'hit';
   m.hitTimer = 0.16;
   m.model.setFlash(0xff2222);
   m.signEl.classList.add('hit');
-  m.z -= 1.4; // 뒤로 넉백
+  m.z -= 1.4; // 넉백
+  const progress = Math.min(1, Math.max(0, (m.z - Z_SPAWN) / (Z_REACH - Z_SPAWN)));
+  m.x = LANES_CONFIG[m.lane].startX + (LANES_CONFIG[m.lane].endX - LANES_CONFIG[m.lane].startX) * progress;
+  m.model.root.position.set(m.x, 0, m.z);
   sfx('hit');
 
   setTimeout(() => {
@@ -692,19 +708,16 @@ function killMob(m) {
   ctx.say(m.w.en);
   drawBar();
 
-  // 흰 연기 파티클 구름 폭발
   createPoofParticles(m.x, 1.0, m.z, m.type.kind === 'enderman' ? 0xd645f5 : 0xffffff);
-  // 드랍 아이템 스폰 (썩은고기/뼈/화약/엔더진주)
   spawnDroppedItem(m.x, 0.8, m.z, m.type.kind);
-
   m.signEl.remove();
 }
 
 function spawnDroppedItem(x, y, z, kind) {
-  const color = kind === 'zombie' ? 0xa84224
-    : kind === 'skeleton' ? 0xdcd9c8
-    : kind === 'creeper' ? 0x444444
-    : 0x117766;
+  const color = kind === 'zombie' ? 0xb04422
+    : kind === 'skeleton' ? 0xebe8d8
+    : kind === 'creeper' ? 0x555555
+    : 0x118877;
   const geom = new THREE.BoxGeometry(0.25, 0.25, 0.25);
   const mat = new THREE.MeshLambertMaterial({ color });
   const mesh = new THREE.Mesh(geom, mat);
@@ -729,10 +742,8 @@ function createPoofParticles(x, y, z, color = 0xffffff, count = 12) {
   }
 }
 
-// 몹이 플레이어 앞까지 도달함
 function reach(m) {
   if (m.type.kind === 'creeper') {
-    // 크리퍼 퓨즈 점멸 & 부풀어 오르기
     m.state = 'fuse';
     m.fuseTimer = 0.85;
     sfx('fuse');
@@ -785,7 +796,6 @@ function tick(now) {
   n.t += dt;
 
   const a = alive();
-  // 몹 생성 타이밍
   if (n.spawned < TOTAL && a.length < MAX_ALIVE && (n.t >= n.nextSpawn || (!a.length && n.t >= n.nextSpawn - 2))) {
     spawn();
     const g = SPEEDS[n.speed].gap;
@@ -797,7 +807,7 @@ function tick(now) {
 
   // 횃불 깜빡임 효과
   torchLights.forEach((tl, i) => {
-    tl.intensity = 1.1 + Math.sin(n.t * 12 + i * 2) * 0.2 + (Math.random() - 0.5) * 0.08;
+    tl.intensity = 1.3 + Math.sin(n.t * 12 + i * 2) * 0.2 + (Math.random() - 0.5) * 0.08;
   });
 
   // 1인칭 활 흔들림 & 반동
@@ -820,7 +830,7 @@ function tick(now) {
     camera.position.set(0, 1.6, 0);
   }
 
-  // 몹 업데이트 (이동, 걷기, 간판 3D 투영)
+  // 뷰포트 반응형 크기 자동 갱신
   const fw = $('#ngField').clientWidth || 800;
   const fh = $('#ngField').clientHeight || 380;
   if (renderer && camera) {
@@ -832,17 +842,20 @@ function tick(now) {
     }
   }
 
+  // 몹 업데이트 (넓은 레인 이동, 걷기, 간판 3D 투영)
   for (const m of n.mobs) {
     if (m.state === 'walk') {
       const spd = (Z_REACH - Z_SPAWN) / m.walkDur;
       m.z += dt * spd;
-      m.model.root.position.z = m.z;
+      const progress = Math.min(1, Math.max(0, (m.z - Z_SPAWN) / (Z_REACH - Z_SPAWN)));
+      const laneCfg = LANES_CONFIG[m.lane];
+      m.x = laneCfg.startX + (laneCfg.endX - laneCfg.startX) * progress;
+      m.model.root.position.set(m.x, 0, m.z);
       m.model.animate(n.t, 7);
 
       if (m.z >= Z_REACH) reach(m);
     } else if (m.state === 'fuse') {
       m.fuseTimer -= dt;
-      // 흰색 점멸 & 크기 부풀기
       const p = 1 - m.fuseTimer / 0.85;
       const flash = Math.floor(n.t * 18) % 2 === 0;
       if (flash) m.model.setFlash(0xffffff); else m.model.resetFlash();
@@ -863,13 +876,13 @@ function tick(now) {
     // 3D 위치를 2D 화면 좌표로 투영해 간판 배치
     if (m.signEl && (m.state === 'walk' || m.state === 'fuse')) {
       const v = m.model.root.position.clone();
-      v.y += m.model.height + 0.4;
+      v.y += m.model.height + 0.5;
       v.project(camera);
 
       const sx = (v.x * 0.5 + 0.5) * fw;
       const sy = (-v.y * 0.5 + 0.5) * fh;
       const dist = Math.abs(m.z - camera.position.z);
-      const scale = Math.max(0.65, Math.min(1.15, 26 / dist));
+      const scale = Math.max(0.72, Math.min(1.22, 28 / dist));
 
       m.signEl.style.transform = `translate(-50%, -100%) scale(${scale.toFixed(2)})`;
       m.signEl.style.left = `${sx.toFixed(1)}px`;
@@ -884,14 +897,12 @@ function tick(now) {
     a.t += dt / a.dur;
     const t = Math.min(1, a.t);
 
-    // 2차 베지어 곡선 포물선
     const p0 = a.start, p1 = a.mid, p2 = a.end;
     const cur = new THREE.Vector3(
       (1 - t) * (1 - t) * p0.x + 2 * (1 - t) * t * p1.x + t * t * p2.x,
       (1 - t) * (1 - t) * p0.y + 2 * (1 - t) * t * p1.y + t * t * p2.y,
       (1 - t) * (1 - t) * p0.z + 2 * (1 - t) * t * p1.z + t * t * p2.z
     );
-    // 화살 방향을 진행 방향으로 회전
     const tangent = new THREE.Vector3(
       2 * (1 - t) * (p1.x - p0.x) + 2 * t * (p2.x - p1.x),
       2 * (1 - t) * (p1.y - p0.y) + 2 * t * (p2.y - p1.y),
@@ -914,7 +925,6 @@ function tick(now) {
     item.t += dt * 2.2;
     item.mesh.rotation.x += dt * 4;
     item.mesh.rotation.y += dt * 5;
-    // 플레이어로 날아옴
     const camPos = new THREE.Vector3(0, 1.2, 0);
     item.mesh.position.lerpVectors(item.startPos, camPos, Math.min(1, item.t));
     if (item.t >= 1) {
@@ -929,7 +939,7 @@ function tick(now) {
     const p = particles[i];
     p.life -= dt;
     p.mesh.position.addScaledVector(p.vel, dt);
-    p.vel.y -= dt * 6; // 중력
+    p.vel.y -= dt * 6;
     p.mesh.material.opacity = Math.max(0, p.life / p.maxLife);
     if (p.life <= 0) {
       scene.remove(p.mesh);
@@ -941,8 +951,8 @@ function tick(now) {
   if (n.dawnProgress > 0) {
     n.dawnProgress = Math.min(1, n.dawnProgress + dt * 0.6);
     skySun.position.y = -6 + n.dawnProgress * 15;
-    scene.background.lerpColors(new THREE.Color(0x060914), new THREE.Color(0x6a4020), n.dawnProgress);
-    scene.fog.color.lerpColors(new THREE.Color(0x060914), new THREE.Color(0xd27532), n.dawnProgress);
+    scene.background.lerpColors(new THREE.Color(0x182844), new THREE.Color(0x824e2c), n.dawnProgress);
+    scene.fog.color.lerpColors(new THREE.Color(0x182844), new THREE.Color(0xe0843e), n.dawnProgress);
   }
 
   renderer.render(scene, camera);

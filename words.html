@@ -35,7 +35,7 @@
   <section class="wg-home" id="home">
     <p class="wg-msg" id="homeMsg" role="status"></p>
     <div class="wg-games" id="games">
-      <article class="wg-game g-cart">
+      <article class="wg-game g-cart wide">
         <div class="wg-art wg-art-cart" aria-hidden="true">
           <svg class="cart-wall" width="100%" height="100%" shape-rendering="crispEdges" aria-hidden="true"><defs><pattern id="cart-rock-home" width="64" height="64" patternUnits="userSpaceOnUse"><rect class="rock" width="64" height="64"/><path class="rock-dark" d="M0 0h64v3H0zM0 0h3v64H0zM11 9h15v6H11zM40 26h16v8H40zM9 45h10v10H9zM28 57h25v4H28z"/><path class="rock-light" d="M3 61h61v3H3zM61 3h3v58h-3zM7 23h16v5H7zM31 6h17v5H31zM29 39h14v8H29zM49 49h9v6h-9z"/></pattern><radialGradient id="cart-light-home"><stop offset="0" stop-color="var(--cart-flame)" stop-opacity=".65"/><stop offset="1" stop-color="var(--cart-flame)" stop-opacity="0"/></radialGradient><pattern id="cart-props-home" width="320" height="320" patternUnits="userSpaceOnUse"><path class="timber" d="M288 0h20v320h-20zM0 0h320v9H0z"/><path class="timber-dark" d="M304 0h4v320h-4zM288 30h16v3h-16zM288 94h16v3h-16zM288 158h16v3h-16zM288 222h16v3h-16z"/><path class="timber-light" d="M288 0h3v320h-3zM0 0h320v2H0z"/><g class="torch"><circle class="torch-glow" cx="274" cy="24" r="48" fill="url(#cart-light-home)"/><path class="torch-stick" d="M271 26h6v22h-6z"/><path class="flame" d="M268 17h12v13h-12zM271 12h6v5h-6z"/><path class="flame-core" d="M272 19h4v9h-4z"/></g><g class="ore"><rect class="rock-dark" x="88" y="26" width="40" height="40"/><path class="diamond" d="M94 32h8v5h-8zM114 35h6v8h-6zM104 47h8v8h-8zM94 56h5v4h-5z"/><rect class="rock-dark" x="174" y="190" width="40" height="40"/><path class="redstone" d="M180 196h7v6h-7zM198 201h9v5h-9zM189 212h6v9h-6zM203 220h5v4h-5z"/></g></pattern></defs><rect class="cart-rock-layer" width="100%" height="100%" fill="url(#cart-rock-home)"/><rect class="cart-props-layer" width="100%" height="100%" fill="url(#cart-props-home)"/></svg>
           <span class="art-sign a">river</span><span class="art-sign b">house</span>
@@ -56,38 +56,6 @@
           <button type="button" data-go="cart" data-mode="ko">뜻 보고 달리기</button>
           <button type="button" data-go="cart" data-mode="en">영어 보고 달리기</button>
           <button type="button" data-go="cart" data-mode="listen" id="cartListen">듣고 달리기</button>
-        </div>
-      </article>
-      <article class="wg-game g-parkour">
-        <div class="wg-art wg-art-parkour" aria-hidden="true">
-          <span class="art-nether-sky"></span>
-          <span class="art-lava-base"></span>
-          <span class="art-obsidian-step"></span>
-          <span class="art-parkour-steve">
-            <svg class="pk-steve-mini" viewBox="0 0 24 38" shape-rendering="crispEdges">
-              <rect x="7" y="2" width="10" height="9" fill="#bc8965"/>
-              <rect x="7" y="2" width="10" height="3" fill="#4d3219"/>
-              <rect x="8" y="11" width="8" height="12" fill="#00a8aa"/>
-              <rect x="5" y="11" width="3" height="11" fill="#bc8965"/>
-              <rect x="16" y="11" width="3" height="11" fill="#bc8965"/>
-              <rect x="8" y="23" width="3.5" height="14" fill="#293998"/>
-              <rect x="12.5" y="23" width="3.5" height="14" fill="#1e2c7a"/>
-            </svg>
-          </span>
-          <span class="art-portal-mini">
-            <svg class="pk-portal-mini-svg" viewBox="0 0 24 36" shape-rendering="crispEdges">
-              <rect x="0" y="0" width="24" height="36" fill="#151221"/>
-              <rect x="4" y="4" width="16" height="28" fill="#a832e8"/>
-              <rect x="6" y="8" width="12" height="20" fill="#d645f5"/>
-            </svg>
-          </span>
-        </div>
-        <h2>용암 파쿠르 <small class="wg-new">새 게임</small></h2>
-        <p>펄펄 끓는 용암 바다 위 징검다리를 건너 네더 차원문으로 탈출해요!</p>
-        <div class="wg-go" role="group" aria-label="용암 파쿠르 시작">
-          <button type="button" data-go="parkour" data-mode="ko">뜻 보고 건너기</button>
-          <button type="button" data-go="parkour" data-mode="en">영어 보고 건너기</button>
-          <button type="button" data-go="parkour" data-mode="listen" id="parkourListen">듣고 건너기</button>
         </div>
       </article>
       <article class="wg-game g-mine">
@@ -289,25 +257,6 @@
     <div class="craft-hotbar-wrap">
       <span class="craft-hotbar-title">완성한 전설 아이템</span>
       <ol class="craft-hotbar" id="craftHotbar" aria-label="완성한 아이템"></ol>
-    </div>
-  </section>
-
-  <!-- 용암 파쿠르 -->
-  <section class="wg-play wg-parkour" id="parkour" hidden>
-    <div class="wg-bar">
-      <span class="ng-hearts" id="pkHearts" role="img" aria-label="하트 3개"></span>
-      <ol class="wg-steps" id="pkSteps" aria-label="파쿠르 진행"></ol>
-      <button type="button" class="wg-quit" id="parkourQuit">그만하기</button>
-    </div>
-    <div class="wg-sign pk-sign-wrap">
-      <p class="wg-ask" id="pkLabel">이 뜻의 영어 단어로 점프!</p>
-      <p class="wg-prompt" id="pkPrompt"></p>
-      <button type="button" class="wg-say" id="pkSay" hidden>다시 듣기</button>
-    </div>
-    <div class="pk-stage" id="pkStage" role="region" aria-label="용암 파쿠르 스테이지"></div>
-    <div class="wg-opts pk-opts" id="pkOpts" role="group" aria-label="징검다리 발판 선택"></div>
-    <div class="wg-after">
-      <p class="pk-fb" id="pkFb" role="status"></p>
     </div>
   </section>
 

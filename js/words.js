@@ -2,7 +2,7 @@
 //   짝 맞추기: 영어 카드와 한글 카드의 짝을 찾는다(4·6·8쌍).
 //   보고 고르기: 한글 뜻을 보고 영어 단어를, 또는 영어 단어를 보고 한글 뜻을 4개 중에서 고른다(10문제).
 //   단어 광산(mine.js): 1분 동안 뜻에 맞는(또는 들리는) 단어 블록을 세 번 두드려 캔다.
-//   밤을 지켜라(night.js): 뜻을 든 유령이 집으로 걸어오면 맞는 영어 단어를 눌러 막는다.
+//   밤을 지켜라(night.js): 뜻을 든 몹이 집으로 걸어오면 맞는 영어 단어를 눌러 막는다.
 //   광산 수레 달리기(cart.js): 갈림길이 오기 전에 뜻에 맞는 단어가 있는 선로로 수레를 옮긴다.
 // 처음 화면의 게임 판 버튼을 누르면 바로 시작한다. 아직 잘 모르는 단어가 먼저 나온다.
 import { $, esc, shuffle, getChild, setChild, childPickerHTML, loadSentences, loadProgress, saveProgress, syncProgress,
@@ -333,7 +333,7 @@ async function finishNight(r) {
   await reward(gems);
   showDone({
     title: r.win ? (r.hearts === 3 ? '집을 완벽하게 지켰어요!' : '아침까지 집을 지켰어요!') : '다음엔 꼭 지켜요!',
-    text: `유령 ${r.total}마리 중 ${r.killed}마리를 물리쳤어요.${r.win ? ` ${Math.floor(r.sec / 60) ? `${Math.floor(r.sec / 60)}분 ` : ''}${r.sec % 60}초 걸렸어요.` : ''}${r.best >= 3 ? ` 가장 길게 ${r.best}번 연속으로 맞혔어요.` : ''}`,
+    text: `몹 ${r.total}마리 중 ${r.killed}마리를 물리쳤어요.${r.win ? ` ${Math.floor(r.sec / 60) ? `${Math.floor(r.sec / 60)}분 ` : ''}${r.sec % 60}초 걸렸어요.` : ''}${r.best >= 3 ? ` 가장 길게 ${r.best}번 연속으로 맞혔어요.` : ''}`,
     gems, missed: r.missed
   });
 }

@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>부모님 대시보드 · 곰이난이 블록 스튜디오</title>
+<meta name="theme-color" content="#4c8a2c">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=Gowun+Dodum&family=Jua&family=Silkscreen&display=swap">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="turf" aria-hidden="true"></div>
+<div class="wrap">
+  <nav class="topnav" aria-label="메뉴">
+    <a href="./">만들기</a>
+    <a href="practice.html">문장 연습</a>
+    <a href="words.html">단어 게임</a>
+    <a href="parent.html" aria-current="page">부모님 보기</a>
+  </nav>
+
+  <header class="parent-head">
+    <div class="brand">
+      <div class="eyebrow">Block Studio · Parents Dashboard</div>
+      <h1>부모님 대시보드</h1>
+    </div>
+    <div class="parent-head-meta">
+      <p class="parent-sub">곰이와 난이의 영상 작품과 영어 학습 기록을 한눈에 확인하고 칭찬해 주세요.</p>
+      <button type="button" class="btn small" id="syncBtn">서버 기록 맞추기</button>
+    </div>
+  </header>
+
+  <!-- 아이 선택 탭 -->
+  <div class="parent-tabs" role="tablist" aria-label="아이 선택">
+    <button type="button" class="parent-tab on" data-child="곰이" role="tab" aria-selected="true">🐻 곰이</button>
+    <button type="button" class="parent-tab" data-child="난이" role="tab" aria-selected="false">🐱 난이</button>
+    <button type="button" class="parent-tab" data-child="compare" role="tab" aria-selected="false">👥 둘 다 비교하기</button>
+  </div>
+
+  <!-- 개별 아이 대시보드 -->
+  <main id="childView" class="parent-main">
+    <!-- 1. 핵심 성취 지표 카드 -->
+    <section class="parent-kpis" id="kpis" aria-label="학습 요약">
+      <div class="parent-kpi gem">
+        <span class="parent-kpi-num" id="kpiEmeralds">0</span>
+        <span class="parent-kpi-lbl">💎 모은 에메랄드</span>
+      </div>
+      <div class="parent-kpi streak">
+        <span class="parent-kpi-num" id="kpiStreak">0<small>일</small></span>
+        <span class="parent-kpi-lbl">🔥 연속 연습일</span>
+      </div>
+      <div class="parent-kpi days">
+        <span class="parent-kpi-num" id="kpiDays">0<small>일</small></span>
+        <span class="parent-kpi-lbl">📅 총 연습한 날</span>
+      </div>
+      <div class="parent-kpi mastered">
+        <span class="parent-kpi-num" id="kpiMastered">0<small id="kpiTotalSent">/0</small></span>
+        <span class="parent-kpi-lbl">🏆 완전 정복 문장</span>
+      </div>
+      <div class="parent-kpi words">
+        <span class="parent-kpi-num" id="kpiWords">0<small id="kpiTotalWords">/0</small></span>
+        <span class="parent-kpi-lbl">🌟 마스터한 단어</span>
+      </div>
+    </section>
+
+    <!-- 2. 학습 잔디밭 (최근 28일 출석 활동) -->
+    <section class="parent-card" aria-labelledby="gardenTitle">
+      <div class="parent-card-head">
+        <h2 id="gardenTitle">🌱 최근 28일 학습 잔디밭</h2>
+        <span class="note" id="gardenNote">연습한 날은 초록 잔디가 쑥쑥 자라요</span>
+      </div>
+      <div class="parent-garden" id="garden"></div>
+      <div class="parent-garden-legend">
+        <span><i class="garden-block dirt"></i> 연습 안 한 날</span>
+        <span><i class="garden-block grass"></i> 연습한 날 🌱</span>
+      </div>
+    </section>
+
+    <!-- 3. 라이트너 5단계 복습 상자 문장 학습 현황 -->
+    <section class="parent-card" aria-labelledby="boxesTitle">
+      <div class="parent-card-head">
+        <h2 id="boxesTitle">📚 문장 복습 상자 단계별 현황</h2>
+        <span class="note">에빙하우스 망각 곡선에 맞춘 5단계 라이트너 복습 시스템</span>
+      </div>
+      <div class="parent-box-bars" id="boxBars"></div>
+
+      <div class="parent-sent-filter">
+        <label for="sentFilter">문장 보기:</label>
+        <select id="sentFilter">
+          <option value="all">모든 문장</option>
+          <option value="due">오늘 복습할 문장</option>
+          <option value="learning">학습 중인 문장 (1~3번 상자)</option>
+          <option value="mastered">완전 정복 문장 (4~5번 상자)</option>
+        </select>
+        <span class="parent-sent-count" id="sentCount">0개</span>
+      </div>
+      <ul class="parent-sent-list" id="sentList"></ul>
+    </section>
+
+    <!-- 4. 단어 학습 분석 & 부모님 지도 가이드 -->
+    <section class="parent-card" aria-labelledby="wordsTitle">
+      <div class="parent-card-head">
+        <h2 id="wordsTitle">🔤 단어 분석 &amp; 칭찬 가이드</h2>
+        <span class="note">단어 게임에서 아이가 기록한 단어 통계</span>
+      </div>
+
+      <div class="parent-words-grid">
+        <div class="parent-word-col warn">
+          <h3>⚠️ 더 연습이 필요한 단어 (자주 헷갈려하는 단어)</h3>
+          <p class="parent-word-desc">게임을 하며 틀린 적이 있는 단어예요. 아이에게 힌트를 주며 응원해 주세요.</p>
+          <ul class="parent-word-tags" id="weakWords"></ul>
+        </div>
+        <div class="parent-word-col good">
+          <h3>✨ 자신 있게 맞힌 마스터 단어</h3>
+          <p class="parent-word-desc">2회 이상 정답을 맞힌 든든한 단어예요. 아낌없이 칭찬해 주세요!</p>
+          <ul class="parent-word-tags" id="strongWords"></ul>
+        </div>
+      </div>
+
+      <div class="parent-tip-box">
+        <b>💡 부모님 칭찬 &amp; 격려 팁</b>
+        <p>틀린 단어가 나와도 "왜 이걸 틀렸어?" 대신 <b>"이 단어는 게임에서 몇 번 더 만나면 금방 외워질 거야!"</b> 라고 해 주시면 아이가 게임을 더 재미있게 계속할 수 있어요.</p>
+      </div>
+    </section>
+
+    <!-- 5. 아이가 만든 영상 작품 목록 -->
+    <section class="parent-card" aria-labelledby="projectsTitle">
+      <div class="parent-card-head">
+        <h2 id="projectsTitle">🎬 우리 아이가 만든 영상 작품들</h2>
+        <span class="note" id="projNote">총 0개의 영상</span>
+      </div>
+      <div class="parent-proj-grid" id="projList"></div>
+    </section>
+  </main>
+
+  <!-- 6. 둘 다 비교하기 화면 -->
+  <section id="compareView" class="parent-compare" hidden aria-label="곰이 난이 비교">
+    <div class="parent-card">
+      <div class="parent-card-head">
+        <h2>👥 곰이와 난이 학습 비교</h2>
+        <span class="note">선의의 경쟁과 함께 서로를 칭찬하고 응원해 주세요</span>
+      </div>
+      <div class="parent-compare-grid" id="compareGrid"></div>
+      <div class="parent-cheer">
+        <b>🎉 우리 쌍둥이 모두 최고예요!</b>
+        <p>곰이와 난이 둘 다 마인크래프트 화면으로 스스로 영어 문장을 쓰고 녹음하며 멋진 영상을 만들고 있어요. 결과보다 즐겁게 해낸 과정을 많이 칭찬해 주세요!</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 기기 및 서버 연동 상태 안내 -->
+  <section class="parent-card parent-sync-card" aria-label="시스템 정보">
+    <div class="parent-sync-info">
+      <div>
+        <b>연결된 기기</b>: <span id="infoDevice">-</span>
+      </div>
+      <div>
+        <b>가족 암호 연동</b>: <span id="infoCode">-</span>
+      </div>
+      <div>
+        <b>클라우드 서버 저장</b>: <span id="infoCloud">-</span>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script type="module" src="js/parent.js"></script>
+</body>
+</html>

@@ -105,7 +105,8 @@ python3 -m http.server 8080
 ```
 index.html                       만들기 화면
 practice.html, js/practice.js    문장 연습
-words.html, js/words.js          단어 짝 맞추기
+words.html, js/words.js          단어 게임
+parent.html, js/parent.js        부모님 대시보드(아이별 학습 현황)
 js/learn.js                      연습 공통(아이 고르기, 문장 모으기, 복습 상자, 단어장, 기록 맞추기)
 css/style.css                    디자인(색·글꼴 토큰은 맨 위 :root)
 js/app.js                        화면 그리기와 버튼 동작

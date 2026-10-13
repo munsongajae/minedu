@@ -89,10 +89,56 @@ function timeUp() {
 }
 
 /* ---------- 벽 ---------- */
-const CRACK = `<svg class="crack" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-  <g class="k1"><polyline points="62,0 58,14 66,22 60,34"/><polyline points="0,70 12,66 18,74"/></g>
-  <g class="k2"><polyline points="60,34 48,42 52,54 40,62"/><polyline points="100,40 88,46 84,58 90,66"/><polyline points="18,74 26,86 22,100"/></g>
-  <g class="k3"><polyline points="40,62 30,58 18,64 8,56"/><polyline points="52,54 66,62 74,78 70,92"/><polyline points="84,58 72,52 66,40"/><polyline points="30,0 34,12 26,22"/></g>
+// 마인크래프트 블록 균열(destroy stages)을 실제 게임 16×16 픽셀 격자 그대로 구현한 픽셀 SVG
+const CRACK = `<svg class="crack" viewBox="0 0 16 16" preserveAspectRatio="none" shape-rendering="crispEdges" aria-hidden="true">
+  <g class="k1">
+    <rect x="7" y="6" width="2" height="2" fill="rgba(15,12,8,0.85)"/>
+    <rect x="6" y="8" width="1" height="2" fill="rgba(15,12,8,0.85)"/>
+    <rect x="9" y="7" width="2" height="1" fill="rgba(15,12,8,0.85)"/>
+    <rect x="8" y="5" width="1" height="1" fill="rgba(15,12,8,0.85)"/>
+    <rect x="5" y="7" width="1" height="1" fill="rgba(15,12,8,0.85)"/>
+    <rect x="10" y="8" width="1" height="2" fill="rgba(15,12,8,0.85)"/>
+    <rect x="7" y="5" width="1" height="1" fill="rgba(255,255,255,0.25)"/>
+    <rect x="9" y="6" width="1" height="1" fill="rgba(255,255,255,0.25)"/>
+  </g>
+  <g class="k2">
+    <rect x="5" y="5" width="2" height="1" fill="rgba(15,12,8,0.88)"/>
+    <rect x="4" y="4" width="1" height="2" fill="rgba(15,12,8,0.88)"/>
+    <rect x="3" y="3" width="2" height="1" fill="rgba(15,12,8,0.88)"/>
+    <rect x="2" y="2" width="1" height="2" fill="rgba(15,12,8,0.88)"/>
+    <rect x="1" y="1" width="2" height="1" fill="rgba(15,12,8,0.88)"/>
+    <rect x="11" y="6" width="2" height="1" fill="rgba(15,12,8,0.88)"/>
+    <rect x="12" y="5" width="1" height="2" fill="rgba(15,12,8,0.88)"/>
+    <rect x="13" y="4" width="2" height="1" fill="rgba(15,12,8,0.88)"/>
+    <rect x="14" y="3" width="1" height="2" fill="rgba(15,12,8,0.88)"/>
+    <rect x="7" y="10" width="1" height="2" fill="rgba(15,12,8,0.88)"/>
+    <rect x="6" y="12" width="2" height="1" fill="rgba(15,12,8,0.88)"/>
+    <rect x="5" y="13" width="1" height="2" fill="rgba(15,12,8,0.88)"/>
+    <rect x="9" y="9" width="2" height="1" fill="rgba(15,12,8,0.88)"/>
+    <rect x="10" y="10" width="1" height="2" fill="rgba(15,12,8,0.88)"/>
+    <rect x="11" y="12" width="2" height="1" fill="rgba(15,12,8,0.88)"/>
+    <rect x="12" y="13" width="1" height="2" fill="rgba(15,12,8,0.88)"/>
+    <rect x="8" y="3" width="1" height="2" fill="rgba(15,12,8,0.88)"/>
+    <rect x="7" y="1" width="2" height="1" fill="rgba(15,12,8,0.88)"/>
+  </g>
+  <g class="k3">
+    <rect x="0" y="3" width="3" height="1" fill="rgba(10,8,5,0.92)"/>
+    <rect x="2" y="4" width="1" height="2" fill="rgba(10,8,5,0.92)"/>
+    <rect x="0" y="9" width="3" height="1" fill="rgba(10,8,5,0.92)"/>
+    <rect x="1" y="10" width="2" height="1" fill="rgba(10,8,5,0.92)"/>
+    <rect x="2" y="11" width="1" height="2" fill="rgba(10,8,5,0.92)"/>
+    <rect x="3" y="13" width="2" height="1" fill="rgba(10,8,5,0.92)"/>
+    <rect x="13" y="7" width="3" height="1" fill="rgba(10,8,5,0.92)"/>
+    <rect x="14" y="8" width="1" height="3" fill="rgba(10,8,5,0.92)"/>
+    <rect x="13" y="11" width="2" height="1" fill="rgba(10,8,5,0.92)"/>
+    <rect x="14" y="12" width="2" height="1" fill="rgba(10,8,5,0.92)"/>
+    <rect x="10" y="1" width="2" height="2" fill="rgba(10,8,5,0.92)"/>
+    <rect x="11" y="0" width="1" height="2" fill="rgba(10,8,5,0.92)"/>
+    <rect x="3" y="7" width="2" height="2" fill="rgba(10,8,5,0.92)"/>
+    <rect x="4" y="9" width="2" height="1" fill="rgba(10,8,5,0.92)"/>
+    <rect x="8" y="14" width="3" height="1" fill="rgba(10,8,5,0.92)"/>
+    <rect x="9" y="15" width="2" height="1" fill="rgba(10,8,5,0.92)"/>
+  </g>
 </svg>`;
 function cellHTML(c, i) {
   if (!c.w) return `<div class="mine-block stone" data-i="${i}" aria-hidden="true"></div>`;
@@ -155,6 +201,7 @@ $('#mineWall').addEventListener('click', (e) => {
     c.hits++;
     b.classList.remove('h1', 'h2', 'h3', 'hit'); void b.offsetWidth;
     b.classList.add('h' + c.hits, 'hit');
+    hitBits(b, c.ore);
     if (c.hits >= HITS) return breakBlock(i, b);
     sfx('hit');
     return;
@@ -208,47 +255,123 @@ function breakBlock(i, b) {
   nextTarget();
 }
 
-// 부서질 때 돌·광물 조각이 튄다.
+const ORE_PALETTES = {
+  gold: { stone: ['#484848', '#646464', '#7d7d7d', '#909090'], gem: ['#ffd84a', '#f5b324', '#fff089', '#c4890e'] },
+  diamond: { stone: ['#484848', '#646464', '#7d7d7d', '#909090'], gem: ['#4dedf4', '#2cb3b9', '#b8f9fc', '#15838c'] },
+  emerald: { stone: ['#484848', '#646464', '#7d7d7d', '#909090'], gem: ['#17dd62', '#0fa848', '#74f59e', '#096e2e'] },
+  ruby: { stone: ['#484848', '#646464', '#7d7d7d', '#909090'], gem: ['#ff3b30', '#c21807', '#ff857a', '#7d0c00'] },
+  iron: { stone: ['#484848', '#646464', '#7d7d7d', '#909090'], gem: ['#d8af93', '#b59074', '#f2dfcc', '#8a6549'] },
+  coal: { stone: ['#484848', '#646464', '#7d7d7d', '#909090'], gem: ['#222222', '#363636', '#484848', '#141414'] }
+};
+const getOreColors = (ore) => ORE_PALETTES[ore] || ORE_PALETTES.gold;
+
+// 타격할 때마다 마인크래프트처럼 블록 표면에서 4~6개의 작은 픽셀 파편(돌/광물)이 튄다.
+function hitBits(b, ore) {
+  if (REDUCED) return;
+  const wall = $('#mineWall').getBoundingClientRect();
+  const r = b.getBoundingClientRect();
+  const cx = r.left - wall.left + r.width * (0.35 + Math.random() * 0.3);
+  const cy = r.top - wall.top + r.height * (0.3 + Math.random() * 0.3);
+  const colors = getOreColors(ore);
+  for (let k = 0; k < 6; k++) {
+    const el = document.createElement('i');
+    el.className = 'mine-bit small';
+    const color = (k % 2 === 0) ? colors.stone[Math.floor(Math.random() * colors.stone.length)]
+                               : colors.gem[Math.floor(Math.random() * colors.gem.length)];
+    el.style.backgroundColor = color;
+    el.style.left = `${cx}px`;
+    el.style.top = `${cy}px`;
+    $('#mineWall').appendChild(el);
+    const angle = (Math.PI * 0.75) + Math.random() * Math.PI * 1.5;
+    const speed = 25 + Math.random() * 45;
+    const dx = Math.cos(angle) * speed;
+    const dy = Math.sin(angle) * speed - 15;
+    el.animate([
+      { transform: 'translate(-50%, -50%) scale(1)', opacity: 1 },
+      { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(0.9)`, opacity: 1, offset: 0.5 },
+      { transform: `translate(calc(-50% + ${dx * 1.2}px), calc(-50% + ${dy + 35}px)) scale(0.4)`, opacity: 0 }
+    ], { duration: 280, easing: 'cubic-bezier(0.2, 0.8, 0.4, 1)' }).onfinish = () => el.remove();
+  }
+}
+
+// 블록이 산산조각 날 때 28개의 3D 큐브 느낌 픽셀 파편이 중력 가속도를 받으며 포물선으로 튀어 떨어진다.
 function bits(b, ore) {
   if (REDUCED) return;
   const wall = $('#mineWall').getBoundingClientRect();
   const r = b.getBoundingClientRect();
-  const cx = r.left - wall.left + r.width / 2, cy = r.top - wall.top + r.height / 2;
-  for (let k = 0; k < 14; k++) {
+  const cx = r.left - wall.left + r.width / 2;
+  const cy = r.top - wall.top + r.height / 2;
+  const colors = getOreColors(ore);
+  const COUNT = 28;
+
+  for (let k = 0; k < COUNT; k++) {
     const el = document.createElement('i');
-    el.className = `mine-bit ${k % 3 === 0 ? 'ore-' + ore : ''}`;
-    el.style.left = `${cx}px`; el.style.top = `${cy}px`;
+    const isBig = k % 5 === 0;
+    const isSmall = k % 3 === 0;
+    el.className = `mine-bit ${isBig ? 'large' : (isSmall ? 'small' : '')}`;
+    const isGem = Math.random() < 0.42;
+    const palette = isGem ? colors.gem : colors.stone;
+    el.style.backgroundColor = palette[Math.floor(Math.random() * palette.length)];
+
+    const startX = cx + (Math.random() - 0.5) * (r.width * 0.7);
+    const startY = cy + (Math.random() - 0.5) * (r.height * 0.7);
+    el.style.left = `${startX}px`;
+    el.style.top = `${startY}px`;
     $('#mineWall').appendChild(el);
-    const a = Math.random() * Math.PI * 2, d = 40 + Math.random() * 70;
-    const dx = Math.cos(a) * d, dy = Math.sin(a) * d - 30;
+
+    const angle = (Math.random() - 0.5) * Math.PI * 1.6;
+    const speed = 40 + Math.random() * 80;
+    const vx = Math.sin(angle) * speed;
+    const vy = - (50 + Math.random() * 95);
+    const rot = (Math.random() - 0.5) * 360;
+
+    const midX = vx * 0.4;
+    const midY = vy * 0.4 + 18;
+    const endX = vx * 0.95;
+    const endY = vy * 0.95 + 160 + Math.random() * 60;
+
     el.animate([
-      { transform: 'translate(-50%,-50%) rotate(0deg)', opacity: 1 },
-      { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) rotate(${Math.random() * 180}deg)`, opacity: 1, offset: 0.6 },
-      { transform: `translate(calc(-50% + ${dx * 1.2}px), calc(-50% + ${dy + 60}px)) rotate(200deg)`, opacity: 0 }
-    ], { duration: 560, easing: 'ease-out' }).onfinish = () => el.remove();
+      { transform: 'translate(-50%, -50%) rotate(0deg) scale(1)', opacity: 1 },
+      { transform: `translate(calc(-50% + ${midX}px), calc(-50% + ${midY}px)) rotate(${rot * 0.5}deg) scale(0.95)`, opacity: 1, offset: 0.38 },
+      { transform: `translate(calc(-50% + ${endX}px), calc(-50% + ${endY}px)) rotate(${rot}deg) scale(0.3)`, opacity: 0 }
+    ], { duration: 620 + Math.random() * 140, easing: 'cubic-bezier(0.18, 0.8, 0.4, 1)' }).onfinish = () => el.remove();
   }
 }
 
-// 캔 광물이 아래 칸으로 날아간다.
+// 캔 광물이 마인크래프트 아이템 드롭처럼 제자리에서 톡 튀어오른 뒤 자석처럼 핫바로 날아간다.
 function flyItem(b, ore) {
   const slot = $('#mineHot').querySelector(`[data-ore="${ore}"]`);
   const done = () => {
     if (!slot || !m) return;
     slot.classList.remove('empty', 'pop'); void slot.offsetWidth; slot.classList.add('pop');
     slot.querySelector('b').textContent = m.items[ore];
+    sfx('ding');
+    // +1 픽셀 플로팅 이펙트
+    const plus = document.createElement('span');
+    plus.className = 'mine-plus-one';
+    plus.textContent = '+1';
+    slot.appendChild(plus);
+    setTimeout(() => plus.remove(), 750);
   };
   if (REDUCED || !slot) return done();
+
   const r = b.getBoundingClientRect(), s = slot.getBoundingClientRect();
   const el = document.createElement('i');
   el.className = `ore-ico mine-fly ore-${ore}`;
-  el.style.left = `${r.left + r.width / 2 - 15}px`; el.style.top = `${r.top + r.height / 2 - 15}px`;
+  el.style.left = `${r.left + r.width / 2 - 16}px`;
+  el.style.top = `${r.top + r.height / 2 - 16}px`;
   document.body.appendChild(el);
-  const dx = s.left + s.width / 2 - (r.left + r.width / 2), dy = s.top + s.height / 2 - (r.top + r.height / 2);
+
+  const dx = s.left + s.width / 2 - (r.left + r.width / 2);
+  const dy = s.top + s.height / 2 - (r.top + r.height / 2);
+
   el.animate([
-    { transform: 'translate(0,0) scale(1.3)' },
-    { transform: `translate(${dx * 0.35}px, ${Math.min(dy, 0) - 50}px) scale(1.15)`, offset: 0.35 },
-    { transform: `translate(${dx}px, ${dy}px) scale(.8)` }
-  ], { duration: 650, easing: 'ease-in' }).onfinish = () => { el.remove(); done(); };
+    { transform: 'translate(0, 0) scale(0.6) rotate(-15deg)', opacity: 0.8 },
+    { transform: 'translate(0, -26px) scale(1.35) rotate(10deg)', opacity: 1, offset: 0.22 },
+    { transform: 'translate(0, -20px) scale(1.25) rotate(-5deg)', opacity: 1, offset: 0.38 },
+    { transform: `translate(${dx * 0.5}px, ${dy * 0.4 - 30}px) scale(1.1) rotate(15deg)`, offset: 0.68 },
+    { transform: `translate(${dx}px, ${dy}px) scale(0.65) rotate(0deg)`, opacity: 0.9 }
+  ], { duration: 680, easing: 'cubic-bezier(0.2, 0.8, 0.3, 1)' }).onfinish = () => { el.remove(); done(); };
 }
 
 $('#mineSay').addEventListener('click', () => { if (m && !m.over) ctx.say(m.target.en); });

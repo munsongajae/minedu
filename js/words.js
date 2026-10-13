@@ -16,6 +16,7 @@ import { startNight, stopNight } from './night.js';
 import { startCart, stopCart } from './cart.js';
 import { startCraft, stopCraft } from './craft.js';
 import { startWorldGame, stopWorldGame } from './worldplay.js';
+import { playBgm, stopBgm, duckBgm, toggleBgm, isBgmMuted } from './bgm.js';
 
 const SPEAK_OK = canSpeak();
 
@@ -29,7 +30,12 @@ let last = null;         // 마지막으로 한 게임 { kind, pairs | dir } —
 let game = null;         // 짝 맞추기
 
 function show(which) { ['home', 'game', 'mine', 'night', 'cart', 'craft', 'world', 'done'].forEach(k => { $('#' + k).hidden = k !== which; }); window.scrollTo(0, 0); }
-function say(text) { if (SPEAK_OK) speak(text, { speed: 'slow' }).catch(() => {}); }
+function say(text) {
+  if (SPEAK_OK) {
+    duckBgm(1.5);
+    speak(text, { speed: 'slow' }).catch(() => {});
+  }
+}
 
 /* ---------- 아이·기록 ---------- */
 $('#kidPick').addEventListener('click', async (e) => {
@@ -145,13 +151,13 @@ $('#again').addEventListener('click', () => {
   else if (last.kind === 'craft') goCraft(last.mode || 'ko');
   else if (last.kind === 'world') goWorld(last.mode || 'ko');
 });
-$('#home2').addEventListener('click', () => { show('home'); renderHome(); });
-$('#quit').addEventListener('click', () => { game = null; show('home'); renderHome(); });
-$('#cartQuit').addEventListener('click', () => { stopCart(); saveProgress(progress); show('home'); renderHome(); });
-$('#ngQuit').addEventListener('click', () => { stopNight(); saveProgress(progress); show('home'); renderHome(); });
-$('#mineQuit').addEventListener('click', () => { stopMine(); saveProgress(progress); show('home'); renderHome(); });
-$('#craftQuit').addEventListener('click', () => { stopCraft(); saveProgress(progress); show('home'); renderHome(); });
-$('#worldQuit').addEventListener('click', () => { stopWorldGame(); saveProgress(progress); show('home'); renderHome(); });
+$('#home2').addEventListener('click', () => { stopBgm(); show('home'); renderHome(); });
+$('#quit').addEventListener('click', () => { stopBgm(); game = null; show('home'); renderHome(); });
+$('#cartQuit').addEventListener('click', () => { stopBgm(); stopCart(); saveProgress(progress); show('home'); renderHome(); });
+$('#ngQuit').addEventListener('click', () => { stopBgm(); stopNight(); saveProgress(progress); show('home'); renderHome(); });
+$('#mineQuit').addEventListener('click', () => { stopBgm(); stopMine(); saveProgress(progress); show('home'); renderHome(); });
+$('#craftQuit').addEventListener('click', () => { stopBgm(); stopCraft(); saveProgress(progress); show('home'); renderHome(); });
+$('#worldQuit').addEventListener('click', () => { stopBgm(); stopWorldGame(); saveProgress(progress); show('home'); renderHome(); });
 
 // 잘 모르는 단어를 먼저: 처음 보는 단어, 틀린 적 많은 단어, 오래전에 본 단어 순.
 function pickWords(n) {
@@ -172,6 +178,7 @@ const stepsHTML = (states) => states.map((s, i) => `<li class="${s}" aria-label=
 
 /* ---------- 짝 맞추기 ---------- */
 function startMatch(pairs) {
+  playBgm('match');
   const n = Math.min(pairs, words.length);
   last = { kind: 'match', pairs };
   const cards = shuffle(pickWords(n).flatMap(w => [{ key: w.key, side: 'en', text: w.en, w }, { key: w.key, side: 'ko', text: w.ko, w }]))
@@ -252,6 +259,7 @@ async function finishMatch() {
 function goMine(mode) {
   last = { kind: 'mine', mode };
   show('mine');
+  playBgm('mine');
   startMine({ words, pickWords, recordWord, say, onEnd: finishMine }, mode);
   $('#mine').scrollIntoView({ block: 'start' });
 }
@@ -270,6 +278,7 @@ async function finishMine(r) {
 function goNight(mode = 'ko', speed = 'normal') {
   last = { kind: 'night', mode, speed };
   show('night');
+  playBgm('night');
   startNight({ words, pickWords, recordWord, say, onEnd: finishNight }, mode, speed);
   $('#night').scrollIntoView({ block: 'start' });
 }
@@ -288,6 +297,7 @@ async function finishNight(r) {
 function goCart(mode = 'ko', speed = 'normal') {
   last = { kind: 'cart', mode, speed };
   show('cart');
+  playBgm('cart');
   startCart({ words, pickWords, recordWord, say, onEnd: finishCart }, mode, speed);
   $('#cart').scrollIntoView({ block: 'start' });
 }
@@ -306,6 +316,7 @@ async function finishCart(r) {
 function goCraft(mode = 'ko') {
   last = { kind: 'craft', mode };
   show('craft');
+  playBgm('craft');
   startCraft({ words, pickWords, recordWord, say, onEnd: finishCraft }, mode);
   $('#craft').scrollIntoView({ block: 'start' });
 }
@@ -327,6 +338,7 @@ async function finishCraft(r) {
 function goWorld(mode = 'ko') {
   last = { kind: 'world', mode };
   show('world');
+  playBgm('world');
   startWorldGame({
     words,
     mode,
@@ -337,6 +349,7 @@ function goWorld(mode = 'ko') {
     },
     onEnd: finishWorld,
     onQuit: () => {
+      stopBgm();
       saveProgress(progress);
       show('home');
       renderHome();
@@ -362,6 +375,7 @@ async function reward(gems) {
   await saveProgress(progress);
 }
 function showDone({ title, text, gems, missed }) {
+  stopBgm();
   show('done');
   $('#gems').innerHTML = Array.from({ length: gems }, (_, i) => `<i style="--d:${i * 120}ms"></i>`).join('');
   $('#doneTitle').textContent = title;
@@ -387,7 +401,20 @@ async function fillMeanings() {
   }
   filling = false; renderHome();
 }
+function updateBgmBtn() {
+  const btn = $('#bgmBtn');
+  if (!btn) return;
+  const muted = isBgmMuted();
+  btn.textContent = muted ? '🔇 음악 꺼짐' : '🎵 음악 켜짐';
+  btn.classList.toggle('muted', muted);
+}
+$('#bgmBtn')?.addEventListener('click', () => {
+  toggleBgm();
+  updateBgmBtn();
+});
+
 async function init() {
+  updateBgmBtn();
   $('#kidPick').innerHTML = childPickerHTML(child);
   await checkReset();     // 다른 기기에서 '모든 기록 지우기'를 했으면 이 기기 것도 지운다
   all = await loadSentences();

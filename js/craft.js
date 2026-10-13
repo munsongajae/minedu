@@ -9,6 +9,7 @@ const HEARTS = 3;
 const RECIPES_PER_GAME = 4;
 const STEPS_PER_RECIPE = 3;
 const TOTAL = RECIPES_PER_GAME * STEPS_PER_RECIPE; // 12문제
+const QUESTION_TIME = 10; // 각 재료 문제당 10초
 
 let c = null, ctx = null;
 
@@ -138,19 +139,129 @@ export function startCraft(cx, mode = 'ko') {
     hearts: HEARTS, rightCount: 0, totalAsked: 0,
     crafted: [], missed: [], combo: 0, best: 0,
     over: false, lock: false, startAt: Date.now(),
-    placedSlots: {}, currentOptions: []
+    placedSlots: {}, currentOptions: [],
+    timerId: null, timerStart: 0, timeLeft: QUESTION_TIME
   };
 
   $('#craftOver').hidden = true;
   $('#craftFb').textContent = '';
   $('#craftHotbar').innerHTML = '';
+  updateTimerUI(QUESTION_TIME);
   drawBar();
   drawTable();
   nextQuestion();
 }
 
 export function stopCraft() {
-  if (c) c.over = true;
+  if (c) {
+    c.over = true;
+    clearStepTimer();
+  }
+}
+
+/* ---------- 10초 문제 타이머 ---------- */
+function clearStepTimer() {
+  if (c && c.timerId) {
+    cancelAnimationFrame(c.timerId);
+    c.timerId = null;
+  }
+}
+
+function startStepTimer() {
+  clearStepTimer();
+  if (!c || c.over) return;
+  c.timerStart = performance.now();
+  c.timeLeft = QUESTION_TIME;
+  updateTimerUI(QUESTION_TIME);
+
+  function tick(now) {
+    if (!c || c.over || c.lock) return;
+    const elapsed = (now - c.timerStart) / 1000;
+    const remain = Math.max(0, QUESTION_TIME - elapsed);
+    c.timeLeft = remain;
+    updateTimerUI(remain);
+
+    if (remain <= 0) {
+      c.timerId = null;
+      onTimeUp();
+      return;
+    }
+    c.timerId = requestAnimationFrame(tick);
+  }
+  c.timerId = requestAnimationFrame(tick);
+}
+
+function updateTimerUI(remain) {
+  const timeEl = $('#craftTime');
+  const fillEl = $('#craftTimeFill');
+  const barEl = $('#craftTimeBar');
+  const sec = Math.ceil(remain);
+  if (timeEl) {
+    timeEl.textContent = sec;
+    timeEl.classList.toggle('low', remain <= 3);
+  }
+  if (fillEl) {
+    const pct = Math.max(0, Math.min(100, (remain / QUESTION_TIME) * 100));
+    fillEl.style.width = `${pct}%`;
+  }
+  if (barEl) {
+    barEl.classList.toggle('low', remain <= 3);
+  }
+}
+
+function onTimeUp() {
+  if (!c || c.over || c.lock) return;
+  c.lock = true;
+  c.hearts--;
+  c.combo = 0;
+  c.missed.push(c.target);
+  ctx.recordWord(c.target, false);
+  sfx('bad');
+
+  // 정답 버튼 초록색으로 강조하여 아이가 정답을 확인할 수 있게 함
+  document.querySelectorAll('#craftPick button').forEach((btn, idx) => {
+    const opt = c.currentOptions[idx];
+    if (opt && opt.key === c.target.key) {
+      btn.classList.add('right');
+    }
+  });
+
+  const sign = $('.craft-prompt-sign');
+  if (sign) {
+    sign.classList.remove('wrong');
+    void sign.offsetWidth;
+    sign.classList.add('wrong');
+  }
+
+  $('#craftFb').innerHTML = `⏰ 시간 초과! 정답은 <b lang="en">${esc(c.target.en)}</b> = ${esc(c.target.ko)}`;
+  drawBar();
+
+  if (c.hearts <= 0) {
+    setTimeout(() => {
+      finish(false);
+    }, 1000);
+    return;
+  }
+
+  // 하트가 남아있으면 1.3초 후 해당 재료를 슬롯에 배치하고 다음 단계 진행
+  setTimeout(() => {
+    if (!c || c.over) return;
+    c.placedSlots[c.currentStep.slot] = {
+      item: c.currentStep.item,
+      name: c.currentStep.name
+    };
+    c.si++;
+    c.totalAsked++;
+    drawBar();
+
+    if (c.si >= STEPS_PER_RECIPE) {
+      completeRecipe();
+    } else {
+      c.lock = false;
+      drawTable();
+      nextQuestion();
+    }
+  }, 1300);
 }
 
 /* ---------- UI 그리기 ---------- */
@@ -278,6 +389,7 @@ function nextQuestion() {
 
   drawBar();
   drawTable();
+  startStepTimer();
 }
 
 /* ---------- 답 고르기 ---------- */
@@ -290,6 +402,7 @@ function choose(idx) {
   const isOk = picked.key === c.target.key;
 
   if (isOk) {
+    clearStepTimer();
     c.lock = true;
     c.rightCount++;
     c.combo++;
@@ -338,12 +451,14 @@ function choose(idx) {
       b.classList.remove('wrong');
       void b.offsetWidth;
       b.classList.add('wrong');
+      b.disabled = true;
     }
 
     $('#craftFb').innerHTML = `앗! 정답은 <b lang="en">${esc(c.target.en)}</b> = ${esc(c.target.ko)}`;
     drawBar();
 
     if (c.hearts <= 0) {
+      clearStepTimer();
       return finish(false);
     }
   }
@@ -351,6 +466,7 @@ function choose(idx) {
 
 /* ---------- 레시피 완성 연출 ---------- */
 function completeRecipe() {
+  clearStepTimer();
   const curRecipe = c.recipes[c.ri];
   c.crafted.push(curRecipe);
   sfx('craft');
@@ -420,6 +536,7 @@ function flyToHotbar(recipe) {
 function finish(win) {
   if (!c) return;
   c.over = true;
+  clearStepTimer();
   document.querySelectorAll('#craftPick button').forEach(b => { b.disabled = true; });
   const over = $('#craftOver');
   over.querySelector('p').textContent = win ? '모든 전설의 아이템을 만들었어요!' : '조합대 재료가 다 떨어졌어요!';

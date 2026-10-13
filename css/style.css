@@ -1203,15 +1203,22 @@ kbd { font-family: var(--f-pixel); font-size: 12px; border: 2px solid var(--edge
 .craft-recipe-name { font-family: var(--f-display); font-size: 22px; color: var(--gold); }
 .craft-prog { font-family: var(--f-pixel); font-size: 15px; color: var(--muted); background: var(--panel); border: 2px solid var(--edge); padding: 2px 8px; }
 .craft-count { font-family: var(--f-display); font-size: 18px; color: var(--muted); margin-left: auto; }
+.craft-time { font-family: var(--f-pixel); font-size: 22px; min-width: 52px; text-align: center; padding: 0 8px 2px; background: var(--panel); border: 3px solid var(--edge); font-variant-numeric: tabular-nums; color: var(--gold); }
+.craft-time.low { background: var(--redstone); color: #ffffff; animation: blink 1s steps(2) infinite; }
+.craft-time + .wg-quit { margin-left: 0; }
 
 /* 조합대 상단 작업대 & GUI */
 .craft-table { position: relative; border: 3px solid var(--edge); box-shadow: 0 7px 0 var(--shade); background: #312113 linear-gradient(135deg, rgba(255,255,255,0.04) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.04) 50%, rgba(255,255,255,0.04) 75%, transparent 75%); background-size: 32px 32px; padding: 16px 14px 20px; display: grid; gap: 14px; justify-items: center; overflow: hidden; }
 
-/* 문제 간판 */
+/* 문제 간판 & 10초 타이머 바 */
+.craft-time-bar { width: 100%; height: 6px; background: rgba(50, 25, 5, 0.45); border-radius: 3px; overflow: hidden; margin-bottom: 4px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.4); }
+.craft-time-fill { height: 100%; width: 100%; background: linear-gradient(90deg, #32cad8, #4de975); transition: width 0.08s linear, background 0.3s ease; }
+.craft-time-bar.low .craft-time-fill { background: #e02020; }
 .craft-prompt-sign {
   position: relative; z-index: 2; min-width: 240px; max-width: calc(100% - 32px); text-align: center; padding: 6px 20px 8px;
   background: #b8945f; color: #201509; border: 3px solid #543d1f; box-shadow: inset 1px 1px 0 #d9b882, inset -2px -2px 0 #4a3418, 0 4px 0 rgba(0,0,0,0.3); display: grid; justify-items: center; gap: 2px;
 }
+.craft-prompt-sign.wrong { animation: wg-shake .35s; }
 .craft-prompt-sign small { font-size: 14px; color: #432e14; }
 .craft-prompt-sign b { font-family: var(--f-kid); font-weight: 400; font-size: clamp(34px, 6vw, 48px); line-height: 1.1; overflow-wrap: anywhere; }
 

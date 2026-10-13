@@ -891,3 +891,34 @@ kbd { font-family: var(--f-pixel); font-size: 12px; border: 2px solid var(--edge
   .mine-block.hit, .mine-block.bad, .mine-block.fresh, .mine-block.hint, .mine-sign.pop, .mine-hot li.pop, .mine-pick.swing, .mine-time.low { animation: none; }
   .mine-block.broken { animation: none; opacity: 0; }
 }
+/* 직접 만든 입체 수레 · 회전 바퀴 · 횃불 · 블록 터널 */
+.cart-svg .rim { fill: var(--cart-metal-shine); }
+.cart-svg .wheel-rim { fill: var(--cart-metal-side); }
+.cart-svg .wheel-spoke { fill: var(--cart-metal-shine); }
+.cart-spark { position: absolute; z-index: 6; width: 4px; height: 4px; pointer-events: none; background: var(--cart-flame-core); box-shadow: 0 0 4px var(--cart-flame), -2px 0 0 var(--cart-flame); }
+.cart-wall .flame, .cart-wall .flame-core { transform-box: fill-box; transform-origin: 50% 100%; animation: cart-flame-flicker 1.3s ease-in-out infinite; }
+.cart-wall .flame-core { animation-duration: .95s; animation-delay: -.4s; }
+.cart-wall .torch-glow { transform-box: fill-box; transform-origin: center; animation: cart-light-flicker 1.7s ease-in-out infinite; }
+@keyframes cart-flame-flicker { 0%, 100% { transform: scale(.9, 1) rotate(-3deg); opacity: .9; } 24% { transform: scale(1.1, .86) rotate(4deg); opacity: 1; } 57% { transform: translateX(1px) scale(.88, 1.12) rotate(-2deg); opacity: .8; } 78% { transform: scale(1.04, 1.06) rotate(2deg); opacity: 1; } }
+@keyframes cart-light-flicker { 0%, 100% { opacity: .5; transform: scale(.94); } 27% { opacity: .84; transform: translateX(2px) scale(1.06); } 62% { opacity: .42; transform: translateX(-1px) scale(.9); } 81% { opacity: .7; transform: scale(1.02); } }
+.cart-field:not(.moving) .cart-svg, .cart-field:not(.moving) .flame, .cart-field:not(.moving) .flame-core, .cart-field:not(.moving) .torch-glow { animation-play-state: paused; }
+.wg-art-cart .wheel-turn { transform-box: fill-box; transform-origin: center; animation: cart-wheel-preview 1.4s linear infinite; }
+@keyframes cart-wheel-preview { to { transform: rotate(360deg); } }
+.portal-frame .portal-depth { fill: var(--cart-inside); }
+.portal-frame .portal-inside { fill: var(--tunnel); }
+.portal-frame .portal-rails { fill: var(--rail); }
+.portal-frame .portal-stones rect { fill: var(--cart-rock); }
+.portal-frame .portal-bevel, .portal-frame .portal-top { fill: var(--cart-rock-light); }
+.portal-frame .portal-seam, .portal-frame .portal-side { fill: var(--cart-rock-dark); }
+.cart-sign.cart-portal { display: block; width: clamp(140px, 18vw, 182px); height: 112px; transform: translateY(-92%); }
+.cart-portal .portal-frame { position: absolute; left: 0; bottom: 0; width: 100%; height: 92px; }
+.cart-portal b { position: absolute; z-index: 1; left: 50%; top: 0; transform: translateX(-50%); width: max-content; max-width: calc(100% - 12px); white-space: normal; overflow-wrap: anywhere; text-align: center; font-size: 22px; padding: 2px 7px 4px; border-width: 2px; border-left-width: 6px; }
+.cart-portal.right .portal-frame { filter: drop-shadow(0 0 4px var(--grass-hi)); }
+.cart-portal .cart-block-sign { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); }
+.wg-art-cart .art-portal { position: absolute; left: 57%; top: 42%; width: 104px; height: 76px; transform: translateY(-85%); }
+.wg-art-cart .art-portal.b { left: 66%; top: 80%; }
+.wg-art-cart .art-portal .portal-frame { position: absolute; left: 0; bottom: 0; width: 100%; height: 60px; }
+.wg-art-cart .art-portal .art-sign { left: 50%; top: 0; transform: translateX(-50%); font-size: 15px; padding: 2px 6px; }
+.cart-track { height: 380px; }
+@media (max-width: 600px) { .cart-track { height: 330px; } .cart-sign.cart-portal { width: 118px; height: 90px; } .cart-portal .portal-frame { height: 73px; } .cart-portal b { font-size: 18px; } }
+@media (prefers-reduced-motion: reduce) { .wg-art-cart .wheel-turn, .cart-wall .flame, .cart-wall .flame-core, .cart-wall .torch-glow { animation: none; } .cart-spark { display: none; } }

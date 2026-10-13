@@ -238,12 +238,16 @@ export const HOUSE = `<svg class="ng-house-svg" viewBox="0 0 16 15" shape-render
 export const HEART = `<svg viewBox="0 0 7 6" shape-rendering="crispEdges" aria-hidden="true"><rect x="1" y="0" width="2" height="1"/><rect x="4" y="0" width="2" height="1"/><rect x="0" y="1" width="7" height="2"/><rect x="1" y="3" width="5" height="1"/><rect x="2" y="4" width="3" height="1"/><rect x="3" y="5" width="1" height="1"/></svg>`;
 
 /* ---------- 시작·끝 ---------- */
-export function startNight(c, speed) {
+export function startNight(c, mode = 'ko', speed = 'normal') {
+  if (['slow', 'normal', 'fast'].includes(mode) && speed === 'normal') {
+    speed = mode;
+    mode = 'ko';
+  }
   ctx = c;
   stopNight();
   const order = c.pickWords(c.words.length);
   n = {
-    speed: SPEEDS[speed] ? speed : 'normal', order, oi: 0, t: 0, last: 0, over: false,
+    mode, speed: SPEEDS[speed] ? speed : 'normal', order, oi: 0, t: 0, last: 0, over: false,
     mobs: [], spawned: 0, killed: 0, reached: 0, hearts: HEARTS, nextSpawn: 1.2,
     opts: [], lock: 0, missed: [], combo: 0, best: 0, mobOrder: shuffle(MOB_TYPES)
   };
@@ -251,7 +255,20 @@ export function startNight(c, speed) {
   $('#ngOver').hidden = true;
   $('#ngField').classList.remove('dawn', 'hurt');
   $('#ngFb').textContent = '';
-  n.opts = shuffle(order.slice(0, 4));
+  if (mode === 'en') {
+    const distinct = [];
+    const usedKo = new Set();
+    for (const w of order) {
+      if (!usedKo.has(w.ko)) {
+        usedKo.add(w.ko);
+        distinct.push(w);
+        if (distinct.length === 4) break;
+      }
+    }
+    n.opts = distinct.length === 4 ? distinct : shuffle(order.slice(0, 4));
+  } else {
+    n.opts = shuffle(order.slice(0, 4));
+  }
   drawOpts();
   drawBar();
   raf = requestAnimationFrame(tick);
@@ -270,14 +287,17 @@ function drawBar() {
   $('#ngField').style.setProperty('--p', done.toFixed(3));
 }
 function drawOpts() {
+  const isEnMode = n.mode === 'en';
   $('#ngOpts').innerHTML = n.opts.map((w, k) =>
-    `<button type="button" class="wg-opt ng-opt ${MATERIALS[k]}" data-k="${k}" lang="en"><span class="key" aria-hidden="true">${k + 1}</span><span class="lbl">${esc(w.en)}</span></button>`).join('');
+    `<button type="button" class="wg-opt ng-opt ${MATERIALS[k]}" data-k="${k}" ${isEnMode ? '' : 'lang="en"'}><span class="key" aria-hidden="true">${k + 1}</span><span class="lbl">${esc(isEnMode ? w.ko : w.en)}</span></button>`).join('');
 }
 function setOpt(k, w) {
   n.opts[k] = w;
   const b = $('#ngOpts').querySelector(`[data-k="${k}"]`);
   if (!b) return;
-  b.querySelector('.lbl').textContent = w.en;
+  const isEnMode = n.mode === 'en';
+  b.querySelector('.lbl').textContent = isEnMode ? w.ko : w.en;
+  if (isEnMode) b.removeAttribute('lang'); else b.setAttribute('lang', 'en');
   b.classList.remove('swap'); void b.offsetWidth; b.classList.add('swap');
 }
 
@@ -299,11 +319,13 @@ function spawn() {
   const base = SPEEDS[n.speed];
   const walk = base.walk * (1 - 0.28 * (n.spawned / TOTAL));     // 뒤로 갈수록 빨라짐
   const type = n.mobOrder[n.spawned % n.mobOrder.length];
+  const signText = n.mode === 'en' ? w.en : w.ko;
+  const isEnSign = n.mode === 'en';
   const el = document.createElement('div');
   el.className = `ng-mob lane${lane}`;
   el.setAttribute('role', 'img');
-  el.setAttribute('aria-label', `${type.name} · ${w.ko}`);
-  el.innerHTML = `<span class="ng-sign">${esc(w.ko)}</span>${type.svg}`;
+  el.setAttribute('aria-label', `${type.name} · ${signText}`);
+  el.innerHTML = `<span class="ng-sign"${isEnSign ? ' lang="en"' : ''}>${esc(signText)}</span>${type.svg}`;
   $('#ngField').appendChild(el);
   const m = { id: ++seq, w, type, lane, x: 0, walk, el, state: 'walk', bob: Math.random() * 6 };
   n.mobs.push(m);
@@ -326,7 +348,12 @@ function ensureAnswers() {
 function refreshOpt(k) {
   const inOpts = new Set(n.opts.map(o => o.key));
   const need = alive().map(m => m.w).filter(w => !inOpts.has(w.key));
-  const pool = need.length ? need : shuffle(n.order.filter(w => !inOpts.has(w.key)));
+  let pool = need.length ? need : shuffle(n.order.filter(w => !inOpts.has(w.key)));
+  if (n.mode === 'en') {
+    const currentKos = new Set(n.opts.map((o, idx) => idx !== k ? o.ko : null).filter(Boolean));
+    const nonDup = pool.filter(w => !currentKos.has(w.ko));
+    if (nonDup.length) pool = nonDup;
+  }
   if (pool.length) setOpt(k, pool[0]);
 }
 
@@ -395,7 +422,7 @@ function choose(k) {
     n.combo = 0;
     b.classList.remove('wrong'); void b.offsetWidth; b.classList.add('wrong');
     setTimeout(() => b.classList.remove('wrong'), 600);
-    $('#ngFb').innerHTML = `<b lang="en">${esc(w.en)}</b> = ${esc(w.ko)} · 이 뜻의 몹은 없어요`;
+    $('#ngFb').innerHTML = `<b lang="en">${esc(w.en)}</b> = ${esc(w.ko)} · 이 ${n.mode === 'en' ? '단어' : '뜻'}의 몹은 없어요`;
     return;
   }
   m.state = 'hit';

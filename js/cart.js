@@ -24,7 +24,11 @@ const CART = `<svg class="cart-svg" viewBox="0 -12 32 36" shape-rendering="crisp
 
 
 /* ---------- 시작·끝 ---------- */
-export function startCart(cx, mode, speed = 'normal') {
+export function startCart(cx, mode = 'ko', speed = 'normal') {
+  if (['slow', 'normal', 'fast'].includes(mode) && speed === 'normal') {
+    speed = mode;
+    mode = 'ko';
+  }
   ctx = cx;
   stopCart();
   const order = cx.pickWords(cx.words.length);
@@ -43,10 +47,12 @@ export function startCart(cx, mode, speed = 'normal') {
   $('#cartTrack').style.setProperty('--prop-shift', '0px');
   $('#cartOver').hidden = true;
   $('#cartFb').textContent = '';
-  $('#cartAsk').textContent = mode === 'listen' ? '들리는 단어 쪽으로 가요' : '이 뜻의 영어 단어 쪽으로 가요';
+  $('#cartAsk').textContent = mode === 'listen' ? '들리는 단어 쪽으로 가요' : mode === 'en' ? '이 단어의 한글 뜻 쪽으로 가요' : '이 뜻의 영어 단어 쪽으로 가요';
   $('#cartWord').hidden = mode === 'listen';
   $('#cartWord').textContent = '';
-  $('#cartSay').hidden = mode !== 'listen';
+  if (mode === 'en') $('#cartWord').setAttribute('lang', 'en');
+  else $('#cartWord').removeAttribute('lang');
+  $('#cartSay').hidden = mode === 'ko';
   $('#cartPick').innerHTML = '';
   $('#cartMe').innerHTML = CART;
   c.sprite = $('#cartMe .cart-svg');
@@ -93,10 +99,25 @@ function nextTarget() {
   return c.order[0];
 }
 function distractors(t) {
-  const others = shuffle(c.order.filter(w => w.key !== t.key && w.en.toLowerCase() !== t.en.toLowerCase()));
-  others.sort((a, b) => Math.abs(a.en.length - t.en.length) - Math.abs(b.en.length - t.en.length));
+  const isEn = c.mode === 'en';
+  const others = shuffle(c.order.filter(w => {
+    if (w.key === t.key) return false;
+    if (isEn) return w.ko !== t.ko;
+    return w.en.toLowerCase() !== t.en.toLowerCase();
+  }));
+  others.sort((a, b) => {
+    if (isEn) return Math.abs(a.ko.length - t.ko.length) - Math.abs(b.ko.length - t.ko.length);
+    return Math.abs(a.en.length - t.en.length) - Math.abs(b.en.length - t.en.length);
+  });
   const out = [];
-  for (const w of others) { if (!out.some(o => o.en.toLowerCase() === w.en.toLowerCase())) out.push(w); if (out.length === 2) break; }
+  for (const w of others) {
+    if (isEn) {
+      if (!out.some(o => o.ko === w.ko)) out.push(w);
+    } else {
+      if (!out.some(o => o.en.toLowerCase() === w.en.toLowerCase())) out.push(w);
+    }
+    if (out.length === 2) break;
+  }
   return out;
 }
 function spawnGate() {
@@ -107,19 +128,20 @@ function spawnGate() {
   const track = $('#cartTrack');
   const el = document.createElement('div');
   el.className = 'cart-gate';
+  const isEn = c.mode === 'en';
   el.innerHTML = words.map((w, l) => `<div class="cart-sign ${LANE_CLS[l]}" style="top:${(LANE_Y[l] * 100).toFixed(1)}%">
-      ${w ? `<span class="post"></span><b lang="en">${esc(w.en)}</b>` : '<span class="cart-block-sign"></span>'}</div>`).join('');
+      ${w ? `<span class="post"></span><b${isEn ? '' : ' lang="en"'}>${esc(isEn ? w.ko : w.en)}</b>` : '<span class="cart-block-sign"></span>'}</div>`).join('');
   track.appendChild(el);
   c.gate = { target, words, answer, el, x: track.clientWidth + 30, done: false };
-  $('#cartWord').textContent = target.ko;
+  $('#cartWord').textContent = isEn ? target.en : target.ko;
   const sign = $('#cartSign');
   sign.classList.remove('pop'); void sign.offsetWidth; sign.classList.add('pop');
-  $('#cartPick').innerHTML = words.map((w, l) => `<button type="button" class="cart-btn ${LANE_CLS[l]} ${l === c.lane ? 'on' : ''}" data-lane="${l}" ${w ? '' : 'disabled'} ${w ? 'lang="en"' : ''}>
-      <span class="key" aria-hidden="true">${l + 1}</span><span class="lbl">${w ? esc(w.en) : '막힌 길'}</span></button>`).join('') +
+  $('#cartPick').innerHTML = words.map((w, l) => `<button type="button" class="cart-btn ${LANE_CLS[l]} ${l === c.lane ? 'on' : ''}" data-lane="${l}" ${w ? '' : 'disabled'} ${w && !isEn ? 'lang="en"' : ''}>
+      <span class="key" aria-hidden="true">${l + 1}</span><span class="lbl">${w ? esc(isEn ? w.ko : w.en) : '막힌 길'}</span></button>`).join('') +
     `<button type="button" class="cart-dash" data-dash><span class="key" aria-hidden="true">Space</span>출발!</button>`;
   c.dash = false;
   $('#cartField').classList.remove('dash');
-  if (c.mode === 'listen') ctx.say(target.en);
+  if (c.mode === 'listen' || c.mode === 'en') ctx.say(target.en);
   placeGate();
   drawCart();
   drawBar();

@@ -471,6 +471,18 @@ kbd { font-family: var(--f-pixel); font-size: 12px; border: 2px solid var(--edge
 .wg-art-quiz .ops i:nth-child(3) { background: var(--gold); }
 .wg-art-quiz .ops i:nth-child(4) { background: var(--dirt); }
 
+/* 게임 빠르기 선택 */
+.wg-speed-row { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+.wg-speed-lab { font-family: var(--f-display); font-size: 15px; color: var(--muted); }
+.wg-speed-picks { display: inline-flex; border: 2px solid var(--edge); background: var(--panel-2); }
+.wg-speed-picks .sp-btn {
+  font-family: var(--f-display); font-size: 15px; border: 0; padding: 4px 10px; min-height: 36px;
+  background: transparent; color: var(--muted); cursor: pointer; transition: background .12s, color .12s;
+}
+.wg-speed-picks .sp-btn + .sp-btn { border-left: 2px solid var(--edge); }
+.wg-speed-picks .sp-btn.on { background: var(--gold); color: var(--gold-ink); font-weight: 700; }
+@media (pointer: coarse) { .wg-speed-picks .sp-btn { min-height: 42px; padding: 4px 12px; } }
+
 /* 게임 판의 시작 버튼: 누르면 바로 시작 */
 .wg-go { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
 .wg-go button { flex: 1 1 0; min-width: 118px; white-space: nowrap; min-height: 58px; padding: 8px 10px 12px; font-family: var(--f-display); font-size: 21px; cursor: pointer;

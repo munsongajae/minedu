@@ -81,6 +81,25 @@ function renderHome() {
   $('#wordList').innerHTML = words.map(w => `<li class="${known(w) ? 'known' : ''}">
     <button type="button" class="wl-say" data-say="${esc(w.en)}" aria-label="${esc(w.en)} 듣기"></button>
     <b lang="en">${esc(w.en)}</b><span>${esc(w.ko)}</span></li>`).join('');
+  syncSpeedButtons();
+}
+
+const speeds = { cart: 'normal', night: 'normal' };
+try {
+  if (localStorage.getItem('cartSpeed')) speeds.cart = localStorage.getItem('cartSpeed');
+  if (localStorage.getItem('nightSpeed')) speeds.night = localStorage.getItem('nightSpeed');
+} catch {}
+
+function syncSpeedButtons() {
+  ['cart', 'night'].forEach(g => {
+    const group = document.querySelector(`.wg-speed-picks[data-game="${g}"]`);
+    if (!group) return;
+    group.querySelectorAll('.sp-btn').forEach(b => {
+      const on = b.dataset.speed === speeds[g];
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-pressed', String(on));
+    });
+  });
 }
 
 $('#proj').addEventListener('change', renderHome);
@@ -91,20 +110,35 @@ $('#openList').addEventListener('click', () => {
 });
 $('#wordList').addEventListener('click', (e) => { const b = e.target.closest('[data-say]'); if (b) say(b.dataset.say); });
 $('#games').addEventListener('click', (e) => {
+  const spBtn = e.target.closest('.sp-btn');
+  if (spBtn) {
+    const group = spBtn.closest('.wg-speed-picks');
+    const g = group?.dataset.game;
+    if (g && ['cart', 'night'].includes(g)) {
+      speeds[g] = spBtn.dataset.speed || 'normal';
+      group.querySelectorAll('.sp-btn').forEach(b => {
+        const on = b === spBtn;
+        b.classList.toggle('on', on);
+        b.setAttribute('aria-pressed', String(on));
+      });
+      try { localStorage.setItem(`${g}Speed`, speeds[g]); } catch {}
+    }
+    return;
+  }
   const b = e.target.closest('[data-go]');
   if (!b || b.disabled) return;
   if (b.dataset.go === 'match') startMatch(Number(b.dataset.pairs));
   else if (b.dataset.go === 'mine') goMine(b.dataset.mode);
-  else if (b.dataset.go === 'night') goNight(b.dataset.speed);
-  else if (b.dataset.go === 'cart') goCart(b.dataset.mode, b.dataset.speed);
+  else if (b.dataset.go === 'night') goNight(b.dataset.mode || 'ko', b.dataset.speed || speeds.night || 'normal');
+  else if (b.dataset.go === 'cart') goCart(b.dataset.mode || 'ko', b.dataset.speed || speeds.cart || 'normal');
   else startQuiz(b.dataset.dir);
 });
 $('#again').addEventListener('click', () => {
   if (!last) return show('home');
   if (last.kind === 'match') startMatch(last.pairs);
   else if (last.kind === 'mine') goMine(last.mode);
-  else if (last.kind === 'night') goNight(last.speed);
-  else if (last.kind === 'cart') goCart(last.mode, last.speed);
+  else if (last.kind === 'night') goNight(last.mode || 'ko', last.speed || speeds.night || 'normal');
+  else if (last.kind === 'cart') goCart(last.mode || 'ko', last.speed || speeds.cart || 'normal');
   else startQuiz(last.dir);
 });
 $('#home2').addEventListener('click', () => { show('home'); renderHome(); });
@@ -321,10 +355,10 @@ async function finishMine(r) {
 }
 
 /* ---------- 밤을 지켜라 ---------- */
-function goNight(speed) {
-  last = { kind: 'night', speed };
+function goNight(mode = 'ko', speed = 'normal') {
+  last = { kind: 'night', mode, speed };
   show('night');
-  startNight({ words, pickWords, recordWord, say, onEnd: finishNight }, speed);
+  startNight({ words, pickWords, recordWord, say, onEnd: finishNight }, mode, speed);
   $('#night').scrollIntoView({ block: 'start' });
 }
 async function finishNight(r) {
@@ -339,7 +373,7 @@ async function finishNight(r) {
 }
 
 /* ---------- 광산 수레 달리기 ---------- */
-function goCart(mode, speed) {
+function goCart(mode = 'ko', speed = 'normal') {
   last = { kind: 'cart', mode, speed };
   show('cart');
   startCart({ words, pickWords, recordWord, say, onEnd: finishCart }, mode, speed);

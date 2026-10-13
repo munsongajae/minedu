@@ -43,12 +43,19 @@
           <span class="art-cart"><svg class="cart-svg" viewBox="0 -12 32 36" shape-rendering="crispEdges" aria-hidden="true"><g class="wheel-axle" transform="translate(6 19)"><path class="wheel" d="M-3-2-2-3H2L3-2V2L2 3H-2L-3 2Z"/><path class="wheel-rim" d="M-2-2H2V2H-2Z"/><g class="wheel-turn"><path class="wheel-spoke" d="M-.5-2.5H.5V2.5H-.5ZM-2.5-.5H2.5V.5H-2.5Z"/><rect class="hub" x="-1" y="-1" width="2" height="2"/></g></g><g class="wheel-axle" transform="translate(25 21)"><path class="wheel" d="M-3-2-2-3H2L3-2V2L2 3H-2L-3 2Z"/><path class="wheel-rim" d="M-2-2H2V2H-2Z"/><g class="wheel-turn"><path class="wheel-spoke" d="M-.5-2.5H.5V2.5H-.5ZM-2.5-.5H2.5V.5H-2.5Z"/><rect class="hub" x="-1" y="-1" width="2" height="2"/></g></g><path class="rim" d="M0 3 9-1 32 3 23 8Z"/><path class="inside" d="M4 3 10 1 27 4 22 6Z"/><g class="player"><path class="shirt" d="M9-1h11v9H9zM7 0h3v5H7zM20 1h3v5h-3z"/><path class="skin" d="M11-10h8v9h-8zM7 4h3v3H7zM20 5h3v3h-3z"/><path class="skin-side" d="m19-10 3 2v9l-3-2z"/><path class="hair" d="M11-10h8v3h-8zM11-7h1v2h-1zM18-7h1v2h-1zM19-10l3 2v3l-3-2z"/><path class="eye-white" d="M12-5h2v1h-2zM16-5h2v1h-2z"/><path class="eyes" d="M13-5h1v1h-1zM16-5h1v1h-1z"/><path class="beard" d="M13-2h4v1h-4zM12-3h1v2h-1zM17-3h1v2h-1z"/></g><g class="load"><g class="gem on g" data-n="0"><path d="m5 1 2-1 2 1v3l-2 1-2-1Z"/><path class="gem-shine" d="M6 1h1v2h-1z"/></g><g class="gem on d" data-n="1"><path d="m8 2 2-1 2 1v3l-2 1-2-1Z"/><path class="gem-shine" d="M9 2h1v2h-1z"/></g><g class="gem on o" data-n="2"><path d="m21 2 2-1 2 1v3l-2 1-2-1Z"/><path class="gem-shine" d="M22 2h1v2h-1z"/></g><g class="gem on d" data-n="3"><path d="m24 1 2-1 2 1v3l-2 1-2-1Z"/><path class="gem-shine" d="M25 1h1v2h-1z"/></g><g class="gem on o" data-n="4"><path d="m3 0 2-1 2 1v3l-2 1-2-1Z"/><path class="gem-shine" d="M4 0h1v2h-1z"/></g><g class="gem on g" data-n="5"><path d="m6 -1 2-1 2 1v3l-2 1-2-1Z"/><path class="gem-shine" d="M7 -1h1v2h-1z"/></g><g class="gem on d" data-n="6"><path d="m23 -1 2-1 2 1v3l-2 1-2-1Z"/><path class="gem-shine" d="M24 -1h1v2h-1z"/></g><g class="gem on g" data-n="7"><path d="m26 0 2-1 2 1v3l-2 1-2-1Z"/><path class="gem-shine" d="M27 0h1v2h-1z"/></g></g><path class="body" d="M0 5 23 9V20L0 16Z"/><path class="side" d="M23 9 32 4V16L23 20Z"/><path class="shade" d="M0 14 23 18V20L0 16Z"/><path class="panel" d="m4 8 15 3v5L4 13Z"/><path class="shine" d="M0 4 23 8v2L1 6Zm23 4 9-4v2l-9 4Z"/><g class="bolt"><path d="M3 7h1v1H3zM20 10h1v1h-1zM3 13h1v1H3zM20 16h1v1h-1zM27 8h1v1h-1zM26 14h1v1h-1z"/></g></svg></span>
         </div>
         <h2>광산 수레 달리기 <small class="wg-new">새 게임</small></h2>
-        <p>횃불이 흔들리는 광산을 달려요. 큰 단어 간판을 보고 뜻에 맞는 레일을 고르고, 출발!</p>
+        <p>횃불이 흔들리는 광산을 달려요. 큰 단어 간판을 보고 맞는 레일을 고르고, 출발!</p>
+        <div class="wg-speed-row">
+          <span class="wg-speed-lab">빠르기</span>
+          <div class="wg-speed-picks" data-game="cart" role="group" aria-label="수레 빠르기">
+            <button type="button" class="sp-btn" data-speed="slow">천천히</button>
+            <button type="button" class="sp-btn on" data-speed="normal" aria-pressed="true">보통</button>
+            <button type="button" class="sp-btn" data-speed="fast">빨리</button>
+          </div>
+        </div>
         <div class="wg-go" role="group" aria-label="광산 수레 달리기 시작">
-          <button type="button" data-go="cart" data-mode="ko" data-speed="slow">천천히</button>
-          <button type="button" data-go="cart" data-mode="ko" data-speed="normal">보통</button>
-          <button type="button" data-go="cart" data-mode="ko" data-speed="fast">빨리</button>
-          <button type="button" data-go="cart" data-mode="listen" data-speed="normal" id="cartListen">듣고 달리기</button>
+          <button type="button" data-go="cart" data-mode="ko">뜻 보고 달리기</button>
+          <button type="button" data-go="cart" data-mode="en">영어 보고 달리기</button>
+          <button type="button" data-go="cart" data-mode="listen" id="cartListen">듣고 달리기</button>
         </div>
       </article>
       <article class="wg-game g-mine">
@@ -74,11 +81,18 @@
           <span class="art-house"><svg class="ng-house-svg" viewBox="0 0 16 15" shape-rendering="crispEdges" aria-hidden="true"><g class="roof"><rect x="7" y="0" width="2" height="1"/><rect x="5" y="1" width="6" height="1"/><rect x="3" y="2" width="10" height="1"/><rect x="1" y="3" width="14" height="1"/><rect x="0" y="4" width="16" height="1"/></g><g class="wall"><rect x="1" y="5" width="14" height="10"/></g><g class="plank"><rect x="1" y="8" width="14" height="1"/><rect x="1" y="11" width="14" height="1"/></g><g class="door"><rect x="9" y="9" width="4" height="6"/></g><g class="win"><rect x="3" y="6" width="4" height="4"/></g><g class="frame"><rect x="4" y="6" width="1" height="4"/><rect x="3" y="7" width="4" height="1"/></g></svg></span>
         </div>
         <h2>밤을 지켜라</h2>
-        <p>좀비·스켈레톤·크리퍼·엔더맨이 뜻을 들고 집으로 와요. 맞는 영어 단어를 눌러 막아요. 자신 있으면 몹을 불러요!</p>
+        <p>좀비·스켈레톤·크리퍼·엔더맨이 간판을 들고 집으로 와요. 맞는 단어를 눌러 막아요. 자신 있으면 몹을 불러요!</p>
+        <div class="wg-speed-row">
+          <span class="wg-speed-lab">빠르기</span>
+          <div class="wg-speed-picks" data-game="night" role="group" aria-label="밤 빠르기">
+            <button type="button" class="sp-btn" data-speed="slow">천천히</button>
+            <button type="button" class="sp-btn on" data-speed="normal" aria-pressed="true">보통</button>
+            <button type="button" class="sp-btn" data-speed="fast">빨리</button>
+          </div>
+        </div>
         <div class="wg-go" role="group" aria-label="밤을 지켜라 시작">
-          <button type="button" data-go="night" data-speed="slow">천천히</button>
-          <button type="button" data-go="night" data-speed="normal">보통</button>
-          <button type="button" data-go="night" data-speed="fast">빨리</button>
+          <button type="button" data-go="night" data-mode="ko">뜻 보고 막기</button>
+          <button type="button" data-go="night" data-mode="en">영어 보고 막기</button>
         </div>
       </article>
       <article class="wg-game g-match">

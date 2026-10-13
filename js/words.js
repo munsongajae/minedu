@@ -96,7 +96,7 @@ $('#games').addEventListener('click', (e) => {
   if (b.dataset.go === 'match') startMatch(Number(b.dataset.pairs));
   else if (b.dataset.go === 'mine') goMine(b.dataset.mode);
   else if (b.dataset.go === 'night') goNight(b.dataset.speed);
-  else if (b.dataset.go === 'cart') goCart(b.dataset.mode);
+  else if (b.dataset.go === 'cart') goCart(b.dataset.mode, b.dataset.speed);
   else startQuiz(b.dataset.dir);
 });
 $('#again').addEventListener('click', () => {
@@ -104,7 +104,7 @@ $('#again').addEventListener('click', () => {
   if (last.kind === 'match') startMatch(last.pairs);
   else if (last.kind === 'mine') goMine(last.mode);
   else if (last.kind === 'night') goNight(last.speed);
-  else if (last.kind === 'cart') goCart(last.mode);
+  else if (last.kind === 'cart') goCart(last.mode, last.speed);
   else startQuiz(last.dir);
 });
 $('#home2').addEventListener('click', () => { show('home'); renderHome(); });
@@ -339,10 +339,10 @@ async function finishNight(r) {
 }
 
 /* ---------- 광산 수레 달리기 ---------- */
-function goCart(mode) {
-  last = { kind: 'cart', mode };
+function goCart(mode, speed) {
+  last = { kind: 'cart', mode, speed };
   show('cart');
-  startCart({ words, pickWords, recordWord, say, onEnd: finishCart }, mode);
+  startCart({ words, pickWords, recordWord, say, onEnd: finishCart }, mode, speed);
   $('#cart').scrollIntoView({ block: 'start' });
 }
 async function finishCart(r) {
@@ -351,7 +351,7 @@ async function finishCart(r) {
   await reward(gems);
   showDone({
     title: r.win ? (r.hearts === 3 ? '한 번도 안 부딪히고 도착했어요!' : '끝까지 도착했어요!') : '다음엔 꼭 도착해요!',
-    text: `갈림길 ${r.total}개 중 ${r.right}개를 맞는 길로 지나갔어요.${r.best >= 3 ? ` 가장 길게 ${r.best}번 연속으로 맞혔어요.` : ''}`,
+    text: `갈림길 ${r.total}개 중 ${r.right}개를 맞는 길로 지나갔어요.${r.win ? ` ${Math.floor(r.sec / 60) ? `${Math.floor(r.sec / 60)}분 ` : ''}${r.sec % 60}초 걸렸어요.` : ''}${r.best >= 3 ? ` 가장 길게 ${r.best}번 연속으로 맞혔어요.` : ''}`,
     gems, missed: r.missed
   });
 }

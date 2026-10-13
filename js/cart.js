@@ -2,14 +2,17 @@
 // 간판(위)의 한글 뜻(또는 들려준 영어)에 맞는 줄로 수레를 옮겨 두면 통과하며 보석을 싣는다.
 //   - 줄 옮기기: 아래 단어 버튼, 선로를 직접 누르기, PC는 1·2·3 / ↑·↓.
 //   - 틀린 줄이면 돌 블록에 부딪혀 하트 -1(3개), 그 단어는 '틀림'. 하트가 다 없어지면 끝.
-//   - 갈림길 12개를 지나면 도착. 맞힐수록 조금씩 빨라진다.
+//   - 갈림길 12개를 지나면 도착. 맞힐수록 조금씩 빨라진다(천천히·보통·빨리에 따라 시작 빠르기가 다름).
+//   - 줄을 골랐으면 '출발!'(PC는 Space·Enter)로 갈림길을 바로 당겨 올 수 있다. 끝나면 걸린 시간을 보여 준다.
 // 수레·선로·갱도 그림은 직접 만든 일반 그림.
 import { $, esc, shuffle } from './learn.js';
 import { sfx } from './sfx.js';
 import { HEART } from './night.js';
 
 const TOTAL = 12, HEARTS = 3, LANES = 3;
-const T_START = 6.2, T_MIN = 3.6, T_STEP = 0.25;   // 갈림길이 나타나서 수레에 닿기까지 걸리는 초
+// 갈림길이 나타나서 수레에 닿기까지 걸리는 초: 처음, 가장 빠를 때. 맞히면 STEP만큼 줄고 틀리면 늘어난다.
+const SPEEDS = { slow: { start: 6.0, min: 4.2 }, normal: { start: 4.6, min: 3.0 }, fast: { start: 3.4, min: 2.2 } };
+const T_STEP = 0.2, DASH = 4, GAP = 0.45;           // DASH: '출발!'을 누르면 몇 배 빨리, GAP: 다음 갈림길까지 쉬는 초
 const LANE_Y = [0.24, 0.53, 0.82];                 // 줄 가운데 높이(선로 칸 높이 비율)
 const LANE_CLS = ['l0', 'l1', 'l2'];
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -31,13 +34,14 @@ const CART = (() => {
 })();
 
 /* ---------- 시작·끝 ---------- */
-export function startCart(cx, mode) {
+export function startCart(cx, mode, speed = 'normal') {
   ctx = cx;
   stopCart();
   const order = cx.pickWords(cx.words.length);
+  const sp = SPEEDS[speed] || SPEEDS.normal;
   c = {
-    mode, order, oi: 0, t: 0, last: 0, over: false, scroll: 0,
-    lane: 1, gate: null, nextAt: 0.6, passed: 0, right: 0, hearts: HEARTS, T: T_START,
+    mode, sp, order, oi: 0, t: 0, last: 0, over: false, scroll: 0, dash: false,
+    lane: 1, gate: null, nextAt: 0.6, passed: 0, right: 0, hearts: HEARTS, T: sp.start,
     missed: [], combo: 0, best: 0
   };
   const field = $('#cartField');
@@ -112,7 +116,10 @@ function spawnGate() {
   const sign = $('#cartSign');
   sign.classList.remove('pop'); void sign.offsetWidth; sign.classList.add('pop');
   $('#cartPick').innerHTML = words.map((w, l) => `<button type="button" class="cart-btn ${LANE_CLS[l]} ${l === c.lane ? 'on' : ''}" data-lane="${l}" ${w ? '' : 'disabled'} ${w ? 'lang="en"' : ''}>
-      <span class="key" aria-hidden="true">${l + 1}</span><span class="lbl">${w ? esc(w.en) : '막힌 길'}</span></button>`).join('');
+      <span class="key" aria-hidden="true">${l + 1}</span><span class="lbl">${w ? esc(w.en) : '막힌 길'}</span></button>`).join('') +
+    `<button type="button" class="cart-dash" data-dash><span class="key" aria-hidden="true">Space</span>출발!</button>`;
+  c.dash = false;
+  $('#cartField').classList.remove('dash');
   if (c.mode === 'listen') ctx.say(target.en);
   placeGate();
   drawBar();
@@ -129,7 +136,8 @@ function tick(now) {
   c.t += dt;
   const track = $('#cartTrack');
   const W = track.clientWidth;
-  const v = (W + 30 - cartFront()) / c.T;                           // 화면이 흘러가는 빠르기(px/초)
+  const fast = c.dash && c.gate && !c.gate.done ? DASH : 1;
+  const v = (W + 30 - cartFront()) / c.T * fast;                    // 화면이 흘러가는 빠르기(px/초)
   c.scroll += v * dt;
   track.style.setProperty('--s', c.scroll.toFixed(1));
   if (!c.gate && c.passed < TOTAL && c.t >= c.nextAt) spawnGate();
@@ -155,9 +163,21 @@ function setLane(l) {
   drawCart();
 }
 
+// '출발!': 줄을 골랐으면 갈림길을 바로 당겨 온다.
+function dash() {
+  if (!c || c.over || !c.gate || c.gate.done || c.dash) return;
+  c.dash = true;
+  sfx('switch');
+  $('#cartField').classList.add('dash');
+  const b = $('#cartPick [data-dash]');
+  if (b) b.disabled = true;
+}
+
 function resolve() {
   const g = c.gate;
   g.done = true;
+  c.dash = false;
+  $('#cartField').classList.remove('dash');
   c.passed++;
   const ok = c.lane === g.answer;
   const t = g.target;
@@ -166,7 +186,7 @@ function resolve() {
   document.querySelectorAll('#cartPick button').forEach(b => { b.disabled = true; b.classList.toggle('right', Number(b.dataset.lane) === g.answer); });
   if (ok) {
     c.right++; c.combo++; c.best = Math.max(c.best, c.combo);
-    c.T = Math.max(T_MIN, c.T - T_STEP);
+    c.T = Math.max(c.sp.min, c.T - T_STEP);
     sfx('ding');
     ctx.recordWord(t, true);
     if (c.mode !== 'listen') ctx.say(t.en);
@@ -174,7 +194,7 @@ function resolve() {
     $('#cartFb').innerHTML = `<b lang="en">${esc(t.en)}</b> = ${esc(t.ko)}${c.combo >= 3 ? ` · ${c.combo}연속!` : ''}`;
   } else {
     c.hearts--; c.combo = 0;
-    c.T = Math.min(T_START, c.T + T_STEP);
+    c.T = Math.min(c.sp.start, c.T + T_STEP);
     sfx('crash');
     ctx.recordWord(t, false);
     c.missed.push(t);
@@ -194,8 +214,8 @@ function resolve() {
     if (!c || c.over) return;
     if (c.gate === g) c.gate = null;
     if (c.passed >= TOTAL) return finish(true);
-    c.nextAt = c.t + 0.15;
-  }, 900);
+    c.nextAt = c.t + GAP;
+  }, 650);
 }
 
 function flyGem(sign) {
@@ -224,12 +244,13 @@ function finish(win) {
   over.querySelector('p').textContent = win ? '도착했어요!' : '수레가 멈췄어요!';
   over.hidden = false;
   sfx(win ? 'win' : 'end');
-  const r = { win, right: c.right, hearts: c.hearts, best: c.best, missed: c.missed, total: TOTAL };
+  const r = { win, right: c.right, hearts: c.hearts, best: c.best, missed: c.missed, total: TOTAL, sec: Math.round(c.t) };
   setTimeout(() => { if (ctx) ctx.onEnd(r); }, 1700);
 }
 
 /* ---------- 누르기 ---------- */
 $('#cartPick').addEventListener('click', (e) => {
+  if (e.target.closest('[data-dash]')) return dash();
   const b = e.target.closest('[data-lane]');
   if (b && !b.disabled) setLane(Number(b.dataset.lane));
 });
@@ -247,5 +268,6 @@ document.addEventListener('keydown', (e) => {
   if (k >= 1 && k <= 3) { setLane(k - 1); e.preventDefault(); }
   else if (e.key === 'ArrowUp') { setLane(c.lane - 1); e.preventDefault(); }
   else if (e.key === 'ArrowDown') { setLane(c.lane + 1); e.preventDefault(); }
+  else if (e.key === ' ' || e.key === 'Enter' || e.key === 'ArrowRight') { dash(); e.preventDefault(); }
 });
 addEventListener('resize', () => { if (c && !c.over) drawCart(); });

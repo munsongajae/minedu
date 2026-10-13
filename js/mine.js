@@ -4,6 +4,7 @@
 //   한 문제에서 7초 동안 못 찾으면 맞는 블록이 반짝여서 알려 준다(이것도 '틀림').
 // 블록 그림은 직접 만든 돌·광물 무늬(공식 텍스처 아님).
 import { $, esc, shuffle } from './learn.js';
+import { sfx } from './sfx.js';
 
 const DUR = 60;          // 초
 const HITS = 3;          // 캐는 데 두드리는 횟수
@@ -16,40 +17,6 @@ const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
 let m = null;            // 지금 게임
 let ctx = null;          // words.js가 넘겨주는 것: words, pickWords, recordWord, say, onEnd
 let raf = 0, seq = 0;
-
-/* ---------- 효과음(WebAudio로 직접 만든 짧은 소리) ---------- */
-let ac = null, noise = null;
-function sfx(kind) {
-  try {
-    ac = ac || new (window.AudioContext || window.webkitAudioContext)();
-    if (ac.state === 'suspended') ac.resume();
-    if (!noise) {
-      noise = ac.createBuffer(1, ac.sampleRate * 0.3, ac.sampleRate);
-      const d = noise.getChannelData(0);
-      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-    }
-    const t = ac.currentTime;
-    const out = ac.createGain(); out.connect(ac.destination);
-    const burst = (dur, freq, q, vol) => {
-      const src = ac.createBufferSource(); src.buffer = noise;
-      const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = q;
-      const g = ac.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
-      src.connect(f).connect(g).connect(out); src.start(t); src.stop(t + dur);
-    };
-    const tone = (type, f0, f1, dur, vol, at = 0) => {
-      const o = ac.createOscillator(); o.type = type;
-      o.frequency.setValueAtTime(f0, t + at); o.frequency.exponentialRampToValueAtTime(f1, t + at + dur);
-      const g = ac.createGain(); g.gain.setValueAtTime(0.0001, t + at); g.gain.linearRampToValueAtTime(vol, t + at + 0.01);
-      g.gain.exponentialRampToValueAtTime(0.001, t + at + dur);
-      o.connect(g).connect(out); o.start(t + at); o.stop(t + at + dur + 0.02);
-    };
-    if (kind === 'hit') burst(0.07, 2200, 1.2, 0.35);
-    else if (kind === 'break') { burst(0.18, 700, 0.8, 0.45); tone('square', 660, 1320, 0.12, 0.05, 0.05); }
-    else if (kind === 'bad') tone('triangle', 180, 120, 0.16, 0.18);
-    else if (kind === 'tink') burst(0.04, 4000, 2, 0.15);
-    else if (kind === 'end') { tone('triangle', 784, 784, 0.18, 0.12); tone('triangle', 659, 659, 0.18, 0.12, 0.18); tone('triangle', 523, 523, 0.35, 0.12, 0.36); }
-  } catch (e) { /* 소리가 안 되는 기기 */ }
-}
 
 /* ---------- 시작·끝 ---------- */
 export function startMine(c, mode) {

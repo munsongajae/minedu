@@ -26,6 +26,10 @@
   --ore-diamond: #4fd0dc; --ore-coal: #232220; --ore-iron: #e4c29c;
   --mine-day-top: #5fa9de; --mine-day: #bfe3f5; --mine-dusk-top: #2f2a66; --mine-dusk: #ef8a4c;
   --mine-sun: #ffd84a; --mine-night: rgba(18, 16, 44, .72);
+  /* 밤을 지켜라: 밤하늘·땅·유령·새벽 */
+  --night-top: #0b0e2a; --night-low: #2b3170; --night-grass: #2c5e2f; --night-field: #1b3a20;
+  --moon: #f3efd2; --ghost: #7d64c4; --ghost-dark: #57409a; --ghost-eye: #ffe45c;
+  --dawn-top: #f6b48a; --dawn: #ffe2a8;
   --f-display: "Do Hyeon", "Jua", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
   --f-body: "Gowun Dodum", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
   --f-kid: "Jua", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
@@ -406,6 +410,7 @@ kbd { font-family: var(--f-pixel); font-size: 12px; border: 2px solid var(--edge
 .g-match .wg-go button { background: var(--gold); color: var(--gold-ink); }
 .g-quiz .wg-go button { background: var(--helper-edge); color: var(--on-color); }
 .g-mine .wg-go button { background: var(--stone-dark); color: var(--on-color); }
+.g-night .wg-go button { background: var(--ghost-dark); color: var(--on-color); }
 .wg-go button:hover:not(:disabled) { filter: brightness(1.06); }
 .wg-go button:active:not(:disabled) { transform: translateY(3px); box-shadow: inset 0 -2px 0 var(--shade); }
 .wg-go button:disabled { opacity: .45; cursor: not-allowed; }
@@ -522,15 +527,6 @@ kbd { font-family: var(--f-pixel); font-size: 12px; border: 2px solid var(--edge
 .ore-ico { display: inline-block; width: 30px; height: 30px; border: 2px solid var(--edge); box-shadow: inset 0 -3px 0 var(--shade);
   background-size: 22% 22%, 16% 16%, 22% 22%, 16% 16%, 18% 18%, 20% 14%, 14% 20%, 18% 14%, 14% 18%; }
 
-/* 처음 화면 판: 넓게 한 줄 */
-.wg-games .g-mine { grid-column: 1 / -1; grid-template-columns: minmax(240px, 340px) 1fr; column-gap: 20px; }
-.g-mine > :not(.wg-art) { grid-column: 2; }
-.g-mine .wg-art { grid-row: 1 / span 3; height: auto; min-height: 150px; }
-@media (max-width: 900px) {
-  .wg-games .g-mine { grid-template-columns: 1fr; }
-  .g-mine > :not(.wg-art) { grid-column: auto; }
-  .g-mine .wg-art { grid-row: auto; height: 132px; min-height: 0; }
-}
 .wg-new { font-family: var(--f-display); font-size: 15px; vertical-align: 6px; margin-left: 6px; padding: 1px 8px 3px; background: var(--gold); color: var(--gold-ink); border: 2px solid var(--edge); }
 .wg-art-mine { background: linear-gradient(var(--mine-day-top), var(--mine-day) 52%, var(--grass) 52% 60%, var(--stone-dark) 60%); align-items: flex-end; padding-bottom: 12px; gap: 8px; }
 .wg-art-mine .sun { position: absolute; top: 14px; left: 16%; width: 22px; height: 22px; background: var(--mine-sun); border: 2px solid var(--edge); }
@@ -619,7 +615,105 @@ kbd { font-family: var(--f-pixel); font-size: 12px; border: 2px solid var(--edge
   .mine-pick { width: 64px; height: 64px; }
 }
 @media (max-width: 400px) { .mine-hot li { width: 46px; height: 46px; } .mine-hot li .ore-ico { width: 24px; height: 24px; } }
+/* ---------- 밤을 지켜라 ---------- */
+.ng-ghost .b { fill: var(--ghost); }
+.ng-ghost .s { fill: var(--ghost-dark); }
+.ng-ghost .e { fill: var(--ghost-eye); }
+.ng-ghost .m { fill: var(--night-top); }
+.ng-house-svg { width: 100%; height: auto; display: block; }
+.ng-house-svg .roof { fill: var(--redstone); }
+.ng-house-svg .wall { fill: var(--panel-2); }
+.ng-house-svg .plank { fill: var(--line); }
+.ng-house-svg .door { fill: var(--dirt); }
+.ng-house-svg .win { fill: var(--gold); }
+.ng-house-svg .frame { fill: var(--edge); }
+.ng-house-svg { filter: drop-shadow(2px 0 0 var(--edge)) drop-shadow(-2px 0 0 var(--edge)) drop-shadow(0 -2px 0 var(--edge)); }
+
+/* 처음 화면 판 그림 */
+.wg-art-night { justify-content: flex-start; align-items: flex-end; padding: 0 0 16px 18px; gap: 18px;
+  background: radial-gradient(circle at 30% 22%, var(--moon) 0 1.5px, transparent 2px), radial-gradient(circle at 62% 12%, var(--moon) 0 1.5px, transparent 2px),
+    radial-gradient(circle at 48% 34%, var(--moon) 0 1px, transparent 1.5px), linear-gradient(var(--night-top), var(--night-low) 70%, var(--night-grass) 70% 77%, var(--night-field) 77%); }
+.wg-art-night .moon { position: absolute; top: 12px; left: 52%; width: 26px; height: 26px; background: var(--moon); border: 2px solid var(--edge); box-shadow: inset -6px 0 0 var(--line); }
+.wg-art-night .art-ghost { display: grid; justify-items: center; gap: 3px; width: 52px; }
+.wg-art-night .art-ghost.far { width: 42px; margin-bottom: 14px; }
+.wg-art-night .art-sign { font-family: var(--f-kid); font-weight: 400; font-size: 17px; line-height: 1; padding: 2px 6px 3px; background: var(--panel); border: 2px solid var(--edge); }
+.wg-art-night .ng-ghost { width: 100%; height: auto; }
+.wg-art-night .art-house { position: absolute; right: 16px; bottom: 16px; width: 84px; }
+
+/* 게임 화면 */
+.wg-night { max-width: 940px; gap: 12px; }
+.ng-hearts { display: flex; gap: 4px; }
+.ng-hearts i { width: 32px; height: 28px; }
+.ng-hearts svg { width: 100%; height: 100%; display: block; fill: var(--redstone); filter: drop-shadow(1px 1px 0 var(--edge)); }
+.ng-hearts i.lost svg { fill: var(--line); opacity: .6; }
+.ng-count { font-family: var(--f-display); font-size: 22px; }
+.ng-count + .wg-quit { margin-left: auto; }
+.ng-field { --hz: 44%; position: relative; height: 380px; overflow: hidden; border: 3px solid var(--edge); box-shadow: 0 7px 0 var(--shade);
+  background:
+    radial-gradient(circle at 12% 18%, var(--moon) 0 1.5px, transparent 2px), radial-gradient(circle at 34% 9%, var(--moon) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 47% 26%, var(--moon) 0 1.5px, transparent 2px), radial-gradient(circle at 63% 12%, var(--moon) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 78% 30%, var(--moon) 0 1.5px, transparent 2px), radial-gradient(circle at 90% 8%, var(--moon) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 24% 38%, var(--moon) 0 1px, transparent 1.5px), radial-gradient(circle at 55% 40%, var(--moon) 0 1px, transparent 1.5px),
+    linear-gradient(var(--night-top), var(--night-low) var(--hz), var(--night-grass) var(--hz) calc(var(--hz) + 4%), var(--night-field) calc(var(--hz) + 4%)); }
+.ng-field::before { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 1.4s ease;
+  background: linear-gradient(var(--dawn-top), var(--dawn) var(--hz), var(--grass-hi) var(--hz) calc(var(--hz) + 4%), var(--grass) calc(var(--hz) + 4%)); }
+.ng-field.dawn::before { opacity: 1; }
+.ng-field::after { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 8; opacity: 0; box-shadow: inset 0 0 0 10px var(--redstone); }
+.ng-field.hurt::after { animation: ng-hurt .5s ease-out; }
+@keyframes ng-hurt { 20% { opacity: 1; } }
+.ng-moon { position: absolute; z-index: 1; top: 8%; left: calc(4% + var(--p, 0) * 78%); width: 44px; height: 44px; transition: left .6s ease;
+  background: var(--moon); border: 3px solid var(--edge); box-shadow: inset -10px 0 0 var(--line); }
+.ng-field.dawn .ng-moon { background: var(--mine-sun); box-shadow: inset -8px -8px 0 var(--gold); }
+.ng-house { position: absolute; z-index: 6; right: 2%; bottom: 18%; width: 130px; }
+.ng-field.hurt .ng-house { animation: wg-shake .4s; }
+.ng-mob { position: absolute; left: 0; animation: ng-in .5s ease-out; display: flex; flex-direction: column; align-items: center; gap: 4px; will-change: transform; pointer-events: none; }
+.ng-mob.lane0 { bottom: 40%; z-index: 2; }
+.ng-mob.lane1 { bottom: 21%; z-index: 3; }
+.ng-mob.lane2 { bottom: 3%; z-index: 4; }
+.ng-mob .ng-ghost { width: 66px; height: auto; display: block; filter: drop-shadow(0 0 6px var(--ghost)); }
+.ng-mob.lane0 .ng-ghost { width: 56px; }
+.ng-mob.lane2 .ng-ghost { width: 76px; }
+.ng-sign { font-family: var(--f-kid); font-size: 22px; line-height: 1.1; padding: 1px 8px 3px; max-width: 150px; text-align: center; overflow-wrap: anywhere;
+  background: var(--panel); color: var(--ink); border: 2px solid var(--edge); box-shadow: 0 3px 0 var(--dirt); }
+.ng-mob.pop .ng-ghost { animation: ng-pop .36s ease-out forwards; }
+.ng-mob.pop .ng-sign, .ng-mob.bump .ng-sign { transition: opacity .3s; opacity: 0; }
+.ng-mob.bump .ng-ghost { animation: ng-bump .36s ease-in forwards; }
+@keyframes ng-in { from { opacity: 0; } }
+@keyframes ng-pop { 40% { transform: scale(1.25); } to { transform: scale(.2); opacity: 0; } }
+@keyframes ng-bump { 40% { transform: translateX(14px) scale(1.1, .9); } to { transform: translateX(6px) scale(.4); opacity: 0; } }
+.ng-arrow { position: absolute; z-index: 7; width: 48px; height: 5px; margin: -2px 0 0 -24px; background: var(--dirt); border: 1px solid var(--edge); pointer-events: none; }
+.ng-arrow::after { content: ''; position: absolute; right: -9px; top: -5px; border: 6px solid transparent; border-left: 9px solid var(--stone-hi); }
+.ng-arrow::before { content: ''; position: absolute; left: -4px; top: -4px; width: 8px; height: 10px; background: var(--panel); border: 1px solid var(--edge); }
+.ng-bit { position: absolute; z-index: 5; width: 9px; height: 9px; background: var(--ghost); pointer-events: none; }
+.ng-bit.eye { background: var(--ghost-eye); }
+.ng-over { position: absolute; inset: 0; z-index: 9; display: grid; place-items: center; background: var(--mine-night); }
+.ng-field.dawn .ng-over { background: transparent; }
+.ng-over p { margin: 0; padding: 10px 26px 14px; font-family: var(--f-display); font-size: clamp(32px, 6vw, 50px); background: var(--panel); border: 3px solid var(--edge);
+  box-shadow: 0 6px 0 var(--dirt); animation: wg-pop .4s ease-out; }
+.ng-fb { margin: 0; min-height: 34px; text-align: center; font-family: var(--f-display); font-size: 22px; }
+.ng-fb b { font-family: var(--f-kid); font-weight: 400; font-size: 26px; color: var(--grass); }
+.ng-opts { gap: 12px; }
+.ng-opt { min-height: 76px; }
+.ng-opt.right::after { content: none; }
+.ng-opt.swap .lbl { animation: ng-swap .3s ease-out; display: inline-block; }
+@keyframes ng-swap { from { transform: translateY(10px); opacity: 0; } }
+@media (max-width: 600px) {
+  .ng-field { --hz: 34%; height: 300px; }
+  .ng-moon { width: 32px; height: 32px; top: 6%; }
+  .ng-mob.lane0 { bottom: 48%; }
+  .ng-mob.lane1 { bottom: 25%; }
+  .ng-house { width: 88px; }
+  .ng-mob .ng-ghost { width: 50px; }
+  .ng-mob.lane0 .ng-ghost { width: 42px; }
+  .ng-mob.lane2 .ng-ghost { width: 58px; }
+  .ng-sign { font-size: 18px; max-width: 110px; }
+  .ng-opts { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .ng-opt { min-height: 64px; font-size: 22px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .ng-mob.pop .ng-ghost, .ng-mob.bump .ng-ghost, .ng-field.hurt::after, .ng-field.hurt .ng-house, .ng-opt.swap .lbl { animation: none; }
+  .ng-mob.pop, .ng-mob.bump { opacity: 0; }
   .mine-block.hit, .mine-block.bad, .mine-block.fresh, .mine-block.hint, .mine-sign.pop, .mine-hot li.pop, .mine-pick.swing, .mine-time.low { animation: none; }
   .mine-block.broken { animation: none; opacity: 0; }
 }

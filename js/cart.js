@@ -4,7 +4,7 @@
 //   - 틀린 줄이면 돌 블록에 부딪혀 하트 -1(3개), 그 단어는 '틀림'. 하트가 다 없어지면 끝.
 //   - 갈림길 12개를 지나면 도착. 맞힐수록 조금씩 빨라진다(천천히·보통·빨리에 따라 시작 빠르기가 다름).
 //   - 줄을 골랐으면 '출발!'(PC는 Space·Enter)로 갈림길을 바로 당겨 올 수 있다. 끝나면 걸린 시간을 보여 준다.
-// 수레·선로·갱도 그림은 직접 만든 일반 그림.
+// 마인크래프트의 철제 수레·레일·광석·갱도를 직접 그린 픽셀 그림으로 표현한다.
 import { $, esc, shuffle } from './learn.js';
 import { sfx } from './sfx.js';
 import { HEART } from './night.js';
@@ -13,25 +13,14 @@ const TOTAL = 12, HEARTS = 3, LANES = 3;
 // 갈림길이 나타나서 수레에 닿기까지 걸리는 초: 처음, 가장 빠를 때. 맞히면 STEP만큼 줄고 틀리면 늘어난다.
 const SPEEDS = { slow: { start: 6.0, min: 4.2 }, normal: { start: 4.6, min: 3.0 }, fast: { start: 3.4, min: 2.2 } };
 const T_STEP = 0.2, DASH = 4, GAP = 0.45;           // DASH: '출발!'을 누르면 몇 배 빨리, GAP: 다음 갈림길까지 쉬는 초
-const LANE_Y = [0.24, 0.53, 0.82];                 // 줄 가운데 높이(선로 칸 높이 비율)
+const LANE_Y = [0.33, 0.62, 0.91];                 // 줄 가운데 높이(선로 칸 높이 비율)
 const LANE_CLS = ['l0', 'l1', 'l2'];
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 let c = null, ctx = null, raf = 0;
 
-// 수레(20×14, 위로 보석이 쌓일 자리 4칸)
-const CART = (() => {
-  const r = (x, y, w, h = 1) => `<rect x="${x}" y="${y}" width="${w}" height="${h}"/>`;
-  const gems = [[3, -2, 'g'], [6, -3, 'd'], [9, -2, 'g'], [12, -3, 'o'], [15, -2, 'd'], [5, -1, 'o'], [10, -1, 'd'], [14, -1, 'g']];
-  return `<svg class="cart-svg" viewBox="0 -4 20 18" shape-rendering="crispEdges" aria-hidden="true">
-    <g class="load">${gems.map(([x, y, k], i) => `<rect class="gem ${k}" data-n="${i}" x="${x}" y="${y}" width="3" height="${-y + 1}"/>`).join('')}</g>
-    <g class="rim">${r(0, 0, 20, 2)}</g>
-    <g class="body">${r(1, 2, 18)}${r(1, 3, 18)}${r(2, 4, 16)}${r(2, 5, 16)}${r(2, 6, 16)}${r(3, 7, 14)}${r(3, 8, 14)}${r(3, 9, 14)}</g>
-    <g class="shade">${r(3, 8, 14)}${r(3, 9, 14)}${r(16, 2, 2, 6)}</g>
-    <g class="band">${r(6, 2, 1, 8)}${r(13, 2, 1, 8)}</g>
-    <g class="wheel">${r(3, 10, 4, 4)}${r(13, 10, 4, 4)}</g>
-    <g class="hub">${r(4, 11, 2, 2)}${r(14, 11, 2, 2)}</g></svg>`;
-})();
+// 마인크래프트 광산 수레: 열린 철제 몸통·플레이어·보석을 직접 그린 픽셀 SVG.
+const CART = `<svg class="cart-svg" viewBox="0 -12 32 36" shape-rendering="crispEdges" aria-hidden="true"><g class="wheel"><path d="M3 15h6v7H3zM22 17h6v7h-6z"/></g><g class="hub"><path d="M5 17h2v3H5zM24 19h2v3h-2z"/></g><path class="rim" d="M0 3 9 0 32 4 23 8Z"/><path class="inside" d="M4 3 10 2 27 5 22 7Z"/><g class="player"><path class="shirt" d="M9-1h11v9H9zM7 0h3v5H7zM20 1h3v5h-3z"/><path class="skin" d="M11-10h8v9h-8zM7 4h3v3H7zM20 5h3v3h-3z"/><path class="skin-side" d="m19-10 3 2v9l-3-2z"/><path class="hair" d="M11-10h8v3h-8zM11-7h1v2h-1zM18-7h1v2h-1zM19-10l3 2v3l-3-2z"/><path class="eye-white" d="M12-5h2v1h-2zM16-5h2v1h-2z"/><path class="eyes" d="M13-5h1v1h-1zM16-5h1v1h-1z"/><path class="beard" d="M13-2h4v1h-4zM12-3h1v2h-1zM17-3h1v2h-1z"/></g><g class="load"><g class="gem g" data-n="0"><path d="m5 1 2-1 2 1v3l-2 1-2-1Z"/><path class="gem-shine" d="M6 1h1v2h-1z"/></g><g class="gem d" data-n="1"><path d="m8 2 2-1 2 1v3l-2 1-2-1Z"/><path class="gem-shine" d="M9 2h1v2h-1z"/></g><g class="gem o" data-n="2"><path d="m21 2 2-1 2 1v3l-2 1-2-1Z"/><path class="gem-shine" d="M22 2h1v2h-1z"/></g><g class="gem d" data-n="3"><path d="m24 1 2-1 2 1v3l-2 1-2-1Z"/><path class="gem-shine" d="M25 1h1v2h-1z"/></g><g class="gem o" data-n="4"><path d="m3 0 2-1 2 1v3l-2 1-2-1Z"/><path class="gem-shine" d="M4 0h1v2h-1z"/></g><g class="gem g" data-n="5"><path d="m6 -1 2-1 2 1v3l-2 1-2-1Z"/><path class="gem-shine" d="M7 -1h1v2h-1z"/></g><g class="gem d" data-n="6"><path d="m23 -1 2-1 2 1v3l-2 1-2-1Z"/><path class="gem-shine" d="M24 -1h1v2h-1z"/></g><g class="gem g" data-n="7"><path d="m26 0 2-1 2 1v3l-2 1-2-1Z"/><path class="gem-shine" d="M27 0h1v2h-1z"/></g></g><path class="body" d="m0 4 23 4v12L2 16Z"/><path class="side" d="m23 8 9-4-2 12-7 4Z"/><path class="shade" d="M2 14 23 18v2L2 16Z"/><path class="panel" d="m4 8 15 3v5L4 13Z"/><path class="shine" d="M0 4 23 8v2L1 6Zm23 4 9-4v2l-9 4Z"/><g class="bolt"><path d="M3 7h1v1H3zM20 10h1v1h-1zM3 13h1v1H3zM20 16h1v1h-1zM27 8h1v1h-1zM26 14h1v1h-1z"/></g></svg>`;
 
 /* ---------- 시작·끝 ---------- */
 export function startCart(cx, mode, speed = 'normal') {
@@ -46,7 +35,10 @@ export function startCart(cx, mode, speed = 'normal') {
   };
   const field = $('#cartField');
   field.querySelectorAll('.cart-gate, .cart-fly, .cart-block').forEach(el => el.remove());
-  field.classList.remove('crash');
+  field.classList.remove('crash', 'dash');
+  $('#cartTrack').style.setProperty('--s', '0');
+  $('#cartTrack').style.setProperty('--rock-shift', '0px');
+  $('#cartTrack').style.setProperty('--prop-shift', '0px');
   $('#cartOver').hidden = true;
   $('#cartFb').textContent = '';
   $('#cartAsk').textContent = mode === 'listen' ? '들리는 단어 쪽으로 가요' : '이 뜻의 영어 단어 쪽으로 가요';
@@ -77,6 +69,7 @@ function laneY(l) { return $('#cartTrack').clientHeight * LANE_Y[l]; }
 function drawCart() {
   const me = $('#cartMe');
   me.style.setProperty('--y', `${laneY(c.lane)}px`);
+  $('#cartTrack').querySelectorAll('.cart-rail').forEach((rail, i) => rail.classList.toggle('selected', i === c.lane));
   document.querySelectorAll('#cartPick button').forEach(b => b.classList.toggle('on', Number(b.dataset.lane) === c.lane));
 }
 
@@ -122,6 +115,7 @@ function spawnGate() {
   $('#cartField').classList.remove('dash');
   if (c.mode === 'listen') ctx.say(target.en);
   placeGate();
+  drawCart();
   drawBar();
 }
 function placeGate() {
@@ -140,6 +134,8 @@ function tick(now) {
   const v = (W + 30 - cartFront()) / c.T * fast;                    // 화면이 흘러가는 빠르기(px/초)
   c.scroll += v * dt;
   track.style.setProperty('--s', c.scroll.toFixed(1));
+  track.style.setProperty('--rock-shift', `${-(c.scroll * 0.35 % 64)}px`);
+  track.style.setProperty('--prop-shift', `${-(c.scroll * 0.6 % 320)}px`);
   if (!c.gate && c.passed < TOTAL && c.t >= c.nextAt) spawnGate();
   const g = c.gate;
   if (g && !g.done) {

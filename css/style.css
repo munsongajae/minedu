@@ -33,6 +33,13 @@
   --creeper-skin: #68b84a; --creeper-shade: #3c7e32; --creeper-speckle: #a2d975;
   --mob-bone: #dedbc9; --mob-bone-shade: #a8a595; --mob-face: #202b22; --mob-bow: #976634; --ghost: #7d64c4; --ghost-dark: #57409a; --ghost-eye: #ffe45c;
   --dawn-top: #f6b48a; --dawn: #ffe2a8;
+  /* 광산 수레: 철제 몸통·블록 갱도·침목·동력 레일 */
+  --cart-metal: #aaaeb3; --cart-metal-side: #737a82; --cart-metal-shine: #d9dce0; --cart-metal-panel: #979da5; --cart-inside: #353a41; --cart-wheel: #272b31;
+  --cart-rock: #555759; --cart-rock-dark: #414446; --cart-rock-light: #686a6b;
+  --cart-timber: #8b623a; --cart-timber-dark: #573d25; --cart-timber-light: #b28a54;
+  --cart-sign: #bd9359; --cart-sign-ink: #302216; --cart-sign-line: #957044;
+  --cart-flame: #ff9b27; --cart-flame-core: #fff096; --cart-powered: #df3430;
+  --cart-skin: #ba855e; --cart-skin-side: #8e5d40; --cart-hair: #493124; --cart-shirt: #24aaac; --cart-eyes: #525291;
   /* 광산 수레: 갱도 */
   --tunnel: #221e1b; --tunnel-wall: #3e3833; --rail: #c7ccd2;
   --f-display: "Do Hyeon", "Jua", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
@@ -746,29 +753,58 @@ kbd { font-family: var(--f-pixel); font-size: 12px; border: 2px solid var(--edge
 
 /* ---------- 광산 수레 달리기 ---------- */
 .cart-svg { width: 100%; height: auto; display: block; overflow: visible; }
-.cart-svg .rim { fill: var(--stone-dark); }
-.cart-svg .body { fill: var(--stone-hi); }
-.cart-svg .shade { fill: var(--stone); }
+.cart-svg .rim { fill: var(--cart-metal-side); }
+.cart-svg .body { fill: var(--cart-metal); }
+.cart-svg .shade { fill: var(--cart-metal-side); }
 .cart-svg .band { fill: var(--stone-dark); }
-.cart-svg .wheel { fill: var(--edge); }
-.cart-svg .hub { fill: var(--rail); }
+.cart-svg .wheel { fill: var(--cart-wheel); }
+.cart-svg .hub { fill: var(--cart-metal-panel); }
+.cart-svg .side { fill: var(--cart-metal-side); }
+.cart-svg .inside { fill: var(--cart-inside); }
+.cart-svg .panel { fill: var(--cart-metal-panel); }
+.cart-svg .shine, .cart-svg .bolt, .cart-svg .gem-shine { fill: var(--cart-metal-shine); }
+.cart-svg .skin { fill: var(--cart-skin); }
+.cart-svg .skin-side { fill: var(--cart-skin-side); }
+.cart-svg .hair, .cart-svg .beard { fill: var(--cart-hair); }
+.cart-svg .shirt { fill: var(--cart-shirt); }
+.cart-svg .eyes { fill: var(--cart-eyes); }
+.cart-svg .eye-white { fill: var(--on-color); }
+.cart-wall { position: absolute; left: 0; top: 0; width: calc(100% + 320px); height: 100%; pointer-events: none; }
+.cart-rock-layer { transform: translateX(var(--rock-shift, 0px)); }
+.cart-props-layer { transform: translateX(var(--prop-shift, 0px)); }
+.cart-wall .rock { fill: var(--cart-rock); }
+.cart-wall .rock-dark { fill: var(--cart-rock-dark); }
+.cart-wall .rock-light { fill: var(--cart-rock-light); }
+.cart-wall .timber, .cart-wall .torch-stick { fill: var(--cart-timber); }
+.cart-wall .timber-dark { fill: var(--cart-timber-dark); }
+.cart-wall .timber-light { fill: var(--cart-timber-light); }
+.cart-wall .flame { fill: var(--cart-flame); }
+.cart-wall .flame-core { fill: var(--cart-flame-core); }
+.cart-wall .torch { filter: drop-shadow(0 0 7px var(--cart-flame)); }
+.cart-wall .diamond { fill: var(--ore-diamond); }
+.cart-wall .redstone { fill: var(--cart-powered); }
 .cart-svg .gem { opacity: 0; transition: opacity .3s; }
 .cart-svg .gem.on { opacity: 1; }
 .cart-svg .gem.g { fill: var(--grass-hi); }
 .cart-svg .gem.d { fill: var(--ore-diamond); }
 .cart-svg .gem.o { fill: var(--gold); }
 .cart-svg { filter: drop-shadow(1px 0 0 var(--edge)) drop-shadow(-1px 0 0 var(--edge)) drop-shadow(0 -1px 0 var(--edge)); }
-.cart-rail, .art-rail { position: absolute; left: 0; right: 0; height: 18px; margin-top: -9px;
-  background-image: linear-gradient(var(--rail) 0 0), linear-gradient(var(--rail) 0 0), repeating-linear-gradient(90deg, var(--dirt) 0 10px, transparent 10px 26px);
-  background-size: 100% 3px, 100% 3px, auto; background-repeat: no-repeat, no-repeat, repeat; background-position: 0 3px, 0 12px, 0 0; }
+.cart-rail, .art-rail { --rail-metal: var(--rail); --rail-core: var(--cart-timber); position: absolute; left: 0; right: 0; height: 30px; margin-top: -15px;
+  background-image: linear-gradient(var(--rail-metal) 0 0), linear-gradient(var(--cart-metal-shine) 0 0), linear-gradient(var(--rail-metal) 0 0), linear-gradient(var(--cart-metal-shine) 0 0), repeating-linear-gradient(90deg, var(--cart-timber-dark) 0 2px, var(--rail-core) 2px 10px, var(--cart-timber-light) 10px 12px, transparent 12px 28px), linear-gradient(var(--cart-rock-dark) 0 0);
+  background-size: 100% 4px, 100% 1px, 100% 4px, 100% 1px, auto, 100% 6px;
+  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, repeat, no-repeat;
+  background-position: 0 3px, 0 3px, 0 20px, 0 20px, 0 0, 0 24px; }
+.cart-rail.powered, .art-rail.powered { --rail-metal: var(--gold); --rail-core: var(--redstone); }
+.cart-rail.selected { box-shadow: 0 2px 0 var(--gold); }
+.cart-field.dash .cart-rail.selected { --rail-metal: var(--gold); --rail-core: var(--cart-powered); filter: drop-shadow(0 0 4px var(--cart-flame)); }
 
 /* 처음 화면 판 그림 */
 .wg-art-cart { background: linear-gradient(var(--tunnel-wall), var(--tunnel)); }
-.wg-art-cart .art-rail { height: 12px; margin-top: -6px; background-position: 0 1px, 0 8px, 0 0; }
+.wg-art-cart .art-rail { height: 22px; margin-top: -11px; background-position: 0 2px, 0 2px, 0 15px, 0 15px, 0 0, 0 18px; }
 .wg-art-cart .r1 { top: 42%; }
 .wg-art-cart .r2 { top: 80%; }
-.wg-art-cart .art-cart { position: absolute; left: 12%; top: 80%; width: 78px; transform: translateY(-84%); }
-.wg-art-cart .art-sign { position: absolute; font-family: var(--f-kid); font-size: 18px; line-height: 1; padding: 3px 8px 5px; background: var(--panel); border: 2px solid var(--edge); transform: translateY(-130%); }
+.wg-art-cart .art-cart { position: absolute; left: 12%; top: 80%; width: 100px; transform: translateY(-89%); }
+.wg-art-cart .art-sign { position: absolute; font-family: var(--f-kid); font-size: 18px; line-height: 1; padding: 3px 8px 5px; background: var(--cart-sign); color: var(--cart-sign-ink); border: 2px solid var(--edge); transform: translateY(-130%); }
 .wg-art-cart .art-sign.a { left: 58%; top: 42%; border-left: 6px solid var(--gold); }
 .wg-art-cart .art-sign.b { left: 66%; top: 80%; border-left: 6px solid var(--helper-edge); }
 
@@ -784,28 +820,22 @@ kbd { font-family: var(--f-pixel); font-size: 12px; border: 2px solid var(--edge
 .cart-field::after { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 8; opacity: 0; box-shadow: inset 0 0 0 10px var(--redstone); }
 .cart-field.crash::after { animation: ng-hurt .5s ease-out; }
 .cart-top { height: 128px; display: grid; place-items: center; padding: 8px;
-  background: linear-gradient(var(--dirt) 0 0) 0 100% / 100% 10px no-repeat, linear-gradient(var(--tunnel), var(--tunnel-wall)); border-bottom: 3px solid var(--edge); }
-.cart-top .mine-sign { box-shadow: 0 5px 0 var(--dirt); }
-.cart-track { --s: 0; position: relative; height: 300px; overflow: hidden; touch-action: manipulation; cursor: pointer; user-select: none;
-  background-image:
-    repeating-linear-gradient(90deg, transparent 0 230px, var(--dirt) 230px 250px, var(--shade) 250px 254px, transparent 254px 330px),
-    radial-gradient(circle at 20% 30%, var(--stone-dark) 0 6px, transparent 7px), radial-gradient(circle at 70% 70%, var(--stone-dark) 0 9px, transparent 10px),
-    radial-gradient(circle at 45% 55%, var(--gold) 0 2px, transparent 3px), radial-gradient(circle at 85% 20%, var(--ore-diamond) 0 2px, transparent 3px),
-    linear-gradient(var(--tunnel-wall), var(--tunnel));
-  background-size: auto, 160px 120px, 160px 120px, 260px 140px, 300px 160px, auto;
-  background-position: calc(var(--s) * -0.7px) 0, calc(var(--s) * -0.4px) 0, calc(var(--s) * -0.4px) 0, calc(var(--s) * -0.4px) 0, calc(var(--s) * -0.4px) 0, 0 0; }
-.cart-track .cart-rail { background-position: 0 3px, 0 12px, calc(var(--s) * -1px) 0; }
-.cart-me { position: absolute; z-index: 4; left: 4%; top: var(--y, 50%); width: 124px; transform: translateY(-84%); transition: top .2s ease-out; pointer-events: none; }
+  background: repeating-linear-gradient(90deg, transparent 0 61px, var(--cart-rock-dark) 61px 64px), repeating-linear-gradient(0deg, var(--cart-rock) 0 29px, var(--cart-rock-dark) 29px 32px); border-bottom: 3px solid var(--edge); }
+.cart-top .mine-sign { background: var(--cart-sign); color: var(--cart-sign-ink); border-color: var(--cart-timber-dark); box-shadow: 0 5px 0 var(--cart-timber-dark), inset 0 3px 0 var(--cart-timber-light); }
+.cart-top .mine-sign small { color: var(--cart-sign-ink); }
+.cart-track { --s: 0; position: relative; height: 330px; overflow: hidden; touch-action: manipulation; cursor: pointer; user-select: none; background: var(--cart-rock); }
+.cart-track .cart-rail { background-position: 0 3px, 0 3px, 0 20px, 0 20px, calc(var(--s) * -1px) 0, 0 24px; }
+.cart-me { position: absolute; z-index: 4; left: 4%; top: var(--y, 50%); width: 112px; transform: translateY(-89%); transition: top .2s ease-out; pointer-events: none; }
 .cart-me .cart-svg { animation: cart-rattle .18s steps(2) infinite; }
 .cart-me.hop { animation: cart-hop .22s ease-out; }
 .cart-field.crash .cart-me { animation: cart-crash .5s ease-out; }
 @keyframes cart-rattle { 50% { transform: translateY(1px); } }
-@keyframes cart-hop { 40% { transform: translateY(-96%) rotate(-5deg); } }
-@keyframes cart-crash { 15% { transform: translateY(-84%) translateX(-14px) rotate(-8deg); } 35% { transform: translateY(-84%) translateX(6px) rotate(4deg); } 60% { transform: translateY(-84%) translateX(-4px); } }
+@keyframes cart-hop { 40% { transform: translateY(-92%) rotate(-2deg); } }
+@keyframes cart-crash { 15% { transform: translateY(-89%) translateX(-14px) rotate(-8deg); } 35% { transform: translateY(-89%) translateX(6px) rotate(4deg); } 60% { transform: translateY(-89%) translateX(-4px); } }
 .cart-gate { position: absolute; z-index: 3; left: 0; top: 0; height: 100%; width: 0; pointer-events: none; transition: opacity .4s; }
 .cart-gate.gone { opacity: 0; }
 .cart-sign { position: absolute; left: 0; display: grid; justify-items: start; transform: translateY(-100%); transition: opacity .3s; }
-.cart-sign b { font-family: var(--f-kid); font-weight: 400; font-size: 26px; line-height: 1.1; white-space: nowrap; padding: 3px 12px 6px; background: var(--panel); color: var(--ink);
+.cart-sign b { font-family: var(--f-kid); font-weight: 400; font-size: 26px; line-height: 1.1; white-space: nowrap; padding: 3px 12px 6px; background: repeating-linear-gradient(0deg, transparent 0 10px, var(--cart-sign-line) 10px 11px), var(--cart-sign); color: var(--cart-sign-ink);
   border: 3px solid var(--edge); border-left-width: 10px; box-shadow: 0 4px 0 var(--shade); }
 .cart-sign .post { order: 2; width: 6px; height: 14px; margin-left: 10px; background: var(--dirt); border: 1px solid var(--edge); }
 .cart-sign.l0 b { border-left-color: var(--gold); }
@@ -830,7 +860,7 @@ kbd { font-family: var(--f-pixel); font-size: 12px; border: 2px solid var(--edge
 .cart-track::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .15s;
   background: repeating-linear-gradient(0deg, transparent 0 22px, var(--shine) 22px 24px, transparent 24px 61px); }
 .cart-field.dash .cart-track::after { opacity: 1; }
-.cart-field.dash .cart-me { transform: translateY(-84%) rotate(-3deg); }
+.cart-field.dash .cart-me { transform: translateY(-89%) rotate(-3deg); }
 .cart-btn { position: relative; min-height: 76px; padding: 10px 12px 14px; font-family: var(--f-kid); font-size: clamp(22px, 3.4vw, 30px); line-height: 1.1; cursor: pointer;
   background: var(--panel); color: var(--ink); border: 3px solid var(--edge); border-left-width: 12px; box-shadow: inset 0 -5px 0 var(--shade); overflow-wrap: anywhere; }
 .cart-btn.l0 { border-left-color: var(--gold); }
@@ -846,8 +876,8 @@ kbd { font-family: var(--f-pixel); font-size: 12px; border: 2px solid var(--edge
 .cart-btn:disabled { cursor: default; }
 @media (max-width: 600px) {
   .cart-top { height: 112px; }
-  .cart-track { height: 250px; }
-  .cart-me { width: 84px; left: 3%; }
+  .cart-track { height: 285px; }
+  .cart-me { width: 88px; left: 3%; }
   .cart-sign b { font-size: 21px; padding: 2px 9px 5px; }
   .cart-pick { grid-template-columns: 1fr; gap: 8px; }
   .cart-dash { min-height: 56px; }

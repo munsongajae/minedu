@@ -140,7 +140,7 @@ function bindEvents() {
             free: { day: todayStr(), gems: 0 },
             updatedAt: at
           };
-          await store.setItem('progress', kid, emptyProgress);
+          await store.putItem('progress', emptyProgress);
           progressMap[kid] = emptyProgress;
 
           if (cloudAvailable()) {

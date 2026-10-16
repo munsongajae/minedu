@@ -52,6 +52,10 @@
         <p class="hint">한글 뜻만 보고 영어로 말할 수 있을 때까지, 영어를 점점 가려 가며 외워요. 언제든 할 수 있어요.</p>
       </div>
       <div class="mode">
+        <button class="btn big red" id="ptOpen" type="button" disabled>발표 테스트</button>
+        <p class="hint">영상을 발표하듯이 사진만 보고 영어 문장을 말해 봐요. 힌트를 안 볼수록 별이 많아요.</p>
+      </div>
+      <div class="mode">
         <button class="btn big emerald" id="viewAll" type="button" disabled>한꺼번에 보기</button>
         <p class="hint">내가 만든 모든 문장을 카드 목록으로 한눈에 보고, 발음과 내 목소리를 하나씩 또는 차례대로 들어봐요.</p>
       </div>
@@ -90,6 +94,66 @@
 
     <div class="all-footer-bar">
       <button class="btn big" id="allBackBottom" type="button">처음으로 돌아가기</button>
+    </div>
+  </section>
+
+  <section class="pt" id="test" hidden>
+    <div class="pt-setup" id="ptSetup">
+      <div class="pt-head">
+        <h2>발표 테스트</h2>
+        <button class="btn small" id="ptBack" type="button">← 돌아가기</button>
+      </div>
+      <p class="hint">영상을 발표하듯이 사진만 보고 영어 문장을 말해 봐요. 막히면 힌트를 볼 수 있지만, 힌트를 볼수록 별이 줄어요.</p>
+      <label class="lab" for="ptProj">어떤 영상으로 할까요?</label>
+      <select id="ptProj"></select>
+      <p class="pt-best" id="ptBest"></p>
+      <div class="pt-opt"><span class="lab">순서</span>
+        <div class="pt-seg" data-opt="order" role="group" aria-label="순서">
+          <button type="button" data-v="story">발표 순서</button><button type="button" data-v="shuffle">섞어서</button>
+        </div></div>
+      <div class="pt-opt"><span class="lab">처음에 보여 줄 것</span>
+        <div class="pt-seg" data-opt="start" role="group" aria-label="처음에 보여 줄 것">
+          <button type="button" data-v="0">사진만 (별 3개)</button><button type="button" data-v="1">사진 + 첫 단어 (별 2개)</button>
+        </div></div>
+      <div class="pt-opt"><span class="lab">채점</span>
+        <div class="pt-seg" data-opt="judge" role="group" aria-label="채점">
+          <button type="button" data-v="self">스스로 확인</button><button type="button" data-v="parent">부모님 채점</button>
+        </div></div>
+      <label class="pt-check" id="ptRecWrap"><input type="checkbox" id="ptRec"> 말할 때 녹음해서 정답과 내 목소리를 비교해 듣기</label>
+      <button class="btn big grass pt-go" id="ptGo" type="button">테스트 시작</button>
+    </div>
+
+    <div class="pt-run" id="ptRun" hidden>
+      <div class="session-top">
+        <span class="count" id="ptCount"></span>
+        <div class="bar" aria-hidden="true"><i id="ptFill"></i></div>
+        <span class="pt-total" id="ptTotal"></span>
+        <button class="btn small" id="ptQuit" type="button">그만하기</button>
+      </div>
+      <article class="pt-card">
+        <div class="pt-photo" id="ptPhoto"></div>
+        <div class="pt-body">
+          <div class="pt-where" id="ptWhere"></div>
+          <p class="pt-prev" id="ptPrev"></p>
+          <div class="pt-stars" id="ptStars"></div>
+          <div class="pt-hint" id="ptHint"></div>
+          <div class="pt-answer" id="ptAnswer" hidden></div>
+          <p class="pfb" id="ptFb" role="status"></p>
+          <div class="row pt-ctrl" id="ptCtrl"></div>
+        </div>
+      </article>
+    </div>
+
+    <div class="pt-result done" id="ptResult" hidden>
+      <div class="pt-medal" id="ptMedal"></div>
+      <h2 id="ptTitle"></h2>
+      <p id="ptText"></p>
+      <ol class="pt-list" id="ptList"></ol>
+      <div class="row">
+        <button class="btn big gold" id="ptRetry" type="button">못한 문장만 다시</button>
+        <button class="btn big grass" id="ptAgain" type="button">처음부터 다시</button>
+        <button class="btn big" id="ptHome" type="button">처음으로</button>
+      </div>
     </div>
   </section>
 

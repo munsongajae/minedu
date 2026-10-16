@@ -38,16 +38,19 @@ export async function loadSentences() {
   const projects = all.map(fix).sort((a, b) => b.updatedAt - a.updatedAt);
   const collect = (list) => {
     const out = [];
-    list.forEach(p => p.scenes.forEach(sc => sc.lines.forEach(l => {
-      const en = String(l.en || '').trim();
-      if (!en) return;
-      out.push({
-        key: l.id, en, ko: String(l.ko || '').trim(),
-        image: sc.images[0] || null, audio: l.audio || null,
-        words: Array.isArray(l.words) ? l.words : [],
-        projectId: p.id, projectTitle: p.title || '제목 없는 영상'
+    // 장면 정보(sceneNo, lineNo/lineCount: 그 장면에서 영어가 있는 문장 중 몇 번째)는 발표 테스트가 쓴다.
+    list.forEach(p => p.scenes.forEach((sc, si) => {
+      const lines = sc.lines.filter(l => String(l.en || '').trim());
+      lines.forEach((l, li) => {
+        out.push({
+          key: l.id, en: String(l.en).trim(), ko: String(l.ko || '').trim(),
+          image: sc.images[0] || null, images: sc.images, audio: l.audio || null,
+          words: Array.isArray(l.words) ? l.words : [],
+          projectId: p.id, projectTitle: p.title || '제목 없는 영상',
+          sceneId: sc.id, sceneNo: si + 1, lineNo: li + 1, lineCount: lines.length
+        });
       });
-    })));
+    }));
     return out;
   };
   let real = projects.filter(p => !p.example);
@@ -79,7 +82,7 @@ export async function saveProgress(p) {
   pushTimer = setTimeout(() => syncProgress(p).catch(() => {}), 2500);
 }
 
-const todayStr = (t = Date.now()) => { const d = new Date(t); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+export const todayStr = (t = Date.now()) => { const d = new Date(t); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 export function markToday(p) {
   const t = todayStr();
   if (!p.days.includes(t)) p.days.push(t);
@@ -207,8 +210,22 @@ export function mergeProgress(a, b) {
     emeralds: Math.max(a.emeralds || 0, b.emeralds || 0),
     days: [...new Set([...(a.days || []), ...(b.days || [])])].sort().slice(-400),
     free: mergeFree(a.free, b.free),
+    tests: mergeTests(a.tests, b.tests),
     updatedAt: Math.max(a.updatedAt || 0, b.updatedAt || 0)
   };
+}
+// 발표 테스트 기록(영상마다): 최고 점수는 큰 쪽, 나머지(마지막 날짜, 에메랄드 받은 날)는 더 나중 기록.
+function mergeTests(x, y) {
+  const out = { ...(x || {}) };
+  for (const [k, v] of Object.entries(y || {})) {
+    const o = out[k];
+    if (!o) { out[k] = v; continue; }
+    const later = (v.t || 0) > (o.t || 0) ? v : o;
+    const better = (v.best || 0) > (o.best || 0) ? v : o;
+    out[k] = { ...later, best: better.best || 0, bestStars: better.bestStars || 0, max: better.max || later.max, runs: Math.max(o.runs || 0, v.runs || 0),
+      gemDay: [o.gemDay || '', v.gemDay || ''].sort().pop() };
+  }
+  return out;
 }
 // 자유 연습 에메랄드 수: 더 나중 날짜, 같은 날이면 큰 쪽.
 function mergeFree(x, y) {

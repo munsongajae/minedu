@@ -4,11 +4,13 @@
 //   3번 상자: 빈칸 채우기
 //   4·5번 상자: 한글 보고 말해 보기(정답을 보고 스스로 맞았는지 고르기)
 // 자유 연습(언제든): 같은 활동을 섞어서 한다. 복습 날짜는 바꾸지 않고, 에메랄드는 하루 5개까지.
+// 발표 테스트(ptest.js): 사진만 보고 문장을 말해 보는 시험. 힌트를 볼수록 별이 줄어든다.
 // 말하며 외우기(언제든): 보면서 말하기 → 반쯤 가리고 말하기 → 다 가리고 한글만 보고 말하기 → 정답 보고 스스로 확인
 import { $, esc, shuffle, getChild, setChild, childPickerHTML, loadSentences, loadProgress, saveProgress, syncProgress,
   grade, todayQueue, mastered, markToday, streak, tokens, wordKey, blobURL,
   FREE_GEMS, freeGemsLeft, takeFreeGem, nextDueDays } from './learn.js';
 import { checkReset } from './reset.js';
+import { openTest } from './ptest.js';
 import { canSpeak, speak, getSpeed, wordsOf } from './speech.js';
 
 const SPEAK_OK = canSpeak();
@@ -64,14 +66,15 @@ function renderHome() {
   const viewAll = $('#viewAll');
   if (!all.sentences.length) {
     who.textContent = '아직 연습할 문장이 없어요. 만들기에서 영어 문장을 먼저 써 주세요.';
-    start.disabled = true; $('#memorize').disabled = true; $('#free').disabled = true; if (viewAll) viewAll.disabled = true; $('#stats').innerHTML = ''; return;
+    start.disabled = true; $('#memorize').disabled = true; $('#free').disabled = true; $('#ptOpen').disabled = true; if (viewAll) viewAll.disabled = true; $('#stats').innerHTML = ''; return;
   }
   if (!child || !progress) {
     who.textContent = '누가 연습하나요? 위에서 이름을 눌러 주세요.';
-    start.disabled = true; $('#memorize').disabled = true; $('#free').disabled = true; if (viewAll) viewAll.disabled = true; $('#stats').innerHTML = ''; renderList(); return;
+    start.disabled = true; $('#memorize').disabled = true; $('#free').disabled = true; $('#ptOpen').disabled = true; if (viewAll) viewAll.disabled = true; $('#stats').innerHTML = ''; renderList(); return;
   }
   $('#memorize').disabled = !pool.length;
   $('#free').disabled = !pool.length;
+  $('#ptOpen').disabled = !pool.length;
   if (viewAll) viewAll.disabled = !pool.length;
   const left = freeGemsLeft(progress);
   $('#freeGems').textContent = left ? `오늘 자유 연습 에메랄드 ${left}개 남았어요.` : '오늘 자유 연습 에메랄드는 다 받았어요. 연습은 계속 할 수 있어요.';
@@ -112,6 +115,13 @@ $('#start').addEventListener('click', () => startSession());
 $('#memorize').addEventListener('click', () => startMemorize());
 $('#free').addEventListener('click', () => startFree());
 $('#viewAll').addEventListener('click', () => openAllView());
+$('#ptOpen').addEventListener('click', () => {
+  stopAudio();
+  openTest({
+    getProgress: () => progress, sentences: all.sentences, projects: all.projects, defaultPid: $('#proj').value,
+    show, onHome: () => { show('home'); renderHome(); }
+  });
+});
 const qoa = $('#quickOpenAll');
 if (qoa) qoa.addEventListener('click', () => openAllView());
 $('#allBack').addEventListener('click', () => closeAllView());
@@ -151,6 +161,7 @@ function show(which) {
   $('#session').hidden = which !== 'session';
   $('#done').hidden = which !== 'done';
   $('#allView').hidden = which !== 'all';
+  $('#test').hidden = which !== 'test';
 }
 
 /* ---------- 모든 문장 한꺼번에 보기 ---------- */

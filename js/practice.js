@@ -21,6 +21,8 @@ let progress = null;
 let all = { sentences: [], projects: [] };
 let pool = [];          // 지금 고른 영상의 문장
 let queue = [], idx = 0, retried = new Set();
+// '앞 단계로'를 눌러 문장을 다시 본 카드: 맞혀도 복습 상자를 올리지 않고 에메랄드도 없다(듣기부터 시작한 카드는 괜찮음).
+let peeked = false, cardMode = '';
 let session = { right: 0, wrong: 0, gems: 0, kind: 'review' };
 let talk = null, voice = null;
 let singleSentence = null;
@@ -491,8 +493,10 @@ function nextCard() {
   $('#pshot').innerHTML = s.image ? `<img src="${blobURL(s.image)}" alt="">` : '';
   $('#pko').textContent = s.ko || '';
   $('#pfb').textContent = ''; $('#pfb').className = 'pfb';
+  peeked = false;
   if (session.kind === 'memorize') return runMemorize(s);
   const mode = modeFor(s);
+  cardMode = mode;
   if (mode === 'listen') runListen(s);
   else if (mode === 'build') runBuild(s);
   else if (mode === 'cloze') runCloze(s);
@@ -503,10 +507,12 @@ function nextCard() {
 // 자유 연습은 복습 날짜를 바꾸지 않고, 에메랄드는 하루 한도 안에서만 준다.
 async function record(s, ok) {
   let gem = 0;
-  if (session.kind !== 'free') progress.sentences[s.key] = grade(progress.sentences[s.key], ok);
+  const saw = ok && peeked;
+  if (session.kind !== 'free' && !saw) progress.sentences[s.key] = grade(progress.sentences[s.key], ok);
   if (ok) {
     session.right += 1;
-    if (session.kind !== 'free') { progress.emeralds += 1; gem = 1; }
+    if (saw) { /* 문장을 다시 보고 맞힘: 그대로 둔다 */ }
+    else if (session.kind !== 'free') { progress.emeralds += 1; gem = 1; }
     else if (takeFreeGem(progress)) gem = 1;
     session.gems += gem;
   } else {
@@ -518,7 +524,17 @@ async function record(s, ok) {
   await saveProgress(progress);
   return gem;
 }
-const gemNote = (gem) => (gem ? ' 에메랄드 1개를 얻었어요.' : '');
+const gemNote = (gem) => (peeked ? ' 앞 단계에서 문장을 봤으니 다음에 한 번 더 나와요.' : gem ? ' 에메랄드 1개를 얻었어요.' : '');
+// 블록 쌓기·빈칸 채우기의 '앞 단계로': 듣고 따라 말하기로 돌아갔다가 같은 활동으로 다시 온다.
+const BACK_BTN = '<button class="btn small" type="button" id="back">← 앞 단계로</button>';
+function bindBack(s, again) {
+  $('#back').addEventListener('click', () => {
+    if (cardMode !== 'listen') peeked = true;
+    bindActivity(null);
+    feedback('');
+    runListen(s, again);
+  });
+}
 
 function controls(html) { $('#controls').innerHTML = html; }
 function feedback(text, kind) { const f = $('#pfb'); f.textContent = text; f.className = 'pfb ' + (kind || ''); }
@@ -554,12 +570,12 @@ $('#activity').addEventListener('click', (e) => {
 });
 
 /* ---------- 1. 듣고 따라 말하기 ---------- */
-function runListen(s) {
+function runListen(s, then = runBuild) {
   $('#stepName').textContent = STEP_NAMES.listen;
   $('#activity').innerHTML = `${followHTML(s.en)}<div class="row">${listenButtons(s)}</div>
     <p class="hint">듣고 소리 내어 두세 번 따라 말해 봐요.</p>`;
   controls('<button class="btn big grass" type="button" id="toBuild">따라 말했어요 →</button>');
-  $('#toBuild').addEventListener('click', () => runBuild(s));
+  $('#toBuild').addEventListener('click', () => then(s));
   sayIt(s.en);
 }
 
@@ -617,8 +633,8 @@ function runBuild(s) {
     else if (back && !back.disabled) { placed.splice(Number(back.dataset.back), 1); draw(); }
   };
   draw();
-  controls('<button class="btn small" type="button" id="hint">처음부터 다시</button>');
-  $('#hint').addEventListener('click', () => { placed = placed.filter((_, k) => locked.has(k)); draw(); });
+  controls(BACK_BTN);
+  bindBack(s, runBuild);
   bindActivity(onClick);
 }
 
@@ -650,7 +666,8 @@ function runCloze(s) {
   const sentenceHTML = (fill) => `<p class="cloze" lang="en">${raw.map((w, i) => i === target.i
     ? `<span class="blank ${fill ? 'filled' : ''}">${fill ? esc(w) : '　　　'}</span>` : esc(w)).join(' ')}</p>`;
   $('#activity').innerHTML = sentenceHTML(false) + `<div class="opts">${opts.map(o => `<button type="button" class="btn opt" data-opt="${esc(o)}">${esc(o)}</button>`).join('')}</div>`;
-  controls('');
+  controls(BACK_BTN);
+  bindBack(s, runCloze);
   bindActivity(async (e) => {
     const b = e.target.closest('[data-opt]');
     if (!b || b.disabled) return;

@@ -1,6 +1,6 @@
 // 오프라인에서도 앱 화면이 열리도록 파일을 저장해 둔다.
 // 앱 파일을 고치면 CACHE 이름의 숫자를 올려야 기기에 새 버전이 들어간다.
-const CACHE = 'block-studio-v56';
+const CACHE = 'block-studio-v57';
 const ASSETS = [
   './',
   './index.html',
@@ -22,6 +22,7 @@ const ASSETS = [
   './js/learn.js',
   './js/practice.js',
   './js/ptest.js',
+  './js/print.js',
   './js/words.js',
   './js/parent.js',
   './js/mine.js',

@@ -11,6 +11,7 @@ import { $, esc, shuffle, getChild, setChild, childPickerHTML, loadSentences, lo
   FREE_GEMS, freeGemsLeft, takeFreeGem, nextDueDays } from './learn.js';
 import { checkReset } from './reset.js';
 import { openTest } from './ptest.js';
+import { openPrint } from './print.js';
 import { canSpeak, speak, getSpeed, wordsOf } from './speech.js';
 
 const SPEAK_OK = canSpeak();
@@ -132,6 +133,16 @@ $('#allProj').addEventListener('change', () => renderAllSentences());
 $('#allSearch').addEventListener('input', () => renderAllSentences());
 $('#allToggleKo').addEventListener('click', () => toggleHideKo());
 $('#allAutoPlay').addEventListener('click', () => toggleAutoPlay());
+$('#allPrint').addEventListener('click', () => {
+  stopAudio(); stopAutoPlay();
+  const { list, pid, q } = allViewList();
+  const proj = all.projects.find(p => p.id === pid);
+  openPrint({
+    list, child, filtered: !!(pid || q),
+    title: proj ? (proj.title || '제목 없는 영상') : '모든 영상',
+    show, onBack: () => openAllView()
+  });
+});
 
 $('#again').addEventListener('click', () => {
   if (session.source === 'all' && singleSentence) {
@@ -164,6 +175,7 @@ function show(which) {
   $('#done').hidden = which !== 'done';
   $('#allView').hidden = which !== 'all';
   $('#test').hidden = which !== 'test';
+  $('#printView').hidden = which !== 'print';
 }
 
 /* ---------- 모든 문장 한꺼번에 보기 ---------- */
@@ -297,10 +309,10 @@ function toggleAutoPlay() {
   else startAutoPlay();
 }
 
-function renderAllSentences() {
+// 한꺼번에 보기에서 지금 고른 영상·검색에 맞는 문장(인쇄하기도 같은 목록을 쓴다).
+function allViewList() {
   const pid = $('#allProj').value;
   const q = ($('#allSearch').value || '').trim().toLowerCase();
-
   let list = pid ? all.sentences.filter(s => s.projectId === pid) : all.sentences;
   if (q) {
     list = list.filter(s =>
@@ -309,6 +321,11 @@ function renderAllSentences() {
       (s.words && s.words.some(w => (typeof w === 'string' ? w : (w.en + ' ' + (w.ko || ''))).toLowerCase().includes(q)))
     );
   }
+  return { list, pid, q };
+}
+
+function renderAllSentences() {
+  const { list, q } = allViewList();
 
   const boxOf = (k) => (progress && progress.sentences[k] ? progress.sentences[k].box : 0);
   const mCount = list.filter(s => boxOf(s.key) >= 5).length;

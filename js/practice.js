@@ -338,6 +338,8 @@ function renderAllSentences() {
 
     return `
       <article class="all-card" id="card-${esc(s.key)}" data-key="${esc(s.key)}">
+        ${thumbHTML}
+        <div class="all-card-main">
         <div class="all-card-top">
           <div class="all-card-tags">
             <span class="all-num">#${idx + 1}</span>
@@ -349,7 +351,6 @@ function renderAllSentences() {
           </div>
         </div>
         <div class="all-card-body">
-          ${thumbHTML}
           <div class="all-card-content">
             <p class="all-card-en" lang="en">${esc(s.en)}</p>
             <p class="all-card-ko ${hideKo ? 'masked-ko' : ''}" data-ko="${esc(s.ko || '')}">
@@ -368,6 +369,7 @@ function renderAllSentences() {
             <button type="button" class="btn small gold" data-act="memo" data-key="${esc(s.key)}" title="이 문장 말하며 외우기">외우기</button>
             <button type="button" class="btn small grass" data-act="test" data-key="${esc(s.key)}" title="이 문장 블록 쌓기/빈칸 연습">연습</button>
           </div>
+        </div>
         </div>
       </article>`;
   }).join('');

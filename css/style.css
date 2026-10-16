@@ -398,8 +398,10 @@ kbd { font-family: var(--f-pixel); font-size: 12px; border: 2px solid var(--edge
 .all-action-group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 #allAutoPlay.playing { animation: blink 1s steps(2) infinite; }
 
-.all-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
-.all-card { background: var(--panel-2); border: 2px solid var(--edge); box-shadow: 0 4px 0 var(--shade); display: flex; flex-direction: column; position: relative; transition: transform .12s, box-shadow .12s; }
+/* 한 줄에 카드 하나: 왼쪽 큰 사진 | 오른쪽 문장(영어는 한 줄로) */
+.all-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+.all-card { background: var(--panel-2); border: 2px solid var(--edge); box-shadow: 0 4px 0 var(--shade); display: grid; grid-template-columns: minmax(220px, 320px) minmax(0, 1fr); position: relative; transition: transform .12s, box-shadow .12s; }
+.all-card-main { display: flex; flex-direction: column; min-width: 0; }
 .all-card:hover { transform: translateY(-2px); }
 .all-card.now-playing { outline: 4px solid var(--gold); outline-offset: -1px; background: var(--gold-soft); box-shadow: 0 0 16px rgba(227, 173, 31, .6); transform: scale(1.01); }
 
@@ -411,17 +413,20 @@ kbd { font-family: var(--f-pixel); font-size: 12px; border: 2px solid var(--edge
 .all-box-name { font-family: var(--f-display); font-size: 14px; color: var(--muted); }
 .all-box-badge.master .all-box-name { color: var(--grass); font-weight: bold; }
 
-.all-card-body { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 12px; padding: 12px; flex: 1; align-items: start; }
-@media (max-width: 480px) {
-  .all-card-body { grid-template-columns: 80px minmax(0, 1fr); gap: 10px; padding: 10px; }
-}
-.all-card-thumb { width: 100%; aspect-ratio: 16 / 10; border: 2px solid var(--edge); background: #0d1014; display: grid; place-items: center; overflow: hidden; }
+.all-card-body { padding: 12px 14px; flex: 1; display: grid; align-content: center; }
+.all-card-thumb { width: 100%; height: 100%; min-height: 150px; aspect-ratio: 16 / 10; border-right: 2px solid var(--edge); background: #0d1014; display: grid; place-items: center; overflow: hidden; }
 .all-card-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.all-card-thumb.no-img { font-size: 26px; background: var(--panel); }
+.all-card-thumb.no-img { font-size: 40px; background: var(--panel); }
 
 .all-card-content { display: grid; gap: 6px; min-width: 0; }
-.all-card-en { margin: 0; font-family: var(--f-kid); font-size: 21px; line-height: 1.25; word-break: keep-all; overflow-wrap: anywhere; }
-.all-card-ko { margin: 0; font-size: 15px; color: var(--muted); line-height: 1.35; word-break: keep-all; position: relative; }
+.all-card-en { margin: 0; font-family: var(--f-kid); font-size: 27px; line-height: 1.3; white-space: nowrap; overflow-x: auto; scrollbar-width: thin; padding-bottom: 2px; }
+/* 좁은 화면: 사진을 위에 크게, 문장은 줄을 바꿔서 */
+@media (max-width: 700px) {
+  .all-card { grid-template-columns: 1fr; }
+  .all-card-thumb { border-right: 0; border-bottom: 2px solid var(--edge); min-height: 0; max-height: 260px; }
+  .all-card-en { white-space: normal; overflow-wrap: anywhere; font-size: 23px; }
+}
+.all-card-ko { margin: 0; font-size: 17px; color: var(--muted); line-height: 1.35; word-break: keep-all; position: relative; }
 .all-card-ko.masked-ko { background: var(--panel); border: 2px dashed var(--line); padding: 4px 8px; cursor: pointer; border-radius: 0; min-height: 32px; display: flex; align-items: center; }
 .all-card-ko.masked-ko .ko-text { visibility: hidden; }
 .all-card-ko.masked-ko .ko-peek-hint { display: inline-block; position: absolute; inset: 0; text-align: center; line-height: 30px; font-size: 13px; color: var(--muted); font-family: var(--f-display); }

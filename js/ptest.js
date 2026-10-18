@@ -6,7 +6,7 @@
 //   복습 상자: 힌트 없이 맞히면 한 칸 올리고, 틀리거나 '모르겠어요'면 1번 상자로. 힌트를 보고 맞힌 것은 그대로.
 //   에메랄드: 처음부터 끝까지 한 판을 마치면 별 3개마다 1개(최대 8개), 같은 영상은 하루 한 번.
 import { $, esc, shuffle, grade, markToday, saveProgress, blobURL, todayStr } from './learn.js';
-import { canSpeak, speak, getSpeed, wordsOf } from './speech.js';
+import { canSpeak, speak, speakWord, getSpeed, wordsOf, followHTML } from './speech.js';
 import { canRecord, startRecording, micErrorMessage } from './recorder.js';
 
 const SPEAK_OK = canSpeak();
@@ -101,9 +101,21 @@ function stopAll() {
 async function say(text) {
   if (!SPEAK_OK) return;
   stopAudio();
-  const mark = (i) => document.querySelectorAll('#ptAnswer [data-w]').forEach(el => el.classList.toggle('now', Number(el.dataset.w) === i));
-  talk = await speak(text, { speed: getSpeed(), onWord: mark, onEnd: () => { mark(-1); talk = null; } });
+  talk = await speak(text, { speed: getSpeed(), onWord: markAns, onEnd: () => { markAns(-1); talk = null; } });
 }
+const markAns = (i) => document.querySelectorAll('#ptAnswer [data-w]').forEach(el => el.classList.toggle('now', Number(el.dataset.w) === i));
+// 정답의 낱말을 누르면 그 낱말만 읽는다.
+async function sayWord(btn) {
+  if (!SPEAK_OK) return;
+  stopAudio();
+  markAns(Number(btn.dataset.w));
+  const h = await speakWord(btn.textContent, { speed: getSpeed(), onEnd: () => { if (talk === h) { markAns(-1); talk = null; } } });
+  talk = h;
+}
+$('#ptAnswer').addEventListener('click', (e) => {
+  const w = e.target.closest('.follow [data-w]');
+  if (w) sayWord(w);
+});
 function play(blob) {
   if (!blob) return;
   stopAudio();
@@ -210,7 +222,7 @@ async function reveal(gaveUp) {
   $('#ptFb').textContent = ''; $('#ptFb').className = 'pfb';
   if (it.level === 0) $('#ptHint').innerHTML = '';
   $('#ptAnswer').hidden = false;
-  $('#ptAnswer').innerHTML = `<p class="follow big" lang="en">${wordsOf(s.en).map((w, i) => `<span data-w="${i}">${esc(w)}</span>`).join(' ')}</p>
+  $('#ptAnswer').innerHTML = `${followHTML(s.en, 'big')}
     ${s.ko ? `<p class="pt-ko small">${esc(s.ko)}</p>` : ''}
     <div class="row">
       ${SPEAK_OK ? '<button class="btn small listen" type="button" data-pt="sayans">정답 듣기</button>' : ''}

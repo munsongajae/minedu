@@ -12,7 +12,7 @@ import { $, esc, shuffle, getChild, setChild, childPickerHTML, loadSentences, lo
 import { checkReset } from './reset.js';
 import { openTest } from './ptest.js';
 import { openPrint } from './print.js';
-import { canSpeak, speak, getSpeed, wordsOf } from './speech.js';
+import { canSpeak, speak, speakWord, getSpeed, wordsOf, followHTML as followLine } from './speech.js';
 
 const SPEAK_OK = canSpeak();
 const STEP_NAMES = { listen: '듣고 따라 말하기', build: '블록 쌓기 — 낱말 순서를 맞춰요', cloze: '빈칸 채우기', recall: '한글 보고 영어로 말해 보기' };
@@ -563,11 +563,20 @@ function stopAudio() {
   if (talk) { talk.stop(); talk = null; }
   if (voice) { voice.pause(); voice = null; }
 }
-async function sayIt(text, wordByWord = false) {
+const markWord = (i) => document.querySelectorAll('#activity [data-w]').forEach(el => el.classList.toggle('now', Number(el.dataset.w) === i));
+async function sayIt(text) {
   if (!SPEAK_OK) return;
   stopAudio();
-  const mark = (i) => document.querySelectorAll('#activity [data-w]').forEach(el => el.classList.toggle('now', Number(el.dataset.w) === i));
-  talk = await speak(text, { speed: getSpeed(), wordByWord, onWord: mark, onEnd: () => { mark(-1); talk = null; } });
+  talk = await speak(text, { speed: getSpeed(), onWord: markWord, onEnd: () => { markWord(-1); talk = null; } });
+}
+// 한 단어씩: 누른 낱말 하나만 읽는다.
+async function sayWord(btn) {
+  if (!SPEAK_OK) return;
+  stopAudio();
+  const i = Number(btn.dataset.w);
+  markWord(i);
+  const h = await speakWord(btn.textContent, { speed: getSpeed(), onEnd: () => { if (talk === h) { markWord(-1); talk = null; } } });
+  talk = h;
 }
 function playMine(s) {
   if (!s.audio) return;
@@ -576,16 +585,17 @@ function playMine(s) {
   voice.play().catch(() => {});
 }
 const listenButtons = (s) => `
-  ${SPEAK_OK ? '<button class="btn small listen" type="button" data-say="all">천천히 듣기</button><button class="btn small listen" type="button" data-say="word">한 단어씩</button>' : ''}
-  ${s.audio ? '<button class="btn small" type="button" data-say="mine">내 목소리 듣기</button>' : ''}`;
-function followHTML(text) {
-  return `<p class="follow big" lang="en">${wordsOf(text).map((w, i) => `<span data-w="${i}">${esc(w)}</span>`).join(' ')}</p>`;
-}
+  ${SPEAK_OK ? '<button class="btn small listen" type="button" data-say="all">천천히 듣기</button>' : ''}
+  ${s.audio ? '<button class="btn small" type="button" data-say="mine">내 목소리 듣기</button>' : ''}
+  ${SPEAK_OK ? '<span class="hint fw-hint">단어를 누르면 그 단어만 들려요</span>' : ''}`;
+const followHTML = (text) => followLine(text, 'big');
 $('#activity').addEventListener('click', (e) => {
+  const w = e.target.closest('.follow [data-w]');
+  if (w) { sayWord(w); return; }
   const b = e.target.closest('[data-say]');
   if (!b) return;
   const s = queue[idx];
-  if (b.dataset.say === 'mine') playMine(s); else sayIt(s.en, b.dataset.say === 'word');
+  if (b.dataset.say === 'mine') playMine(s); else sayIt(s.en);
 });
 
 /* ---------- 1. 듣고 따라 말하기 ---------- */

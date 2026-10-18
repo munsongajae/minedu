@@ -80,7 +80,7 @@
 
 - `js/speech.js`. 브라우저 음성 합성(speechSynthesis). 목소리 목록이 늦게 준비되는 크롬을 위해 `voiceschanged`를 기다리고(최대 1.5초), `pickVoice`가 en-US 중 Natural/Neural(엣지) → Google → Samsung → 기기 목소리 순으로 고른다.
 - 빠르기 3단계 `SPEEDS`(보통 0.9, 천천히 0.7 기본, 아주 천천히 0.5). 기기 localStorage에 기억.
-- '한 단어씩'은 낱말마다 따로 읽고 빠르기에 따라 0.25~0.6초 쉰다. 읽는 동안 문장 아래 따라 읽기 표시(`[data-follow]`)에서 지금 낱말을 칠한다(문장 통째로 읽을 때는 목소리가 boundary 이벤트를 줄 때만).
+- '한 단어씩'은 저절로 흘러가지 않는다(사용자 요청 2026-10-18): 만들기 화면에서 누르면 낱말 버튼 줄(`followHTML`, `.follow .fw`)을 열어 두고, 아이가 누른 낱말 하나만 `speakWord`로 읽는다('■ 단어 닫기'로 닫음). 문장 연습(`#activity`)과 발표 테스트 정답(`#ptAnswer`)의 따라 읽기 줄도 같은 낱말 버튼이라 누르면 그 낱말만 들린다(문장 연습에는 '한 단어씩' 버튼 대신 '단어를 누르면 그 단어만 들려요' 안내). 문장을 통째로 읽을 때는 목소리가 boundary 이벤트를 주면 지금 낱말을 칠한다.
 - 녹음·말로 쓰기와 동시에 쓰지 않는다. 시험은 speechSynthesis/SpeechSynthesisUtterance를 가짜로 바꿔서 한다.
 
 ## 말로 쓰기(음성 입력)

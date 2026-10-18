@@ -6,7 +6,7 @@ import { canRecord, startRecording, micErrorMessage } from './recorder.js';
 import { aiEnabled, coach, aiMessage, getFamilyCode, setFamilyCode } from './ai.js';
 import { importPortfolioPdf, isPdf } from './pdf-import.js';
 import { canDictate, startDictation, tidyKorean, tidyEnglish, dictationMessage } from './dictation.js';
-import { canSpeak, speak as say, SPEEDS, getSpeed, setSpeed, wordsOf } from './speech.js';
+import { canSpeak, speak as say, speakWord, SPEEDS, getSpeed, setSpeed, followHTML } from './speech.js';
 import { cloudAvailable, getDeviceName, setDeviceName, pushProject, pullProject, headProject, listCloud, deleteCloud } from './cloud.js';
 import { checkReset, eraseEverything } from './reset.js';
 
@@ -280,16 +280,18 @@ function speedChipsHTML() {
 function listenHTML(l) {
   if (!SPEAK_OK) return '';
   const on = talk.lineId === l.id;
-  const btn = (mode, icon, label) => (on && talk.mode === mode)
-    ? `<button class="btn small listen on" type="button" data-act="speak" data-mode="${mode}">■ 멈추기</button>`
+  const btn = (mode, icon, label, onLabel) => (on && talk.mode === mode)
+    ? `<button class="btn small listen on" type="button" data-act="speak" data-mode="${mode}" aria-pressed="true">${onLabel}</button>`
     : `<button class="btn small listen" type="button" data-act="speak" data-mode="${mode}">${icon} ${label}</button>`;
+  // 한 단어씩: 낱말 버튼 줄을 열어 두고, 누른 낱말만 읽는다(저절로 넘어가지 않음).
   const follow = on
-    ? `<p class="follow" data-follow lang="en">${wordsOf(l.en).map((w, i) => `<span data-w="${i}">${esc(w)}</span>`).join(' ')}</p>`
+    ? followHTML(l.en).replace('<p class="follow ', '<p data-follow class="follow ').replaceAll('class="fw"', 'class="fw" data-act="sayword"') +
+      (talk.mode === 'word' ? '<p class="hint fw-hint">단어를 누르면 그 단어만 들려요</p>' : '')
     : '';
   return `<div class="listen-box">
       <div class="row helpers">
-        ${btn('all', ICON.speaker, '발음 들어 보기')}
-        ${btn('word', ICON.speaker, '한 단어씩')}
+        ${btn('all', ICON.speaker, '발음 들어 보기', '■ 멈추기')}
+        ${btn('word', ICON.speaker, '한 단어씩', '■ 단어 닫기')}
         ${speedChipsHTML()}
       </div>
       ${follow}
@@ -584,23 +586,28 @@ function toggleDictation(s, l, field) {
 
 /* ---------- 발음 듣기와 파파고 ---------- */
 function stopTalk() { if (talk.handle) talk.handle.stop(); }
+const markWord = (l, i) => document.querySelectorAll(`[data-line="${l.id}"] [data-follow] [data-w]`).forEach(el => el.classList.toggle('now', Number(el.dataset.w) === i));
+function closeTalk(l) {
+  stopTalk();
+  talk.lineId = null; talk.mode = null; talk.handle = null;
+  const now = sceneOfLine(l);
+  if (now) rerenderCard(now.id);
+}
 async function listen(s, l, mode) {
-  if (talk.lineId === l.id && talk.mode === mode) { stopTalk(); return; }
+  if (talk.lineId === l.id && talk.mode === mode) { mode === 'word' ? closeTalk(l) : stopTalk(); return; }
   if (!l.en.trim()) { toast('먼저 영어 문장을 써 주세요'); return; }
   if (rec.lineId || dict.lineId) { toast('녹음이나 말로 쓰기가 끝나면 들어 봐요'); return; }
   stopTalk();
-  talk.lineId = l.id; talk.mode = mode;
+  talk.lineId = l.id; talk.mode = mode; talk.handle = null;
   rerenderCard(s.id);
-  const mark = (i) => {
-    document.querySelectorAll(`[data-line="${l.id}"] [data-follow] span`).forEach(el => el.classList.toggle('now', Number(el.dataset.w) === i));
-  };
+  if (mode === 'word') return;   // 낱말 버튼을 누를 때 읽는다
   try {
     const h = await say(l.en, {
       speed: getSpeed(),
-      wordByWord: mode === 'word',
-      onWord: mark,
+      onWord: (i) => markWord(l, i),
       onEnd: () => {
         if (talk.handle !== h && talk.handle) return;   // 새로 시작한 읽기가 있으면 그대로 둔다
+        if (talk.mode !== 'all') return;                 // 한 단어씩으로 바뀌었으면 그대로 둔다
         talk.lineId = null; talk.mode = null; talk.handle = null;
         const now = sceneOfLine(l);
         if (now) rerenderCard(now.id);
@@ -612,6 +619,19 @@ async function listen(s, l, mode) {
     rerenderCard(s.id);
     toast('이 브라우저에서는 발음 듣기가 안 돼요');
   }
+}
+// 한 단어씩 줄(또는 문장을 읽는 중의 따라 읽기 줄)에서 누른 낱말 하나만 읽는다.
+async function sayWordOf(l, b) {
+  if (rec.lineId || dict.lineId) { toast('녹음이나 말로 쓰기가 끝나면 들어 봐요'); return; }
+  if (talk.mode === 'all') { stopTalk(); return; }   // 문장을 읽는 중이면 멈추기만
+  stopTalk();
+  talk.handle = null;
+  const i = Number(b.dataset.w);
+  markWord(l, i);
+  try {
+    const h = await speakWord(b.textContent, { speed: getSpeed(), onEnd: () => { if (talk.handle === h) { talk.handle = null; markWord(l, -1); } } });
+    if (talk.lineId === l.id && talk.mode === 'word') talk.handle = h; else h.stop();
+  } catch (e) { toast('이 브라우저에서는 발음 듣기가 안 돼요'); }
 }
 function openPapago(ko) {
   const url = 'https://papago.naver.com/?sk=ko&tk=en' + (ko.trim() ? '&st=' + encodeURIComponent(ko.trim()) : '');
@@ -1085,6 +1105,7 @@ scenesEl.addEventListener('click', async (e) => {
   else if (act === 'use-fix') {
     if (l.feedback) { l.en = l.feedback.corrected || l.attempt; save(); rerenderCard(s.id); toast('영상에 들어갈 문장으로 정했어요'); }
   } else if (act === 'speak') listen(s, l, b.dataset.mode || 'all');
+  else if (act === 'sayword') sayWordOf(l, b);
   else if (act === 'speed') {
     setSpeed(b.dataset.speed);
     document.querySelectorAll('[data-act="speed"]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.speed === b.dataset.speed)));

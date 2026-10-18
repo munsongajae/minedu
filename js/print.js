@@ -1,10 +1,10 @@
 // 인쇄하기(한꺼번에 보기에서): 인쇄용 화면을 만들어 브라우저 인쇄 창(window.print)을 연다.
 // 인쇄 창에서 프린터로 뽑거나 'PDF로 저장'을 고를 수 있다. 파일을 따로 만들지 않는다.
-//   문장 카드     : 사진 + 영어 + 한글 뜻(크게: 한 줄에 하나, 작게: 두 개씩)
+//   문장 카드     : 사진 + 영어 + 한글 뜻(크게: 한 줄에 하나, 작게: 두 개씩). 한 사진(장면)의 문장 여러 개는 카드 하나에 모은다.
 //   외우기 학습지 : 사진 + 가린 문장(첫 단어 / 첫 글자 / 빈 줄만) + 쓰는 줄, 정답은 맨 끝 장에
 //   접는 플래시카드: 위 칸(사진 + 한글 뜻)과 아래 칸(영어, 거꾸로)을 가운데에서 접으면 앞뒤가 된다
 //   단어장        : 문장에 나온 단어와 뜻 + 써 보기 칸
-// 고른 값은 localStorage `block-studio-print`. 흑백 프린터에서도 보이게 색 대신 테두리·굵기로 구분한다.
+// 사진: 크게 / 작게 / 빼기(문장만 인쇄). 고른 값은 localStorage `block-studio-print`. 흑백 프린터에서도 보이게 색 대신 테두리·굵기로 구분한다.
 import { $, esc, blobURL, collectWords, loadGlossary } from './learn.js';
 import { wordsOf } from './speech.js';
 
@@ -40,7 +40,12 @@ function drawOpts() {
   // 모양마다 쓰는 선택지만 보여 준다.
   const k = opts.kind;
   $('#prOptKo').hidden = k === 'flash';
-  $('#prOptPhoto').hidden = k === 'flash' || k === 'words';
+  $('#prOptPhoto').hidden = k === 'words';
+  // 플래시카드는 사진 크기가 정해져 있어서 '넣기/빼기'만
+  const small = document.querySelector('#prOptPhoto [data-v="small"]');
+  small.hidden = k === 'flash';
+  document.querySelector('#prOptPhoto [data-v="big"]').textContent = k === 'flash' ? '넣기' : '크게';
+  if (k === 'flash' && opts.photo === 'small') document.querySelector('#prOptPhoto [data-v="big"]').classList.add('on');
   $('#prOptHide').hidden = k !== 'sheet';
   const n = ctx.list.length;
   $('#prCount').textContent = k === 'words'
@@ -69,6 +74,20 @@ function headerHTML(title, sub) {
   return `<header class="pr-head"><div><h1>${esc(title)}</h1>${sub ? `<p>${esc(sub)}</p>` : ''}</div>${name}</header>`;
 }
 const img = (s) => (s.image ? `<img src="${blobURL(s.image)}" alt="">` : '<span class="pr-noimg">사진 없음</span>');
+const noPhoto = () => opts.photo === 'none';
+const photoHTML = (s) => (noPhoto() ? '' : `<div class="pr-photo">${img(s)}</div>`);
+const sizeClass = () => (noPhoto() ? 'nophoto' : opts.photo === 'small' ? 'small' : 'big');
+
+// 같은 사진(장면)의 문장끼리 모은다. 순서는 처음 나온 차례 그대로, 번호는 문장마다.
+function byScene(list) {
+  const groups = [], at = new Map();
+  list.forEach((s, i) => {
+    const k = `${s.projectId}|${s.sceneId || s.key}`;
+    if (!at.has(k)) { at.set(k, groups.length); groups.push({ s, items: [] }); }
+    groups[at.get(k)].items.push({ s, no: i + 1 });
+  });
+  return groups;
+}
 
 // 가린 문장: first = 첫 단어만, letters = 모든 낱말 첫 글자, blank = 빈 줄만
 function hidden(s, how) {
@@ -85,13 +104,17 @@ function hidden(s, how) {
 }
 
 function cardsHTML(list) {
-  return `<div class="pr-cards ${opts.photo === 'big' ? 'big' : 'small'}">${list.map((s, i) => `
-    <article class="pr-card">
-      <div class="pr-photo">${img(s)}</div>
-      <div class="pr-text">
-        <span class="pr-no">${i + 1}</span>
-        <p class="pr-en" lang="en">${esc(s.en)}</p>
-        ${opts.ko && s.ko ? `<p class="pr-ko">${esc(s.ko)}</p>` : ''}
+  return `<div class="pr-cards ${sizeClass()}">${byScene(list).map(g => `
+    <article class="pr-card ${g.items.length > 1 ? 'many' : ''}">
+      ${photoHTML(g.s)}
+      <div class="pr-text">${g.items.map(({ s, no }) => `
+        <div class="pr-line">
+          <span class="pr-no">${no}</span>
+          <div>
+            <p class="pr-en" lang="en">${esc(s.en)}</p>
+            ${opts.ko && s.ko ? `<p class="pr-ko">${esc(s.ko)}</p>` : ''}
+          </div>
+        </div>`).join('')}
       </div>
     </article>`).join('')}</div>`;
 }
@@ -99,9 +122,9 @@ function cardsHTML(list) {
 function sheetHTML(list) {
   const guide = { first: '첫 단어를 보고 문장을 완성해 써 봐요.', letters: '첫 글자를 보고 문장을 완성해 써 봐요.', blank: '사진을 보고 영어 문장을 써 봐요.' }[opts.hide];
   return `<p class="pr-guide">${guide}</p>
-    <div class="pr-sheet ${opts.photo === 'big' ? 'big' : 'small'}">${list.map((s, i) => `
+    <div class="pr-sheet ${sizeClass()}">${list.map((s, i) => `
       <article class="pr-row">
-        <div class="pr-photo">${img(s)}</div>
+        ${photoHTML(s)}
         <div class="pr-work">
           <span class="pr-no">${i + 1}</span>
           ${opts.ko && s.ko ? `<p class="pr-ko">${esc(s.ko)}</p>` : ''}
@@ -116,11 +139,11 @@ function sheetHTML(list) {
 }
 
 function flashHTML(list) {
-  return `<p class="pr-guide">바깥 실선을 따라 자르고, 가운데 점선에서 반으로 접어요. 앞면은 사진과 뜻, 뒷면은 영어 문장이에요.</p>
-    <div class="pr-flash">${list.map((s, i) => `
+  return `<p class="pr-guide">바깥 실선을 따라 자르고, 가운데 점선에서 반으로 접어요. 앞면은 ${noPhoto() ? '한글 뜻' : '사진과 뜻'}, 뒷면은 영어 문장이에요.</p>
+    <div class="pr-flash ${noPhoto() ? 'nophoto' : ''}">${list.map((s, i) => `
       <article class="pr-fc">
         <div class="pr-fc-front">
-          <div class="pr-photo">${img(s)}</div>
+          ${photoHTML(s)}
           <p class="pr-ko">${esc(s.ko || '(한글 뜻 없음)')}</p>
           <span class="pr-no">${i + 1}</span>
         </div>

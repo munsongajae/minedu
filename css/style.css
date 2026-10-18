@@ -1907,8 +1907,18 @@ kbd { font-family: var(--f-pixel); font-size: 12px; border: 2px solid var(--edge
 .pr-cards.big .pr-card { grid-template-columns: 72mm minmax(0, 1fr); align-items: center; }
 .pr-cards.big .pr-photo { height: 46mm; }
 .pr-cards.small .pr-photo { height: 38mm; }
-.pr-text { display: grid; gap: 2mm; align-content: center; justify-items: start; }
+.pr-text { display: grid; gap: 2mm; align-content: center; min-width: 0; }
 .pr-cards.small .pr-en { font-size: 14pt; }
+.pr-cards.small .pr-card { align-content: start; }
+.pr-cards.small .pr-text { align-content: start; }
+/* 한 사진의 문장 여러 개: 번호 + 영어·뜻을 줄마다, 사이에 점선 */
+.pr-line { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2.5mm; align-items: start; }
+.pr-line .pr-no { margin-top: 1.2mm; }
+.pr-line > div { display: grid; gap: 1mm; min-width: 0; }
+.pr-card.many .pr-line + .pr-line { border-top: 1px dashed var(--paper-line); padding-top: 2mm; }
+/* 사진 빼기(문장만) */
+.pr-cards.nophoto { grid-template-columns: minmax(0, 1fr); gap: 3mm; }
+.pr-cards.nophoto .pr-card { padding: 3mm 4mm; }
 
 /* 외우기 학습지 */
 .pr-sheet { display: grid; gap: 4mm; }
@@ -1917,6 +1927,7 @@ kbd { font-family: var(--f-pixel); font-size: 12px; border: 2px solid var(--edge
 .pr-sheet.big .pr-photo { height: 40mm; }
 .pr-sheet.small .pr-row { grid-template-columns: 38mm minmax(0, 1fr); }
 .pr-sheet.small .pr-photo { height: 25mm; }
+.pr-sheet.nophoto .pr-row { grid-template-columns: minmax(0, 1fr); }
 .pr-work { display: grid; gap: 2mm; justify-items: start; min-width: 0; }
 .pr-clue { margin: 0; font-family: var(--f-kid); font-size: 15pt; letter-spacing: .04em; overflow-wrap: anywhere; }
 .pr-lines { width: 100%; display: grid; gap: 9mm; padding-top: 8mm; }
@@ -1932,6 +1943,7 @@ kbd { font-family: var(--f-pixel); font-size: 12px; border: 2px solid var(--edge
 .pr-fc-front .pr-photo { width: 100%; height: 34mm; }
 .pr-fc-back { transform: rotate(180deg); }
 .pr-fc-back .pr-en { font-size: 16pt; }
+.pr-flash.nophoto .pr-fc-front .pr-ko { font-size: 16pt; line-height: 1.4; }
 .pr-fc .pr-no { position: absolute; top: 2mm; right: 2mm; }
 .pr-fc-fold { border-top: 1.5px dashed var(--paper-line); height: 0; position: relative; }
 .pr-fc-fold span { position: absolute; left: 50%; top: -0.7em; transform: translateX(-50%); background: var(--paper); padding: 0 2mm; font-size: 8pt; color: var(--paper-line); }

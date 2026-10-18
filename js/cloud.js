@@ -54,7 +54,7 @@ export async function serialize(project) {
       const { audio, ...rest } = l;
       lines.push({ ...rest, audio: await ref(audio) });
     }
-    doc.scenes.push({ id: s.id, example: !!s.example, images, lines });
+    doc.scenes.push({ id: s.id, example: !!s.example, images, lines, ...(s.fx ? { fx: { ...s.fx } } : {}) });
   }
   return { doc, blobs };
 }
@@ -95,6 +95,7 @@ async function rebuild(doc, urls, onProgress) {
     scenes: doc.scenes.map(s => ({
       id: s.id,
       example: !!s.example,
+      ...(s.fx ? { fx: s.fx } : {}),
       images: s.images.map(blobOf).filter(Boolean),
       lines: s.lines.map(l => ({ ...l, audio: blobOf(l.audio) }))
     })),

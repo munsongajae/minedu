@@ -223,6 +223,23 @@ input[type=text] { width: 100%; font-family: var(--f-kid); font-size: 18px; }
 .fw-hint { margin: 0; align-self: center; }
 @media (prefers-reduced-motion: reduce) { .follow span, .follow .fw { transition: none; } .follow .fw:active { transform: none; } }
 
+/* 화면 효과 고르기 */
+.fx { border: 2px solid var(--line); padding: 12px; display: grid; gap: 10px; background: var(--panel); }
+.fx-row { display: grid; gap: 4px; }
+.fx-lab { font-size: 14px; color: var(--muted); }
+.fx-seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.fx-seg button { font: inherit; font-family: var(--f-display); font-size: 16px; min-height: 44px; padding: 4px 12px 6px; cursor: pointer;
+  background: var(--panel-2); color: var(--ink); border: 2px solid var(--edge); box-shadow: 0 3px 0 var(--shade); }
+.fx-seg button.on { background: var(--grass); color: var(--on-color); }
+.fx-seg button:focus-visible { outline: 3px solid var(--helper-edge); outline-offset: 2px; }
+@media (pointer: coarse) { .fx-seg button { min-height: 48px; } }
+.scene-fx { border: 2px dashed var(--line); background: var(--panel); padding: 6px 10px; }
+.scene-fx[open] { border-style: solid; display: grid; gap: 8px; padding-bottom: 10px; }
+.scene-fx summary { cursor: pointer; font-size: 15px; min-height: 32px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.scene-fx-now { color: var(--muted); font-size: 13px; }
+.scene-fx label { display: grid; gap: 4px; font-size: 14px; color: var(--muted); }
+.scene-fx select { font: inherit; font-size: 16px; min-height: 40px; color: var(--ink); background: var(--panel-2); border: 2px solid var(--edge); max-width: 100%; }
+
 /* 배경 음악 */
 .music { border: 2px dashed var(--line); padding: 12px; display: grid; gap: 8px; background: var(--panel); }
 .music.has { border-style: solid; border-color: var(--gold); }

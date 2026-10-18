@@ -1,7 +1,8 @@
 // 곰이난이 블록 스튜디오 — 화면과 동작
 import * as store from './storage.js';
 import { makeExampleImage } from './world.js';
-import { renderVideo, totalDur, canMakeVideo } from './video.js';
+import { renderVideo, previewVideo, totalDur, canMakeVideo } from './video.js';
+import { TRANS, MOVES, SUBS, fxOf } from './fx.js';
 import { canRecord, startRecording, micErrorMessage } from './recorder.js';
 import { aiEnabled, coach, aiMessage, getFamilyCode, setFamilyCode } from './ai.js';
 import { importPortfolioPdf, isPdf } from './pdf-import.js';
@@ -161,8 +162,83 @@ function renderMeta() {
   $('#optTitle').checked = !!project.opts.title;
   $('#optKo').checked = !!project.opts.ko;
   $('#optEnd').checked = !!project.opts.end;
+  drawFx();
   renderMusic();
 }
+
+/* ---------- 화면 효과 ---------- */
+// project.opts.fx = { trans, move, sub, cards }, scene.fx = { trans, move } ('' = 영상 설정대로). 그리기는 fx.js·video.js.
+const FX_CHOICES = {
+  trans: TRANS,
+  move: MOVES,
+  sub: SUBS,
+  cards: { true: '움직이기', false: '가만히' }
+};
+function drawFx() {
+  const f = fxOf(project);
+  document.querySelectorAll('#fxBox [data-fx]').forEach(g => {
+    const key = g.dataset.fx;
+    g.innerHTML = Object.entries(FX_CHOICES[key]).map(([v, label]) => {
+      const on = String(f[key]) === v;
+      return `<button type="button" data-v="${v}" class="${on ? 'on' : ''}" aria-pressed="${on}">${label}</button>`;
+    }).join('');
+  });
+}
+$('#fxBox').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-fx] button');
+  if (!b) return;
+  const key = b.closest('[data-fx]').dataset.fx;
+  const v = key === 'cards' ? b.dataset.v === 'true' : b.dataset.v;
+  project.opts.fx = { ...fxOf(project), [key]: v };
+  save(); drawFx();
+});
+// 장면 카드의 '이 장면 효과'
+const fxOpen = new Set();   // 펼쳐 둔 장면(다시 그려도 펼친 채로)
+function sceneFxHTML(s) {
+  const own = s.fx || {};
+  const opt = (list, cur) => `<option value="" ${!cur ? 'selected' : ''}>영상 설정대로</option>` +
+    Object.entries(list).filter(([v]) => v !== 'auto').map(([v, label]) => `<option value="${v}" ${cur === v ? 'selected' : ''}>${label}</option>`).join('');
+  const now = [own.move && MOVES[own.move], own.trans && TRANS[own.trans] && `넘어올 때 ${TRANS[own.trans]}`].filter(Boolean).join(' · ');
+  return `<details class="scene-fx" data-scenefx ${fxOpen.has(s.id) ? 'open' : ''}>
+      <summary>이 장면 효과 <span class="scene-fx-now">${now ? esc(now) : '영상 설정대로'}</span></summary>
+      <label>사진 움직임 <select data-act="scene-fx" data-key="move">${opt(MOVES, own.move)}</select></label>
+      <label>이 장면으로 넘어올 때 <select data-act="scene-fx" data-key="trans">${opt(TRANS, own.trans)}</select></label>
+    </details>`;
+}
+
+/* ---------- 효과 미리 보기 ---------- */
+let preview = null;   // { keep: 원래 화면, h }
+async function togglePreview() {
+  if (preview) { stopPreview(); return; }
+  if (rendering) return;
+  if (!project.scenes.some(s => s.images.length)) { toast('먼저 게임 화면 사진을 넣어 주세요'); return; }
+  const screen = $('#screen');
+  screen.querySelectorAll('video').forEach(v => v.pause());
+  preview = { keep: [...screen.childNodes], bar: $('#barFill').style.width, h: null };
+  $('#fxPreview').textContent = '■ 미리 보기 멈추기';
+  try {
+    const h = await previewVideo(project, {
+      mount: (c) => { if (preview) { screen.innerHTML = ''; screen.appendChild(c); } },
+      onProgress: (p) => { $('#barFill').style.width = (p * 100).toFixed(1) + '%'; },
+      onEnd: () => setTimeout(stopPreview, 600)
+    });
+    if (preview) preview.h = h; else h.stop();
+  } catch (e) {
+    console.error(e);
+    stopPreview();
+    toast('미리 보기를 하지 못했어요');
+  }
+}
+function stopPreview() {
+  if (!preview) return;
+  const p = preview;
+  preview = null;
+  if (p.h) p.h.stop();
+  $('#screen').replaceChildren(...p.keep);
+  $('#barFill').style.width = p.bar;
+  $('#fxPreview').textContent = '▶ 효과 미리 보기';
+}
+$('#fxPreview').addEventListener('click', togglePreview);
 
 /* ---------- 배경 음악 ---------- */
 // project.music = null | { blob, name, dur, vol(0~1), credit }
@@ -382,6 +458,7 @@ function cardHTML(s, i, n) {
           ${i < n - 1 ? `<span data-mergewrap><button class="btn small" type="button" data-act="merge">아래 장면과 합치기</button></span>` : ''}
         </div>
         <p class="hint">${sceneHint(s)}</p>
+        ${sceneFxHTML(s)}
       </div>
       <div class="col lines">
         ${L.map((l, j) => lineHTML(l, j, L.length)).join('')}
@@ -1001,9 +1078,23 @@ scenesEl.addEventListener('input', (e) => {
   }
 });
 
+// '이 장면 효과'를 펼친 채로 두기(toggle은 퍼지지 않아서 잡기 단계에서 듣는다)
+scenesEl.addEventListener('toggle', (e) => {
+  if (!e.target.matches || !e.target.matches('[data-scenefx]')) return;
+  const s = findScene(e.target);
+  if (s) { if (e.target.open) fxOpen.add(s.id); else fxOpen.delete(s.id); }
+}, true);
 scenesEl.addEventListener('change', async (e) => {
   const act = e.target.dataset.act;
   const s = findScene(e.target);
+  if (act === 'scene-fx' && s) {
+    const fx = { ...(s.fx || {}) };
+    if (e.target.value) fx[e.target.dataset.key] = e.target.value; else delete fx[e.target.dataset.key];
+    s.fx = Object.keys(fx).length ? fx : undefined;
+    if (!s.fx) delete s.fx;
+    save(); rerenderCard(s.id);
+    return;
+  }
   const file = e.target.files && e.target.files[0];
   if (!s || !file) return;
   if (act === 'img-file') {
@@ -1257,6 +1348,7 @@ async function makeVideo() {
   if (rendering || !project.scenes.some(s => s.images.length)) return;
   if (rec.lineId) { toast('녹음을 먼저 끝내 주세요'); return; }
   stopDictation();
+  stopPreview();
   if (!canMakeVideo()) { $('#makeNote').textContent = '이 브라우저에서는 영상을 만들 수 없어요. 크롬이나 엣지에서 열어 주세요.'; return; }
   rendering = true; cancelRequested = false;
   resetResult();

@@ -30,6 +30,12 @@
 - 빌드 도구·프레임워크 없이 순수 HTML/CSS/JS(ES 모듈). npm 의존성을 추가하지 않는다.
 - 데이터는 기기의 IndexedDB(`js/storage.js`, 저장소 projects·progress·meta)가 기본. 프로젝트 객체 안에 이미지·오디오 Blob을 그대로 저장한다. 가족 암호가 있으면 서버(Supabase Storage)에도 자동으로 올린다.
 - 영상은 `js/video.js`에서 캔버스(1280×720)에 그리고 `canvas.captureStream` + Web Audio(`MediaStreamDestination`) + `MediaRecorder`로 실시간 녹화한다. 그리기 시계는 `AudioContext.currentTime`.
+- 화면 효과(사용자 요청 2026-10-18, `js/fx.js` + video.js): 영상 전체는 `project.opts.fx = { trans, move, sub, cards }`(기본 auto·auto·rise·true, `fxOf`), 장면마다 `scene.fx = { trans?, move? }`(없으면 영상 설정대로). 만들기 판의 `#fxBox`와 장면 카드의 '이 장면 효과'(`sceneFxHTML`)에서 고른다.
+  - 장면 넘김 `TRANS`: fade 스르륵 / slide 옆으로 밀기 / circle 동그랗게 / blocks 블록 조각(80px 블록이 톡 놓임) / black 까맣게 / cut 바로, auto는 fade→slide→circle→blocks 차례. 새 장면 앞부분 `TRANS_DUR`(0.7~1초) 동안 앞 장면(계속 움직이는 채로, `drawSeg(prev, prev.dur + tl)`)과 새 장면을 두 캔버스에 따로 그려 `compose`로 합친다. 영상 맨 처음·끝만 까맣게(`FADE`).
+  - 사진 움직임 `MOVES`: in 다가가기 / out 멀어지기 / pan 옆으로 훑기(사진마다 방향 번갈아) / still 가만히, auto는 사진마다 in→pan→out→panL. 18%(16:9가 아닌 사진은 10%), 처음·끝은 천천히(`glide`).
+  - 자막 `SUBS`: plain / rise 아래에서 쏙 / pop 낱말 톡톡 / karaoke 읽는 낱말 칠하기(녹음 길이를 글자 수로 나눈 대강 맞춤, 다이아몬드색). 자막은 목소리보다 `SUB_LEAD` 0.25초 먼저.
+  - 제목·끝 화면(`cards`): 글자가 블록처럼 하나씩 떨어져 쌓이고(가루), 작은 글이 올라오고, 배경이 천천히 다가감. 끝 화면은 픽셀이 펑 흩어지고 별이 반짝임(`drawSparkles`). 무작위는 `rand(n)`(프레임마다 같은 값).
+  - '효과 미리 보기'(`previewVideo`, `#fxPreview`): 녹화 없이 소리 없이 #screen에 재생, 멈추면 원래 화면(만든 영상)을 되돌린다. 시험은 `makePlan(project)` + `drawFrame(ctx, plan, t)`로 프레임을 뽑고, 실제 영상은 ffmpeg로 프레임을 꺼내 본다.
 - 영상 녹화 주의: 소리 트랙에 소리가 끊기면 mp4 녹화가 앞부분(약 1~2초)만 저장되는 문제가 있어서, 들리지 않는 아주 작은 소리(`hum`)를 늘 흘린다. 그리기는 requestAnimationFrame 흐름 하나만 돌리고, 느린 타이머는 그리기가 멈췄을 때만 대신 그린다.
 - 시험: `/opt/pw-browsers`의 Chromium + Python Playwright로 PDF 넣기 → 영상 만들기 → 저장까지 돌릴 수 있다(오픈소스 Chromium이라 mp4가 H.264가 아닌 VP9로 나오는 건 정상).
 - 색과 글꼴은 `css/style.css` 맨 위 `:root` 토큰만 쓴다. 다크 모드 값은 바로 아래 미디어 쿼리.
@@ -105,10 +111,10 @@
 ```js
 project = {
   id, title, makers, createdAt, updatedAt,
-  opts: { title: bool, ko: bool, end: bool },   // 제목 화면, 한글 자막, The End 화면
+  opts: { title: bool, ko: bool, end: bool, fx?: { trans, move, sub, cards } },   // 제목 화면, 한글 자막, The End 화면, 화면 효과
   music: null | { blob, name, dur, vol, credit },
   scenes: [{
-    id, images: [Blob], example?,           // 사진 순서 = 영상에 나오는 순서
+    id, images: [Blob], example?, fx?: { trans?, move? },   // 사진 순서 = 영상에 나오는 순서, 이 장면 효과
     lines: [{
       id, ko, en,                            // en = 자막에 들어가는 최종 영어 문장
       mode: 'self'|'ai', attempt,            // 영어 만드는 방법, 아이가 먼저 쓴 영어

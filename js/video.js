@@ -515,36 +515,114 @@ async function loadFonts() {
   } catch (e) { /* 글꼴이 없으면 기본 글꼴로 */ }
 }
 
-/**
- * 효과 미리 보기: 녹화하지 않고 소리 없이 캔버스에 바로 재생한다.
- * @param {object} io { mount(canvas), onProgress(0..1), onEnd() }
- * @returns {Promise<{ stop(): void }>}
- */
 export async function makePlan(project) {
   const scenes = project.scenes.filter(s => s.images && s.images.length);
   await loadFonts();
   const bmps = await Promise.all(scenes.map(s => Promise.all(s.images.map(b => createImageBitmap(b)))));
   return buildPlan(project, scenes, bmps, null, !!(project.music && project.music.blob));
 }
-export async function previewVideo(project, io) {
-  const plan = await makePlan(project);
-  const canvas = document.createElement('canvas');
-  canvas.width = W; canvas.height = H;
-  const ctx = canvas.getContext('2d');
-  drawFrame(ctx, plan, 0);
-  io.mount(canvas);
-  let on = true;
-  const t0 = performance.now();
-  const loop = () => {
-    if (!on) return;
-    const t = (performance.now() - t0) / 1000;
-    drawFrame(ctx, plan, Math.min(t, plan.total - 0.001));
-    io.onProgress && io.onProgress(Math.min(1, t / plan.total));
-    if (t >= plan.total) { on = false; io.onEnd && io.onEnd(); return; }
-    requestAnimationFrame(loop);
+
+// 사진·목소리·음악을 준비한다(영상 만들기와 미리 보기가 같이 쓴다).
+async function prepare(project, ac) {
+  const scenes = project.scenes.filter(s => s.images && s.images.length);
+  await loadFonts();
+  const bmps = await Promise.all(scenes.map(s => Promise.all(s.images.map(b => createImageBitmap(b)))));
+  const decode = async (blob) => {
+    if (!blob) return null;
+    try { return await ac.decodeAudioData(await blob.arrayBuffer()); } catch (e) { return null; }
   };
-  requestAnimationFrame(loop);
-  return { stop() { on = false; } };
+  const bufs = await Promise.all(scenes.map(s => Promise.all(s.lines.map(l => decode(l.audio)))));
+  const music = project.music && project.music.blob ? await decode(project.music.blob) : null;
+  return { plan: buildPlan(project, scenes, bmps, bufs, !!music), music };
+}
+
+/**
+ * 목소리와 배경 음악을 t0(오디오 시계)에 맞춰 건다. from초부터 시작할 수 있다(미리 보기).
+ * 음악: 소스 → 크기 곡선(처음·끝·목소리 나올 때 줄이기) → 음악 크기(level, 바로 바꿀 수 있음) → dest
+ */
+function scheduleAudio(ac, dest, plan, music, vol, t0, from = 0) {
+  const sources = [];
+  plan.segs.forEach(sg => (sg.lines || []).forEach(ln => {
+    if (!ln.buf || ln.start + ln.buf.duration <= from) return;
+    const src = ac.createBufferSource();
+    src.buffer = ln.buf;
+    src.connect(dest);
+    if (ln.start >= from) src.start(t0 + ln.start - from); else src.start(t0, from - ln.start);
+    sources.push(src);
+  }));
+  let level = null;
+  const total = plan.total;
+  if (music && total - from > 0.1) {
+    const voice = [];
+    plan.segs.forEach(sg => (sg.lines || []).forEach(ln => { if (ln.buf) voice.push([ln.start, ln.start + ln.buf.duration]); }));
+    const STEP = 0.05;
+    let curve = musicEnvelope(1, total, voice, STEP);
+    if (from > 0) curve = curve.slice(Math.min(curve.length - 2, Math.floor(from / STEP)));
+    const env = ac.createGain();
+    env.gain.value = 0;
+    env.gain.setValueCurveAtTime(curve, t0, total - from);
+    level = ac.createGain();
+    level.gain.value = vol;
+    const src = ac.createBufferSource();
+    src.buffer = music;
+    src.loop = music.duration < total;   // 음악이 영상보다 짧으면 반복
+    src.connect(env).connect(level).connect(dest);
+    if (src.loop || from < music.duration) { src.start(t0, src.loop ? from % music.duration : from); sources.push(src); }
+  }
+  return {
+    level,
+    stop() { sources.forEach(s => { try { s.stop(); } catch (e) { /* 이미 끝남 */ } }); }
+  };
+}
+const musicVolOf = (project) => Math.min(1, Math.max(0, Number(project.music && project.music.vol) || 0.3));
+
+/**
+ * 미리 보기: 녹화하지 않고 캔버스에 바로 재생한다. 목소리와 배경 음악도 같이 나온다.
+ * @param {object} io { mount(canvas), onProgress(0..1), onEnd() }
+ * @param {object} o { fromVoice: 첫 목소리 1초 전부터 시작 }
+ * @returns {Promise<{ stop(): void, setMusicVol(v): void }>}
+ */
+export async function previewVideo(project, io, { fromVoice = false } = {}) {
+  const ac = new (window.AudioContext || window.webkitAudioContext)();
+  let on = true, audio = null;
+  const stop = () => {
+    if (!on) return;
+    on = false;
+    if (audio) audio.stop();
+    ac.close().catch(() => {});
+  };
+  try {
+    await ac.resume();
+    const { plan, music } = await prepare(project, ac);
+    let from = 0;
+    if (fromVoice) {
+      const first = plan.segs.flatMap(s => s.lines || []).find(l => l.buf) || plan.segs.flatMap(s => s.lines || [])[0];
+      if (first) from = Math.max(0, first.start - 1);
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    drawFrame(ctx, plan, from);
+    io.mount(canvas);
+    const t0 = ac.currentTime + 0.15;
+    audio = scheduleAudio(ac, ac.destination, plan, music, musicVolOf(project), t0, from);
+    const loop = () => {
+      if (!on) return;
+      const t = from + Math.max(0, ac.currentTime - t0);
+      drawFrame(ctx, plan, Math.min(t, plan.total - 0.001));
+      io.onProgress && io.onProgress(Math.min(1, t / plan.total));
+      if (t >= plan.total) { stop(); io.onEnd && io.onEnd(); return; }
+      requestAnimationFrame(loop);
+    };
+    requestAnimationFrame(loop);
+  } catch (e) {
+    stop();
+    throw e;
+  }
+  return {
+    stop,
+    setMusicVol(v) { if (audio && audio.level) audio.level.gain.setTargetAtTime(v, ac.currentTime, 0.05); }
+  };
 }
 
 /**
@@ -554,21 +632,10 @@ export async function previewVideo(project, io) {
  * @returns {Promise<{blob: Blob, ext: string, total: number} | null>} 멈추면 null
  */
 export async function renderVideo(project, io) {
-  const scenes = project.scenes.filter(s => s.images && s.images.length);
-  await loadFonts();
-
-  const bmps = await Promise.all(scenes.map(s => Promise.all(s.images.map(b => createImageBitmap(b)))));
   const ac = new (window.AudioContext || window.webkitAudioContext)();
   try {
     await ac.resume();
-    const decode = async (blob) => {
-      if (!blob) return null;
-      try { return await ac.decodeAudioData(await blob.arrayBuffer()); } catch (e) { return null; }
-    };
-    const bufs = await Promise.all(scenes.map(s => Promise.all(s.lines.map(l => decode(l.audio)))));
-    const music = project.music && project.music.blob ? await decode(project.music.blob) : null;
-
-    const plan = buildPlan(project, scenes, bmps, bufs, !!music);
+    const { plan, music } = await prepare(project, ac);
     const total = plan.total;
 
     const canvas = document.createElement('canvas');
@@ -596,29 +663,7 @@ export async function renderVideo(project, io) {
     rec.start(500);
 
     const t0 = ac.currentTime + 0.2;
-    const sources = [];
-    plan.segs.forEach(sg => (sg.lines || []).forEach(ln => {
-      if (!ln.buf) return;
-      const src = ac.createBufferSource();
-      src.buffer = ln.buf;
-      src.connect(dest);
-      src.start(t0 + ln.start);
-      sources.push(src);
-    }));
-    if (music) {
-      const voice = [];
-      plan.segs.forEach(sg => (sg.lines || []).forEach(ln => { if (ln.buf) voice.push([ln.start, ln.start + ln.buf.duration]); }));
-      const vol = Math.min(1, Math.max(0, Number(project.music.vol) || 0.3));
-      const gain = ac.createGain();
-      gain.gain.value = 0;
-      gain.gain.setValueCurveAtTime(musicEnvelope(vol, total, voice), t0, total);
-      const src = ac.createBufferSource();
-      src.buffer = music;
-      src.loop = music.duration < total;   // 음악이 영상보다 짧으면 반복
-      src.connect(gain).connect(dest);
-      src.start(t0);
-      sources.push(src);
-    }
+    const audio = scheduleAudio(ac, dest, plan, music, musicVolOf(project), t0);
     io.onStatus('영상을 만드는 중이에요. 이 화면을 켜 두세요!');
 
     let cancelled = false;
@@ -646,7 +691,7 @@ export async function renderVideo(project, io) {
       requestAnimationFrame(loop);
     });
 
-    sources.forEach(s => { try { s.stop(); } catch (e) { /* 이미 끝남 */ } });
+    audio.stop();
     try { hum.stop(); } catch (e) { /* 이미 끝남 */ }
     rec.stop();
     await stopped;

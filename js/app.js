@@ -206,23 +206,28 @@ function sceneFxHTML(s) {
     </details>`;
 }
 
-/* ---------- 효과 미리 보기 ---------- */
-let preview = null;   // { keep: 원래 화면, h }
-async function togglePreview() {
-  if (preview) { stopPreview(); return; }
+/* ---------- 미리 보기(소리와 함께) ---------- */
+// 녹화하지 않고 #screen에 바로 재생한다. 목소리·배경 음악도 나오고, 그동안 음악 크기를 바꾸면 바로 들린다.
+const PREVIEW_BTNS = { fxPreview: '▶ 미리 보기', musicPreview: '▶ 목소리랑 같이 들어 보기' };
+let preview = null;   // { keep: 원래 화면, bar, h, btn }
+async function togglePreview(btnId, opts = {}) {
+  if (preview) { const same = preview.btn === btnId; stopPreview(); if (same) return; }
   if (rendering) return;
+  if (rec.lineId) { toast('녹음을 먼저 끝내 주세요'); return; }
   if (!project.scenes.some(s => s.images.length)) { toast('먼저 게임 화면 사진을 넣어 주세요'); return; }
+  stopTalk();
+  $('#musicPlayer').pause();
   const screen = $('#screen');
   screen.querySelectorAll('video').forEach(v => v.pause());
-  preview = { keep: [...screen.childNodes], bar: $('#barFill').style.width, h: null };
-  $('#fxPreview').textContent = '■ 미리 보기 멈추기';
+  preview = { keep: [...screen.childNodes], bar: $('#barFill').style.width, h: null, btn: btnId };
+  $('#' + btnId).textContent = '■ 멈추기';
   try {
     const h = await previewVideo(project, {
       mount: (c) => { if (preview) { screen.innerHTML = ''; screen.appendChild(c); } },
       onProgress: (p) => { $('#barFill').style.width = (p * 100).toFixed(1) + '%'; },
       onEnd: () => setTimeout(stopPreview, 600)
-    });
-    if (preview) preview.h = h; else h.stop();
+    }, opts);
+    if (preview && preview.btn === btnId) preview.h = h; else h.stop();
   } catch (e) {
     console.error(e);
     stopPreview();
@@ -236,9 +241,10 @@ function stopPreview() {
   if (p.h) p.h.stop();
   $('#screen').replaceChildren(...p.keep);
   $('#barFill').style.width = p.bar;
-  $('#fxPreview').textContent = '▶ 효과 미리 보기';
+  Object.entries(PREVIEW_BTNS).forEach(([id, label]) => { $('#' + id).textContent = label; });
 }
-$('#fxPreview').addEventListener('click', togglePreview);
+$('#fxPreview').addEventListener('click', () => togglePreview('fxPreview'));
+$('#musicPreview').addEventListener('click', () => togglePreview('musicPreview', { fromVoice: true }));
 
 /* ---------- 배경 음악 ---------- */
 // project.music = null | { blob, name, dur, vol(0~1), credit }
@@ -598,6 +604,7 @@ async function stopRecordingNow() {
   return blob;
 }
 async function toggleRecord(s, l) {
+  stopPreview();
   if (rec.lineId === l.id) {
     const blob = await stopRecordingNow();
     if (!blob || blob.size < 500) { toast('녹음이 너무 짧아요. 다시 해 볼까요?'); rerenderCard(s.id); return; }
@@ -1229,6 +1236,7 @@ $('#musicVol').addEventListener('input', (e) => {
   if (!project.music) return;
   project.music.vol = Number(e.target.value) / 100;
   $('#musicPlayer').volume = project.music.vol;
+  if (preview && preview.h) preview.h.setMusicVol(project.music.vol);   // 미리 보기 중이면 바로 들리게
   save();
 });
 $('#musicCredit').addEventListener('input', (e) => {
@@ -1237,6 +1245,7 @@ $('#musicCredit').addEventListener('input', (e) => {
   save();
 });
 $('#musicRemove').addEventListener('click', () => {
+  stopPreview();
   $('#musicPlayer').pause();
   project.music = null;
   save(); renderMusic(); renderSummary();

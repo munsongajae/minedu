@@ -35,7 +35,7 @@
   - 사진 움직임 `MOVES`: in 다가가기 / out 멀어지기 / pan 옆으로 훑기(사진마다 방향 번갈아) / still 가만히, auto는 사진마다 in→pan→out→panL. 18%(16:9가 아닌 사진은 10%), 처음·끝은 천천히(`glide`).
   - 자막 `SUBS`: plain / rise 아래에서 쏙 / pop 낱말 톡톡 / karaoke 읽는 낱말 칠하기(녹음 길이를 글자 수로 나눈 대강 맞춤, 다이아몬드색). 자막은 목소리보다 `SUB_LEAD` 0.25초 먼저.
   - 제목·끝 화면(`cards`): 글자가 블록처럼 하나씩 떨어져 쌓이고(가루), 작은 글이 올라오고, 배경이 천천히 다가감. 끝 화면은 픽셀이 펑 흩어지고 별이 반짝임(`drawSparkles`). 무작위는 `rand(n)`(프레임마다 같은 값).
-  - '효과 미리 보기'(`previewVideo`, `#fxPreview`): 녹화 없이 소리 없이 #screen에 재생, 멈추면 원래 화면(만든 영상)을 되돌린다. 시험은 `makePlan(project)` + `drawFrame(ctx, plan, t)`로 프레임을 뽑고, 실제 영상은 ffmpeg로 프레임을 꺼내 본다.
+  - '미리 보기'(`previewVideo`, `#fxPreview`): 녹화 없이 #screen에 목소리·배경 음악과 함께 재생(소리 시계는 AudioContext, 목소리·음악은 영상 만들기와 같은 `scheduleAudio`), 멈추면 원래 화면(만든 영상)을 되돌린다. 음악 칸의 '목소리랑 같이 들어 보기'(`#musicPreview`, `fromVoice`)는 첫 목소리 1초 전부터. 미리 보기 중에 음악 크기 막대를 움직이면 `setMusicVol`로 바로 바뀐다(음악은 크기 곡선 `env` 뒤에 음악 크기 `level` 노드). 녹음을 시작하거나 음악을 빼면 멈춘다. 시험은 `makePlan(project)` + `drawFrame(ctx, plan, t)`로 프레임을 뽑고, 실제 영상은 ffmpeg로 프레임을 꺼내 본다.
 - 영상 녹화 주의: 소리 트랙에 소리가 끊기면 mp4 녹화가 앞부분(약 1~2초)만 저장되는 문제가 있어서, 들리지 않는 아주 작은 소리(`hum`)를 늘 흘린다. 그리기는 requestAnimationFrame 흐름 하나만 돌리고, 느린 타이머는 그리기가 멈췄을 때만 대신 그린다.
 - 시험: `/opt/pw-browsers`의 Chromium + Python Playwright로 PDF 넣기 → 영상 만들기 → 저장까지 돌릴 수 있다(오픈소스 Chromium이라 mp4가 H.264가 아닌 VP9로 나오는 건 정상).
 - 색과 글꼴은 `css/style.css` 맨 위 `:root` 토큰만 쓴다. 다크 모드 값은 바로 아래 미디어 쿼리.

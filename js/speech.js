@@ -89,7 +89,8 @@ export async function speak(text, { speed = 'slow', onWord, onEnd } = {}) {
 }
 
 // 낱말 하나만 읽으면 음성 합성이 글자 이름이나 힘준 소리로 읽는 것을 문장 속에서 들리는 소리로 바꿔 읽힌다(화면 글자는 그대로).
-//   a → "uh"(어), an → "un"(언), the → 뒤 낱말이 모음 소리로 시작하면 "thee"(디), 자음 소리면 "thuh"(더)
+//   a → "uh"(어), an → "un"(언), the → 뒤 낱말이 모음 소리로 시작하면 "thee"(디), 자음 소리면 "duh"(더)
+//   ("thuh"는 크롬 목소리가 "두"처럼 읽어서 "duh"로 바꿈 — 사용자 확인 2026-10-19)
 const clean = (w) => String(w || '').replace(/^[^A-Za-z0-9']+|[^A-Za-z0-9']+$/g, '');
 // 철자는 모음인데 소리는 자음(유, 원)인 낱말, 철자는 자음인데 소리는 모음(h가 소리 안 남)인 낱말
 const YOU_SOUND = /^(u(ni|se|su|ra|ro|tensil|kulele)|eu|ewe|one\b|once\b|ouija)/i;
@@ -107,7 +108,7 @@ function sayAlone(word, next) {
   const k = w.toLowerCase();
   if (k === 'a') return 'uh';
   if (k === 'an') return 'un';
-  if (k === 'the') return next && startsWithVowelSound(next) ? 'thee' : 'thuh';
+  if (k === 'the') return next && startsWithVowelSound(next) ? 'thee' : 'duh';
   return w;
 }
 

@@ -88,14 +88,42 @@ export async function speak(text, { speed = 'slow', onWord, onEnd } = {}) {
   return { stop() { stopped = true; speechSynthesis.cancel(); onEnd && onEnd(); } };
 }
 
-// 낱말 하나만 읽으면 음성 합성이 글자 이름으로 읽는 것: 문장 속에서 들리는 소리로 바꿔 읽힌다.
-// 'a'를 혼자 읽으면 "에이"가 되므로 "uh"(어)로. 화면 글자는 그대로다.
-const SAY_ALONE = { a: 'uh' };
+// 낱말 하나만 읽으면 음성 합성이 글자 이름이나 힘준 소리로 읽는 것을 문장 속에서 들리는 소리로 바꿔 읽힌다(화면 글자는 그대로).
+//   a → "uh"(어), an → "un"(언), the → 뒤 낱말이 모음 소리로 시작하면 "thee"(디), 자음 소리면 "thuh"(더)
+const clean = (w) => String(w || '').replace(/^[^A-Za-z0-9']+|[^A-Za-z0-9']+$/g, '');
+// 철자는 모음인데 소리는 자음(유, 원)인 낱말, 철자는 자음인데 소리는 모음(h가 소리 안 남)인 낱말
+const YOU_SOUND = /^(u(ni|se|su|ra|ro|tensil|kulele)|eu|ewe|one\b|once\b|ouija)/i;
+const SILENT_H = /^(hour|honest|honou?r|heir)/i;
+export function startsWithVowelSound(word) {
+  const w = clean(word);
+  if (!w) return false;
+  if (/^[0-9]/.test(w)) return /^(8|11|18|80)/.test(w);   // eight, eleven, eighteen, eighty
+  if (YOU_SOUND.test(w)) return false;
+  if (SILENT_H.test(w)) return true;
+  return /^[aeiou]/i.test(w);
+}
+function sayAlone(word, next) {
+  const w = clean(word) || String(word);
+  const k = w.toLowerCase();
+  if (k === 'a') return 'uh';
+  if (k === 'an') return 'un';
+  if (k === 'the') return next && startsWithVowelSound(next) ? 'thee' : 'thuh';
+  return w;
+}
 
-/** 낱말 하나만 읽는다(앞뒤 문장부호는 뺀다). */
+/**
+ * 낱말 하나만 읽는다(앞뒤 문장부호는 뺀다).
+ * word에 낱말 버튼(.fw)을 주면 다음 낱말 버튼을 보고 the를 디/더로 고른다.
+ */
 export function speakWord(word, o = {}) {
-  const w = String(word).replace(/^[^A-Za-z0-9']+|[^A-Za-z0-9']+$/g, '') || String(word);
-  return speak(SAY_ALONE[w.toLowerCase()] || w, o);
+  let next = o.next;
+  if (word && word.nodeType === 1) {
+    let n = word.nextElementSibling;
+    while (n && !n.matches('[data-w]')) n = n.nextElementSibling;
+    next = n ? n.textContent : '';
+    word = word.textContent;
+  }
+  return speak(sayAlone(word, next), o);
 }
 
 const escW = (s) => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

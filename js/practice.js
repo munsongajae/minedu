@@ -582,7 +582,7 @@ async function sayWord(btn) {
   stopAudio();
   const i = Number(btn.dataset.w);
   markWord(i);
-  const h = await speakWord(btn.textContent, { speed: getSpeed(), onEnd: () => { if (talk === h) { markWord(-1); talk = null; } } });
+  const h = await speakWord(btn, { speed: getSpeed(), onEnd: () => { if (talk === h) { markWord(-1); talk = null; } } });
   talk = h;
 }
 function playMine(s) {

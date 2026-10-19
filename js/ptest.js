@@ -109,7 +109,7 @@ async function sayWord(btn) {
   if (!SPEAK_OK) return;
   stopAudio();
   markAns(Number(btn.dataset.w));
-  const h = await speakWord(btn.textContent, { speed: getSpeed(), onEnd: () => { if (talk === h) { markAns(-1); talk = null; } } });
+  const h = await speakWord(btn, { speed: getSpeed(), onEnd: () => { if (talk === h) { markAns(-1); talk = null; } } });
   talk = h;
 }
 $('#ptAnswer').addEventListener('click', (e) => {

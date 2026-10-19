@@ -713,7 +713,7 @@ async function sayWordOf(l, b) {
   const i = Number(b.dataset.w);
   markWord(l, i);
   try {
-    const h = await speakWord(b.textContent, { speed: getSpeed(), onEnd: () => { if (talk.handle === h) { talk.handle = null; markWord(l, -1); } } });
+    const h = await speakWord(b, { speed: getSpeed(), onEnd: () => { if (talk.handle === h) { talk.handle = null; markWord(l, -1); } } });
     if (talk.lineId === l.id && talk.mode === 'word') talk.handle = h; else h.stop();
   } catch (e) { toast('이 브라우저에서는 발음 듣기가 안 돼요'); }
 }

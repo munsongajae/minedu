@@ -88,10 +88,14 @@ export async function speak(text, { speed = 'slow', onWord, onEnd } = {}) {
   return { stop() { stopped = true; speechSynthesis.cancel(); onEnd && onEnd(); } };
 }
 
+// 낱말 하나만 읽으면 음성 합성이 글자 이름으로 읽는 것: 문장 속에서 들리는 소리로 바꿔 읽힌다.
+// 'a'를 혼자 읽으면 "에이"가 되므로 "uh"(어)로. 화면 글자는 그대로다.
+const SAY_ALONE = { a: 'uh' };
+
 /** 낱말 하나만 읽는다(앞뒤 문장부호는 뺀다). */
 export function speakWord(word, o = {}) {
   const w = String(word).replace(/^[^A-Za-z0-9']+|[^A-Za-z0-9']+$/g, '') || String(word);
-  return speak(w, o);
+  return speak(SAY_ALONE[w.toLowerCase()] || w, o);
 }
 
 const escW = (s) => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

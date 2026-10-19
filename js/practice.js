@@ -135,12 +135,19 @@ $('#allToggleKo').addEventListener('click', () => toggleHideKo());
 $('#allAutoPlay').addEventListener('click', () => toggleAutoPlay());
 $('#allPrint').addEventListener('click', () => {
   stopAudio(); stopAutoPlay();
-  const { list, pid, q } = allViewList();
-  const proj = all.projects.find(p => p.id === pid);
+  const { pid, q } = allViewList();
+  // 인쇄 화면에서도 영상을 고를 수 있다(검색어는 그대로). 고르면 한꺼번에 보기 칸도 같이 바뀐다.
+  const listFor = (id) => {
+    $('#allProj').value = id;
+    const r = allViewList();
+    const proj = all.projects.find(p => p.id === id);
+    return { list: r.list, filtered: !!(id || r.q), title: proj ? (proj.title || '제목 없는 영상') : '모든 영상' };
+  };
   openPrint({
-    list, child, filtered: !!(pid || q),
-    title: proj ? (proj.title || '제목 없는 영상') : '모든 영상',
-    show, onBack: () => openAllView()
+    child, pid, q, listFor,
+    projects: all.projects.map(p => ({ id: p.id, title: p.title || '제목 없는 영상', n: all.sentences.filter(s => s.projectId === p.id).length })).filter(p => p.n),
+    total: all.sentences.length,
+    show, onBack: () => { show('all'); renderAllSentences(); window.scrollTo(0, 0); }
   });
 });
 

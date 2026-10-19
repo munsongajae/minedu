@@ -20,6 +20,11 @@ const KINDS = { cards: '영어 문장 카드', sheet: '영어 외우기 학습�
 
 export async function openPrint(c) {
   ctx = c;
+  // 영상 고르기: 모든 영상 + 문장이 있는 영상
+  $('#prProj').innerHTML = `<option value="">모든 영상 (${c.total}문장)</option>` +
+    c.projects.map(p => `<option value="${esc(p.id)}">${esc(p.title)} (${p.n}문장)</option>`).join('');
+  $('#prProj').value = c.projects.some(p => p.id === c.pid) ? c.pid : '';
+  Object.assign(ctx, c.listFor($('#prProj').value));
   glossary = await loadGlossary();
   drawOpts();
   drawSheet();
@@ -50,7 +55,7 @@ function drawOpts() {
   const n = ctx.list.length;
   $('#prCount').textContent = k === 'words'
     ? `문장 ${n}개에 나온 단어로 만들어요.`
-    : `문장 ${n}개를 인쇄해요.${ctx.filtered ? ' (한꺼번에 보기에서 고른 영상·검색 그대로)' : ''}`;
+    : `문장 ${n}개를 인쇄해요.${ctx.q ? ` (검색어 '${ctx.q}'에 맞는 문장만)` : ''}`;
 }
 $('#printView').addEventListener('click', (e) => {
   const b = e.target.closest('[data-popt] button');
@@ -59,6 +64,10 @@ $('#printView').addEventListener('click', (e) => {
   const v = b.dataset.v;
   opts[key] = v === 'true' ? true : v === 'false' ? false : v;
   saveOpts(); drawOpts(); drawSheet();
+});
+$('#prProj').addEventListener('change', (e) => {
+  Object.assign(ctx, ctx.listFor(e.target.value));
+  drawOpts(); drawSheet();
 });
 $('#prBack').addEventListener('click', () => ctx.onBack());
 $('#prGo').addEventListener('click', async () => {

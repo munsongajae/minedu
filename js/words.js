@@ -7,7 +7,7 @@
 //   내 월드 탐험(worldplay.js): 실제 마인크래프트 캡처 사진과 3D 월드에서 핫바로 단어를 고른다.
 // 처음 화면의 게임 판 버튼을 누르면 바로 시작한다. 아직 잘 모르는 단어가 먼저 나온다.
 import { $, esc, shuffle, getChild, setChild, childPickerHTML, loadSentences, loadProgress, saveProgress, syncProgress,
-  markToday, streak, collectWords, loadGlossary, fillGlossary } from './learn.js';
+  markToday, streak, collectWords, loadGlossary, fillGlossary, madeBy } from './learn.js';
 import { aiEnabled, aiMessage } from './ai.js';
 import { checkReset } from './reset.js';
 import { canSpeak, speak } from './speech.js';
@@ -43,6 +43,7 @@ $('#kidPick').addEventListener('click', async (e) => {
   if (!b) return;
   child = b.dataset.kid; setChild(child);
   $('#kidPick').innerHTML = childPickerHTML(child);
+  renderProjOptions();
   await loadKid();
 });
 async function loadKid() {
@@ -61,8 +62,10 @@ const known = (w) => { const r = progress && progress.words[w.key]; return r && 
 
 /* ---------- 처음 화면 ---------- */
 function renderHome() {
+  // 그 아이가 만든 영상(만든 사람 칸)의 문장만 쓴다. 고른 영상이 있으면 그 영상만.
   const pid = $('#proj').value;
-  const sents = pid ? all.sentences.filter(s => s.projectId === pid) : all.sentences;
+  const mine = all.sentences.filter(s => madeBy(s, child));
+  const sents = pid ? mine.filter(s => s.projectId === pid) : mine;
   const everything = collectWords(sents, glossary);
   words = everything.filter(w => w.ko);
   renderBadges();
@@ -71,6 +74,7 @@ function renderHome() {
   let msg = '';
   if (!all.sentences.length) msg = '아직 단어가 없어요. 만들기에서 영어 문장을 먼저 써 주세요.';
   else if (!child) msg = '누가 할까요? 위에서 이름을 눌러 주세요.';
+  else if (!mine.length) msg = `${child}가 만든 영상이 아직 없어요. 만들기 화면의 '만든 사람'에서 ${child}를 눌러 주세요.`;
   else if (filling) msg = 'AI가 단어 뜻을 찾는 중이에요…';
   else if (words.length < 2) msg = '단어가 2개 이상 있어야 게임을 할 수 있어요.';
   $('#homeMsg').textContent = msg;
@@ -388,6 +392,15 @@ function showDone({ title, text, gems, missed }) {
   renderBadges();
 }
 
+// 단어 가져올 영상: 고른 아이가 만든 영상만(만든 사람 칸에 이름이 있거나 비어 있는 영상)
+function renderProjOptions() {
+  const cur = $('#proj').value;
+  const list = all.projects.filter(p => madeBy(p, child));
+  $('#proj').innerHTML = `<option value="">${child ? esc(child) + '가 만든 영상 모두' : '모든 영상'}</option>` +
+    list.map(p => `<option value="${esc(p.id)}">${esc(p.title || '제목 없는 영상')}</option>`).join('');
+  $('#proj').value = list.some(p => p.id === cur) ? cur : '';
+}
+
 /* ---------- 시작 ---------- */
 async function fillMeanings() {
   const missing = collectWords(all.sentences, glossary).filter(w => !w.ko);
@@ -419,8 +432,7 @@ async function init() {
   await checkReset();     // 다른 기기에서 '모든 기록 지우기'를 했으면 이 기기 것도 지운다
   all = await loadSentences();
   glossary = await loadGlossary();
-  $('#proj').innerHTML = `<option value="">모든 영상</option>` +
-    all.projects.map(p => `<option value="${esc(p.id)}">${esc(p.title || '제목 없는 영상')}</option>`).join('');
+  renderProjOptions();
   await loadKid();
   fillMeanings();
 }

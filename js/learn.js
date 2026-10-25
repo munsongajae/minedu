@@ -46,7 +46,7 @@ export async function loadSentences() {
           key: l.id, en: String(l.en).trim(), ko: String(l.ko || '').trim(),
           image: sc.images[0] || null, images: sc.images, audio: l.audio || null,
           words: Array.isArray(l.words) ? l.words : [],
-          projectId: p.id, projectTitle: p.title || '제목 없는 영상',
+          projectId: p.id, projectTitle: p.title || '제목 없는 영상', makers: String(p.makers || '').trim(),
           sceneId: sc.id, sceneNo: si + 1, lineNo: li + 1, lineCount: lines.length
         });
       });
@@ -59,6 +59,12 @@ export async function loadSentences() {
   if (!sentences.length) { sentences = collect(projects); real = projects; usingExample = sentences.length > 0; }
   const withText = new Set(sentences.map(s => s.projectId));
   return { sentences, projects: real.filter(p => withText.has(p.id)), usingExample };
+}
+
+// 이 아이가 만든 영상인가: '만든 사람' 칸에 이름이 들어 있으면(둘이 같이 = 둘 다). 칸이 비어 있으면 둘 다의 것으로 본다.
+export function madeBy(p, child) {
+  const m = String((p && p.makers) || '').trim();
+  return !child || !m || m.includes(child);
 }
 
 /* ---------- 연습 기록 ---------- */

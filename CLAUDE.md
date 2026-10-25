@@ -90,6 +90,10 @@
 - '한 단어씩'은 저절로 흘러가지 않는다(사용자 요청 2026-10-18): 만들기 화면에서 누르면 낱말 버튼 줄(`followHTML`, `.follow .fw`)을 열어 두고, 아이가 누른 낱말 하나만 `speakWord`로 읽는다('■ 단어 닫기'로 닫음). 혼자 읽으면 글자 이름·힘준 소리가 되는 낱말은 `sayAlone`으로 바꿔 읽힌다(화면 글자는 그대로): a → 'uh', an → 'un', the → 다음 낱말 버튼이 모음 소리로 시작하면 'thee'(디), 아니면 'duh'(더, 'thuh'는 크롬 목소리가 '두'로 읽었음). 모음 소리 판단 `startsWithVowelSound`(u로 시작해도 '유' 소리·one은 자음, hour·honest는 모음). `speakWord`에 버튼을 주면 다음 버튼을 찾아 쓴다. 문장 연습(`#activity`)과 발표 테스트 정답(`#ptAnswer`)의 따라 읽기 줄도 같은 낱말 버튼이라 누르면 그 낱말만 들린다(문장 연습에는 '한 단어씩' 버튼 대신 '단어를 누르면 그 단어만 들려요' 안내). 문장을 통째로 읽을 때는 목소리가 boundary 이벤트를 주면 지금 낱말을 칠한다.
 - 녹음·말로 쓰기와 동시에 쓰지 않는다. 시험은 speechSynthesis/SpeechSynthesisUtterance를 가짜로 바꿔서 한다.
 
+## 목소리 녹음
+
+- 문장마다 '녹음 시작/다시 녹음'(`recorder.js`)과 '지우기'. '녹음 파일 고르기'·'파일로 바꾸기' 버튼은 마이크를 쓸 수 없는 기기(`MIC_OK` 거짓)에서만 보인다(사용자 요청 2026-10-25). 파일 끌어다 놓기는 그대로 된다.
+
 ## 말로 쓰기(음성 입력)
 
 - `js/dictation.js`. 브라우저 음성 인식(Web Speech API, `SpeechRecognition`/`webkitSpeechRecognition`). 한글 칸은 `ko-KR`, '내가 먼저 영어로 써 보기' 칸(AI가 꺼져 있으면 영어 칸)은 `en-US`(`DICT_FIELDS`, app.js). 크롬·엣지(PC, 안드로이드)에서 되고, 없으면 버튼을 숨긴다.

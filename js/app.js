@@ -290,11 +290,12 @@ function audioHTML(l) {
     return `<audio controls preload="metadata" src="${blobURL('aud-' + l.id, l.audio)}"></audio>
       <div class="row"><span class="note">${esc(l.audioName || '내 목소리')} · ${fmtTime(l.audioDur)}</span></div>
       <div class="row">${recBtn}
-        <label class="btn small" for="af-${l.id}">파일로 바꾸기</label>
+        ${MIC_OK ? '' : `<label class="btn small" for="af-${l.id}">파일로 바꾸기</label>`}
         <button class="btn small" type="button" data-act="audio-remove">지우기</button></div>`;
   }
   return `<div class="note">${isRec ? '이 문장을 또박또박 읽어요. 다 읽으면 <b>녹음 끝내기</b>!' : (MIC_OK ? '녹음 시작을 누르고 이 문장을 읽어요.' : '녹음 파일을 골라 넣어요.')}</div>
-    <div class="row">${recBtn}${isRec ? '' : `<label class="btn small" for="af-${l.id}">녹음 파일 고르기</label>`}</div>`;
+    <div class="row">${recBtn}${isRec || MIC_OK ? '' : `<label class="btn small" for="af-${l.id}">녹음 파일 고르기</label>`}</div>`;
+  // 녹음 파일 고르기·파일로 바꾸기 버튼은 마이크를 쓸 수 없는 기기에서만 보인다(사용자 요청 2026-10-25).
 }
 
 function aiBoxHTML(l) {

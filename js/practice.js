@@ -8,7 +8,7 @@
 // 말하며 외우기(언제든): 보면서 말하기 → 반쯤 가리고 말하기 → 다 가리고 한글만 보고 말하기 → 정답 보고 스스로 확인
 import { $, esc, shuffle, getChild, setChild, childPickerHTML, loadSentences, loadProgress, saveProgress, syncProgress,
   grade, todayQueue, mastered, markToday, streak, tokens, wordKey, blobURL,
-  FREE_GEMS, freeGemsLeft, takeFreeGem, nextDueDays } from './learn.js';
+  FREE_GEMS, freeGemsLeft, takeFreeGem, nextDueDays, madeBy } from './learn.js';
 import { checkReset } from './reset.js';
 import { openTest } from './ptest.js';
 import { openPrint } from './print.js';
@@ -19,7 +19,8 @@ const STEP_NAMES = { listen: '듣고 따라 말하기', build: '블록 쌓기 �
 
 let child = getChild();
 let progress = null;
-let all = { sentences: [], projects: [] };
+let everything = { sentences: [], projects: [] };   // 모든 영상의 문장
+let all = { sentences: [], projects: [] };          // 고른 아이가 만든 영상의 문장만(madeBy — 만든 사람 칸)
 let pool = [];          // 지금 고른 영상의 문장
 let queue = [], idx = 0, retried = new Set();
 // '앞 단계로'를 눌러 문장을 다시 본 카드: 맞혀도 복습 상자를 올리지 않고 에메랄드도 없다(듣기부터 시작한 카드는 괜찮음).
@@ -42,6 +43,8 @@ $('#kidPick').addEventListener('click', async (e) => {
   if (!b) return;
   child = b.dataset.kid; setChild(child);
   renderKid();
+  applyChild();
+  if (!$('#allView').hidden) fillAllProj();
   await loadKid();
 });
 
@@ -57,6 +60,20 @@ async function loadKid() {
   } catch (e) { /* 인터넷이 없으면 이 기기 기록만 */ }
 }
 
+// 아이를 고르면 그 아이가 만든 영상(만든 사람 칸에 이름이 있거나 '둘이 같이'·빈 칸)의 문장만 쓴다.
+const allLabel = () => (child ? `${child}가 만든 영상 모두` : '모든 영상');
+function applyChild() {
+  all = {
+    ...everything,
+    sentences: everything.sentences.filter(s => madeBy(s, child)),
+    projects: everything.projects.filter(p => madeBy(p, child))
+  };
+  const cur = $('#proj').value;
+  $('#proj').innerHTML = `<option value="">${esc(allLabel())} (${all.sentences.length}문장)</option>` +
+    all.projects.map(p => `<option value="${esc(p.id)}">${esc(p.title || '제목 없는 영상')} (${all.sentences.filter(s => s.projectId === p.id).length}문장)</option>`).join('');
+  $('#proj').value = all.projects.some(p => p.id === cur) ? cur : '';
+}
+
 function filtered() {
   const pid = $('#proj').value;
   return pid ? all.sentences.filter(s => s.projectId === pid) : all.sentences;
@@ -68,7 +85,9 @@ function renderHome() {
   const start = $('#start');
   const viewAll = $('#viewAll');
   if (!all.sentences.length) {
-    who.textContent = '아직 연습할 문장이 없어요. 만들기에서 영어 문장을 먼저 써 주세요.';
+    who.textContent = everything.sentences.length && child
+      ? `${child}가 만든 영상이 아직 없어요. 만들기 화면의 '만든 사람'에서 ${child}를 눌러 주세요.`
+      : '아직 연습할 문장이 없어요. 만들기에서 영어 문장을 먼저 써 주세요.';
     start.disabled = true; $('#memorize').disabled = true; $('#free').disabled = true; $('#ptOpen').disabled = true; if (viewAll) viewAll.disabled = true; $('#stats').innerHTML = ''; return;
   }
   if (!child || !progress) {
@@ -121,7 +140,7 @@ $('#viewAll').addEventListener('click', () => openAllView());
 $('#ptOpen').addEventListener('click', () => {
   stopAudio();
   openTest({
-    getProgress: () => progress, sentences: all.sentences, projects: all.projects, defaultPid: $('#proj').value,
+    getProgress: () => progress, sentences: all.sentences, projects: all.projects, defaultPid: $('#proj').value, child,
     show, onHome: () => { show('home'); renderHome(); }
   });
 });
@@ -141,7 +160,7 @@ $('#allPrint').addEventListener('click', () => {
     $('#allProj').value = id;
     const r = allViewList();
     const proj = all.projects.find(p => p.id === id);
-    return { list: r.list, filtered: !!(id || r.q), title: proj ? (proj.title || '제목 없는 영상') : '모든 영상' };
+    return { list: r.list, filtered: !!(id || r.q), title: proj ? (proj.title || '제목 없는 영상') : allLabel() };
   };
   openPrint({
     child, pid, q, listFor,
@@ -192,11 +211,14 @@ function openAllView() {
   show('all');
   window.scrollTo({ top: 0, behavior: 'smooth' });
 
-  $('#allProj').innerHTML = `<option value="">모든 영상 (${all.sentences.length}문장)</option>` +
-    all.projects.map(p => `<option value="${esc(p.id)}">${esc(p.title || '제목 없는 영상')} (${all.sentences.filter(s => s.projectId === p.id).length}문장)</option>`).join('');
-  $('#allProj').value = $('#proj').value || '';
-
+  fillAllProj($('#proj').value || '');
   renderAllSentences();
+}
+function fillAllProj(pick) {
+  const cur = pick === undefined ? $('#allProj').value : pick;
+  $('#allProj').innerHTML = `<option value="">${esc(allLabel())} (${all.sentences.length}문장)</option>` +
+    all.projects.map(p => `<option value="${esc(p.id)}">${esc(p.title || '제목 없는 영상')} (${all.sentences.filter(s => s.projectId === p.id).length}문장)</option>`).join('');
+  $('#allProj').value = all.projects.some(p => p.id === cur) ? cur : '';
 }
 
 function closeAllView() {
@@ -862,9 +884,8 @@ function finish() {
 async function init() {
   renderKid();
   await checkReset();     // 다른 기기에서 '모든 기록 지우기'를 했으면 이 기기 것도 지운다
-  all = await loadSentences();
-  $('#proj').innerHTML = `<option value="">모든 영상 (${all.sentences.length}문장)</option>` +
-    all.projects.map(p => `<option value="${esc(p.id)}">${esc(p.title || '제목 없는 영상')} (${all.sentences.filter(s => s.projectId === p.id).length}문장)</option>`).join('');
+  everything = await loadSentences();
+  applyChild();
   await loadKid();
 }
 init();

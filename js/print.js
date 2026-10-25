@@ -21,7 +21,7 @@ const KINDS = { cards: '영어 문장 카드', sheet: '영어 외우기 학습�
 export async function openPrint(c) {
   ctx = c;
   // 영상 고르기: 모든 영상 + 문장이 있는 영상
-  $('#prProj').innerHTML = `<option value="">모든 영상 (${c.total}문장)</option>` +
+  $('#prProj').innerHTML = `<option value="">${c.child ? esc(c.child) + '가 만든 영상 모두' : '모든 영상'} (${c.total}문장)</option>` +
     c.projects.map(p => `<option value="${esc(p.id)}">${esc(p.title)} (${p.n}문장)</option>`).join('');
   $('#prProj').value = c.projects.some(p => p.id === c.pid) ? c.pid : '';
   Object.assign(ctx, c.listFor($('#prProj').value));

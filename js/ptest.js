@@ -32,7 +32,7 @@ export function openTest(c) {
   sel.innerHTML = projs.map(p => {
     const n = ctx.sentences.filter(s => s.projectId === p.id).length;
     return `<option value="${esc(p.id)}">${esc(p.title || '제목 없는 영상')} (${n}문장)</option>`;
-  }).join('') + (projs.length > 1 ? `<option value="">모든 영상 (${ctx.sentences.length}문장)</option>` : '');
+  }).join('') + (projs.length > 1 ? `<option value="">${ctx.child ? esc(ctx.child) + '가 만든 영상 모두' : '모든 영상'} (${ctx.sentences.length}문장)</option>` : '');
   sel.value = projs.some(p => p.id === ctx.defaultPid) ? ctx.defaultPid : (projs[0] ? projs[0].id : '');
   $('#ptRecWrap').hidden = !REC_OK;
   $('#ptRec').checked = REC_OK && !!opts.rec;

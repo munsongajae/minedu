@@ -1,12 +1,14 @@
 // 부모님 대시보드: 곰이·난이의 학습 기록과 영상 작품을 한눈에 보고 칭찬하는 공간
 import * as store from './storage.js';
-import { CHILDREN, keyOf, loadSentences, loadProgress, syncProgress, streak, mastered, isDue, nextDueDays, collectWords, loadGlossary, BOX_DAYS, esc, $ } from './learn.js';
+import { CHILDREN, keyOf, madeBy, loadSentences, loadProgress, syncProgress, streak, mastered, isDue, nextDueDays, collectWords, loadGlossary, BOX_DAYS, esc, $ } from './learn.js';
 import { cloudAvailable, getDeviceName } from './cloud.js';
 import { coach, getFamilyCode } from './ai.js';
 import { checkReset } from './reset.js';
 
 let currentTab = '곰이';
 let allSentences = [];
+// 아이마다 그 아이가 만든 영상(만든 사람 칸)의 문장만 센다 — 문장 연습·단어 게임과 같은 기준
+const sentsOf = (kid) => allSentences.filter(s => madeBy(s, kid));
 let allProjects = [];
 let glossary = {};
 let progressMap = {}; // { '곰이': p, '난이': p }
@@ -184,15 +186,16 @@ function render() {
 }
 
 function renderChild(kid) {
+  const kidSents = sentsOf(kid);
   const p = progressMap[kid] || { emeralds: 0, days: [], sentences: {}, words: {} };
-  const allWords = collectWords(allSentences, glossary);
+  const allWords = collectWords(kidSents, glossary);
 
   // 1. KPI 카드
   $('#kpiEmeralds').textContent = p.emeralds || 0;
   $('#kpiStreak').innerHTML = `${streak(p)}<small>일</small>`;
   $('#kpiDays').innerHTML = `${(p.days || []).length}<small>일</small>`;
-  const mCount = mastered(allSentences, p);
-  $('#kpiMastered').innerHTML = `${mCount}<small>/${allSentences.length}</small>`;
+  const mCount = mastered(kidSents, p);
+  $('#kpiMastered').innerHTML = `${mCount}<small>/${kidSents.length}</small>`;
 
   const knownWords = allWords.filter(w => {
     const r = p.words && p.words[w.key];
@@ -244,14 +247,15 @@ const BOX_NAMES = {
 };
 
 function renderBoxBars(p) {
-  const total = allSentences.length;
+  const kidSents = sentsOf(currentTab);
+  const total = kidSents.length;
   if (!total) {
     $('#boxBars').innerHTML = '<p class="parent-empty">아직 등록된 문장이 없어요. 만들기에서 영상을 만들어 주세요.</p>';
     return;
   }
 
   const counts = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-  allSentences.forEach(s => {
+  kidSents.forEach(s => {
     const item = p.sentences && p.sentences[s.key];
     const b = item ? (item.box || 1) : 0;
     counts[b] = (counts[b] || 0) + 1;
@@ -294,7 +298,7 @@ function renderSentences() {
   const filter = $('#sentFilter').value;
   const now = Date.now();
 
-  let list = allSentences.map(s => {
+  let list = sentsOf(currentTab).map(s => {
     const item = p.sentences && p.sentences[s.key];
     const box = item ? (item.box || 1) : 0;
     const right = item ? (item.right || 0) : 0;
@@ -378,7 +382,7 @@ function renderWords(p, allWords) {
 function renderProjects(kid) {
   const container = $('#projList');
   // 만든 사람에 아이 이름이 포함되어 있거나, 구분이 없으면 전체
-  const list = allProjects.filter(p => !p.example && (!p.makers || p.makers.includes(kid) || p.makers.includes('둘이')));
+  const list = allProjects.filter(p => !p.example && madeBy(p, kid));
 
   $('#projNote').textContent = `총 ${list.length}개의 영상`;
 
@@ -410,10 +414,11 @@ function renderCompare() {
   const grid = $('#compareGrid');
   const pGom = progressMap['곰이'] || { emeralds: 0, days: [], sentences: {}, words: {} };
   const pNan = progressMap['난이'] || { emeralds: 0, days: [], sentences: {}, words: {} };
-  const allWords = collectWords(allSentences, glossary);
 
-  const getStats = (p) => {
-    const knownWords = allWords.filter(w => {
+  const getStats = (p, kid) => {
+    const kidSents = sentsOf(kid);
+    const kidWords = collectWords(kidSents, glossary);
+    const knownWords = kidWords.filter(w => {
       const r = p.words && p.words[w.key];
       return r && (r.right || 0) >= 2 && (r.right || 0) > (r.wrong || 0);
     });
@@ -421,13 +426,15 @@ function renderCompare() {
       emeralds: p.emeralds || 0,
       streak: streak(p),
       days: (p.days || []).length,
-      masteredSent: mastered(allSentences, p),
+      masteredSent: mastered(kidSents, p),
+      sentTotal: kidSents.length,
+      wordTotal: kidWords.length,
       masteredWords: knownWords.length
     };
   };
 
-  const sGom = getStats(pGom);
-  const sNan = getStats(pNan);
+  const sGom = getStats(pGom, '곰이');
+  const sNan = getStats(pNan, '난이');
 
   grid.innerHTML = `
     <div class="parent-compare-col gom">
@@ -438,8 +445,8 @@ function renderCompare() {
         <li><span>💎 모은 에메랄드</span><b>${sGom.emeralds}개</b></li>
         <li><span>🔥 연속 연습일</span><b>${sGom.streak}일</b></li>
         <li><span>📅 총 연습한 날</span><b>${sGom.days}일</b></li>
-        <li><span>🏆 완전 정복 문장</span><b>${sGom.masteredSent} / ${allSentences.length}</b></li>
-        <li><span>🌟 마스터한 단어</span><b>${sGom.masteredWords} / ${allWords.length}</b></li>
+        <li><span>🏆 완전 정복 문장</span><b>${sGom.masteredSent} / ${sGom.sentTotal}</b></li>
+        <li><span>🌟 마스터한 단어</span><b>${sGom.masteredWords} / ${sGom.wordTotal}</b></li>
       </ul>
     </div>
     <div class="parent-compare-col nan">
@@ -450,8 +457,8 @@ function renderCompare() {
         <li><span>💎 모은 에메랄드</span><b>${sNan.emeralds}개</b></li>
         <li><span>🔥 연속 연습일</span><b>${sNan.streak}일</b></li>
         <li><span>📅 총 연습한 날</span><b>${sNan.days}일</b></li>
-        <li><span>🏆 완전 정복 문장</span><b>${sNan.masteredSent} / ${allSentences.length}</b></li>
-        <li><span>🌟 마스터한 단어</span><b>${sNan.masteredWords} / ${allWords.length}</b></li>
+        <li><span>🏆 완전 정복 문장</span><b>${sNan.masteredSent} / ${sNan.sentTotal}</b></li>
+        <li><span>🌟 마스터한 단어</span><b>${sNan.masteredWords} / ${sNan.wordTotal}</b></li>
       </ul>
     </div>
   `;

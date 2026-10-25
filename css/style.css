@@ -685,6 +685,17 @@ kbd { font-family: var(--f-pixel); font-size: 12px; border: 2px solid var(--edge
 .mine-time { margin-left: auto; font-family: var(--f-pixel); font-size: 24px; min-width: 64px; text-align: center; padding: 0 8px 2px; background: var(--panel); border: 3px solid var(--edge); font-variant-numeric: tabular-nums; }
 .mine-time.low { background: var(--redstone); color: var(--on-color); animation: blink 1s steps(2) infinite; }
 .mine-time + .wg-quit { margin-left: 0; }
+/* 틀렸을 때 벌칙: 시간 -3초가 떠오르고, 벽이 잠깐 어두워져 못 두드린다 */
+#mine .wg-bar { position: relative; }
+.mine-time.hurt { animation: wg-shake .35s, mine-hurt .8s; }
+@keyframes mine-hurt { 0%, 60% { background: var(--redstone); color: var(--on-color); } }
+.mine-minus { position: absolute; z-index: 5; transform: translateX(-50%); pointer-events: none; font-family: var(--f-pixel); font-size: 22px; color: var(--redstone);
+  text-shadow: 2px 2px 0 var(--on-color); animation: mine-minus 1.1s ease-out forwards; }
+@keyframes mine-minus { from { opacity: 1; translate: 0 0; } to { opacity: 0; translate: 0 26px; } }
+.mine-wall.stun .mine-block { filter: grayscale(.7) brightness(.6); cursor: not-allowed; }
+.mine-stun { position: absolute; z-index: 4; left: 50%; top: 50%; transform: translate(-50%, -50%); pointer-events: none; white-space: nowrap;
+  font-family: var(--f-display); font-size: 24px; padding: 8px 16px 10px; background: var(--redstone); color: var(--on-color); border: 3px solid var(--edge); box-shadow: 0 5px 0 var(--shade); }
+@media (max-width: 600px) { .mine-stun { font-size: 18px; white-space: normal; text-align: center; width: 80%; } }
 .mine-field { position: relative; border: 3px solid var(--edge); box-shadow: 0 7px 0 var(--shade); overflow: hidden; }
 
 .mine-sky { position: relative; height: 150px; display: grid; place-items: center; overflow: hidden;
@@ -1233,7 +1244,7 @@ kbd { font-family: var(--f-pixel); font-size: 12px; border: 2px solid var(--edge
   .cart-me .cart-svg, .cart-me.hop, .cart-field.crash .cart-me, .cart-field.crash::after, .cart-block, .cart-sign.right b { animation: none; }
   .ng-mob.pop .ng-creature, .ng-mob.bump .ng-creature, .ng-field.hurt::after, .ng-field.hurt .ng-house, .ng-opt.swap .lbl { animation: none; }
   .ng-mob.pop, .ng-mob.bump { opacity: 0; }
-  .mine-block.hit, .mine-block.bad, .mine-block.fresh, .mine-block.hint, .mine-sign.pop, .mine-hot li.pop, .mine-pick.swing, .mine-time.low { animation: none; }
+  .mine-block.hit, .mine-block.bad, .mine-block.fresh, .mine-block.hint, .mine-sign.pop, .mine-hot li.pop, .mine-pick.swing, .mine-time.low, .mine-time.hurt, .mine-minus { animation: none; }
   .mine-block.broken { animation: none; opacity: 0; }
 }
 /* 직접 만든 입체 수레 · 회전 바퀴 · 횃불 · 불꽃 */

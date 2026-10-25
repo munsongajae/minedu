@@ -1,6 +1,8 @@
 // 단어 광산: 해가 지기 전 1분 동안, 간판의 한글 뜻(또는 들려준 영어)에 맞는 단어 블록을 세 번 두드려 캔다.
 //   맞는 블록: 두드릴 때마다 금이 가고, 세 번째에 부서져서 광물이 아래 칸으로 날아간다.
-//   틀린 블록: 흔들리고 그 단어의 뜻을 잠깐 보여 준다(0.5초 쉼). 그 문제는 '틀림'으로 남는다.
+//   틀린 블록: 흔들리고 그 단어의 뜻을 잠깐 보여 준다. 그 문제는 '틀림'으로 남는다.
+//     벌칙(마구 누르기 막기, 사용자 요청 2026-10-25): 남은 시간 -3초(WRONG_TIME), 곡괭이가 튕겨 잠깐 못 두드림
+//     (STUN, 연달아 틀릴수록 길게 — 단어를 캐면 처음으로), 맞는 블록에 낸 금이 다시 붙음.
 //   한 문제에서 7초 동안 못 찾으면 맞는 블록이 반짝여서 알려 준다(이것도 '틀림').
 // 블록 그림은 직접 만든 돌·광물 무늬(공식 텍스처 아님).
 import { $, esc, shuffle } from './learn.js';
@@ -10,6 +12,8 @@ const DUR = 60;          // 초
 const HITS = 3;          // 캐는 데 두드리는 횟수
 const SLOTS = 8;         // 벽의 블록 수(넓은 화면 4×2, 좁은 화면 2×4)
 const HINT_AFTER = 7;    // 초
+const WRONG_TIME = 3;    // 틀린 블록을 두드리면 줄어드는 시간(초)
+const STUN = [1.2, 2, 3];   // 틀렸을 때 못 두드리는 시간(초): 첫 번째, 두 번째, 세 번째부터
 export const ORES = ['gold', 'diamond', 'emerald', 'ruby', 'iron', 'coal'];
 const ORE_NAMES = { gold: '금', diamond: '다이아몬드', emerald: '에메랄드', ruby: '루비', iron: '철', coal: '석탄' };
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -27,8 +31,10 @@ export function startMine(c, mode) {
   m = {
     mode, order, rank, t: 0, last: 0, over: false,
     wall: [], target: null, targetAt: 0, wrong: false, hinted: false, justMined: null,
-    mined: 0, combo: 0, best: 0, missed: [], minedKeys: new Set(), items: Object.fromEntries(ORES.map(o => [o, 0])), lock: 0
+    mined: 0, combo: 0, best: 0, missed: [], minedKeys: new Set(), items: Object.fromEntries(ORES.map(o => [o, 0])), lock: 0,
+    wrongs: 0, wrongRow: 0
   };
+  $('#mineWall').classList.remove('stun');
   const first = shuffle(order.slice(0, SLOTS));
   for (let i = 0; i < SLOTS; i++) m.wall.push(cell(first[i] || null));
   $('#mineAsk').textContent = mode === 'listen' ? '들리는 영어 단어를 캐요' : '이 뜻의 영어 단어를 캐요';
@@ -84,7 +90,10 @@ function timeUp() {
   $('#mineOver').hidden = false;
   sfx('end');
   if (m.wrong) ctx.recordWord(m.target, false);   // 힌트를 보고도 못 캔 단어
-  const r = { mined: m.mined, best: m.best, missed: m.missed, items: m.items };
+  clearTimeout(stunTimer);
+  $('#mineWall').classList.remove('stun');
+  $('#mineWall').querySelectorAll('.mine-stun').forEach(x => x.remove());
+  const r = { mined: m.mined, best: m.best, missed: m.missed, items: m.items, wrongs: m.wrongs };
   setTimeout(() => { if (ctx) ctx.onEnd(r); }, 1600);
 }
 
@@ -206,9 +215,22 @@ $('#mineWall').addEventListener('click', (e) => {
     sfx('hit');
     return;
   }
-  // 틀린 블록
+  // 틀린 블록: 벌칙
   sfx('bad');
-  m.lock = performance.now() + 500;
+  m.wrongs++;
+  m.wrongRow++;
+  const stun = STUN[Math.min(m.wrongRow, STUN.length) - 1];
+  m.lock = performance.now() + stun * 1000;
+  m.t = Math.min(DUR, m.t + WRONG_TIME);           // 해가 3초 빨리 진다
+  m.targetAt += WRONG_TIME;                         // 힌트까지 걸리는 시간은 그대로
+  penalty(stun);
+  // 맞는 블록에 낸 금이 다시 붙는다
+  const ti = m.wall.findIndex(x => x.w && x.w.key === m.target.key);
+  if (ti >= 0 && m.wall[ti].hits && m.wall[ti].hits < HITS) {
+    m.wall[ti].hits = 0;
+    const te = blockEl(ti);
+    if (te) te.classList.remove('h1', 'h2', 'h3', 'hit');
+  }
   m.combo = 0; drawBar();
   if (!m.wrong) { m.wrong = true; m.missed.push(m.target); }
   b.classList.remove('bad'); void b.offsetWidth; b.classList.add('bad');
@@ -217,6 +239,27 @@ $('#mineWall').addEventListener('click', (e) => {
   const id = c.id;
   setTimeout(() => { const el = blockEl(i); if (el && el.dataset.id === String(id)) { el.classList.remove('bad'); el.querySelectorAll('.mine-tip').forEach(t => t.remove()); } }, 1200);
 });
+
+// 벌칙 보여 주기: 시간 옆에 '-3초', 벽 위에 '곡괭이가 튕겼어요!'(못 두드리는 동안 벽이 어두워짐)
+let stunTimer = 0;
+function penalty(stun) {
+  const time = $('#mineTime');
+  const pop = document.createElement('span');
+  pop.className = 'mine-minus';
+  pop.textContent = `-${WRONG_TIME}초`;
+  time.parentElement.appendChild(pop);
+  const tr = time.getBoundingClientRect(), pr = time.parentElement.getBoundingClientRect();
+  pop.style.left = `${tr.left - pr.left + tr.width / 2}px`;
+  pop.style.top = `${tr.bottom - pr.top}px`;
+  setTimeout(() => pop.remove(), 1100);
+  time.classList.remove('hurt'); void time.offsetWidth; time.classList.add('hurt');
+  const wall = $('#mineWall');
+  wall.classList.add('stun');
+  wall.querySelectorAll('.mine-stun').forEach(x => x.remove());
+  wall.insertAdjacentHTML('beforeend', `<div class="mine-stun" role="status">곡괭이가 튕겼어요! ${stun}초 쉬어요</div>`);
+  clearTimeout(stunTimer);
+  stunTimer = setTimeout(() => { wall.classList.remove('stun'); wall.querySelectorAll('.mine-stun').forEach(x => x.remove()); }, stun * 1000);
+}
 
 function swing(b) {
   const pick = $('#minePick');
@@ -234,6 +277,7 @@ function breakBlock(i, b) {
   sfx('break');
   ctx.recordWord(w, !m.wrong);
   m.mined++; m.combo++; m.best = Math.max(m.best, m.combo);
+  m.wrongRow = 0;                 // 캐면 벌칙 길이가 처음으로
   m.minedKeys.add(w.key);
   m.justMined = w.key;
   m.items[c.ore]++;

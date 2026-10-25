@@ -273,7 +273,8 @@ async function finishMine(r) {
   await reward(gems);
   showDone({
     title: r.mined ? `${r.mined}개 캤어요!` : '해가 졌어요!',
-    text: r.mined ? `1분 동안 단어 ${r.mined}개를 캤어요.${r.best >= 3 ? ` 가장 길게 ${r.best}번 연속으로 캤어요.` : ''}` : '다음에는 더 많이 캐 봐요.',
+    text: (r.mined ? `1분 동안 단어 ${r.mined}개를 캤어요.${r.best >= 3 ? ` 가장 길게 ${r.best}번 연속으로 캤어요.` : ''}` : '다음에는 더 많이 캐 봐요.') +
+      (r.wrongs ? ` 틀린 블록을 ${r.wrongs}번 두드려서 ${r.wrongs * 3}초를 잃었어요. 잘 보고 두드리면 더 많이 캘 수 있어요.` : ''),
     gems, missed: r.missed
   });
 }

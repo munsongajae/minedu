@@ -2,7 +2,7 @@
 import * as store from './storage.js';
 import { makeExampleImage } from './world.js';
 import { renderVideo, previewVideo, totalDur, canMakeVideo } from './video.js';
-import { TRANS, MOVES, SUBS, fxOf } from './fx.js';
+import { TRANS, MOVES, SUBS, AMOUNTS, fxOf } from './fx.js';
 import { canRecord, startRecording, micErrorMessage } from './recorder.js';
 import { aiEnabled, coach, aiMessage, getFamilyCode, setFamilyCode } from './ai.js';
 import { importPortfolioPdf, isPdf } from './pdf-import.js';
@@ -171,6 +171,7 @@ function renderMeta() {
 const FX_CHOICES = {
   trans: TRANS,
   move: MOVES,
+  amt: AMOUNTS,
   sub: SUBS,
   cards: { true: '움직이기', false: '가만히' }
 };

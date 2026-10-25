@@ -5,13 +5,21 @@
 export const TRANS = { auto: '돌아가며', fade: '스르륵', slide: '옆으로 밀기', circle: '동그랗게', blocks: '블록 조각', black: '까맣게', cut: '바로' };
 export const MOVES = { auto: '돌아가며', in: '다가가기', out: '멀어지기', pan: '옆으로 훑기', still: '가만히' };
 export const SUBS = { plain: '그냥', rise: '아래에서 쏙', pop: '낱말 톡톡', karaoke: '읽는 낱말 칠하기' };
-export const FX_DEFAULT = { trans: 'auto', move: 'auto', sub: 'rise', cards: true };
+export const AMOUNTS = { soft: '살짝', normal: '보통', strong: '크게' };
+export const FX_DEFAULT = { trans: 'auto', move: 'auto', sub: 'rise', cards: true, amt: 'normal' };
+// 사진 움직임 세기(사용자 요청 2026-10-25 '너무 미미함'): 확대 비율(16:9 사진 / 아닌 사진), 16:9가 아닌 사진의 옆으로 움직이는 거리(px)
+const AMT = {
+  soft: { cover: 0.16, soft: 0.10, px: 90 },
+  normal: { cover: 0.30, soft: 0.20, px: 170 },
+  strong: { cover: 0.45, soft: 0.30, px: 240 }
+};
 
 export function fxOf(project) {
   const f = { ...FX_DEFAULT, ...((project.opts && project.opts.fx) || {}) };
   if (!TRANS[f.trans]) f.trans = FX_DEFAULT.trans;
   if (!MOVES[f.move]) f.move = FX_DEFAULT.move;
   if (!SUBS[f.sub]) f.sub = FX_DEFAULT.sub;
+  if (!AMOUNTS[f.amt]) f.amt = FX_DEFAULT.amt;
   f.cards = f.cards !== false;
   return f;
 }
@@ -38,7 +46,7 @@ export function resolveFx(project, scenes) {
     return { trans, moves };
   });
   const endTrans = base.trans === 'auto' ? AUTO_TRANS[scenes.length % AUTO_TRANS.length] : base.trans;
-  return { sub: base.sub, cards: base.cards, scenes: per, endTrans };
+  return { sub: base.sub, cards: base.cards, amt: base.amt, scenes: per, endTrans };
 }
 
 /* ---------- 작은 계산 ---------- */
@@ -60,20 +68,24 @@ function glide(p) {
 }
 
 /**
- * 사진 움직임: s = 크기(1 = 화면에 꽉), dx = 보이는 곳(-1 왼쪽 끝 ~ 1 오른쪽 끝)
- * soft = 16:9가 아닌 사진(흐린 배경 위에 전체를 보여 줌)은 덜 키운다(위아래가 덜 잘리게).
+ * 사진 움직임: s = 크기(1 = 화면에 꽉), dx = 보이는 곳(-1 왼쪽 끝 ~ 1 오른쪽 끝), px = 16:9가 아닌 사진을 옆으로 옮기는 거리
+ * soft = 16:9가 아닌 사진(흐린 배경 위에 전체를 보여 줌)은 덜 키우고(위아래가 덜 잘리게) 대신 옆으로 움직인다.
  */
-export function motionAt(m, p, soft) {
-  const A = soft ? 0.1 : 0.18;
+export function motionAt(m, p, soft, amt = 'normal') {
+  const L = AMT[amt] || AMT.normal;
+  const A = soft ? L.soft : L.cover;
   const e = glide(p);
   const lim = (v) => Math.max(-1, Math.min(1, v));
+  let r;
   switch (m) {
-    case 'in': return { s: 1 + A * e, dx: 0 };
-    case 'out': return { s: 1 + A * Math.max(0, 1 - e), dx: 0 };
-    case 'pan': return { s: 1 + A * 0.85, dx: lim(-1 + 2 * e) };
-    case 'panL': return { s: 1 + A * 0.85, dx: lim(1 - 2 * e) };
-    default: return { s: 1, dx: 0 };
+    case 'in': r = { s: 1 + A * e, dx: 0 }; break;
+    case 'out': r = { s: 1 + A * Math.max(0, 1 - e), dx: 0 }; break;
+    case 'pan': r = { s: 1 + A * 0.7, dx: lim(-1 + 2 * e) }; break;
+    case 'panL': r = { s: 1 + A * 0.7, dx: lim(1 - 2 * e) }; break;
+    default: r = { s: 1, dx: 0 };
   }
+  r.px = r.dx * L.px;
+  return r;
 }
 
 /* ---------- 장면 넘김 ---------- */

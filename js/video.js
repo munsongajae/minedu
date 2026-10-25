@@ -391,7 +391,7 @@ function drawPhoto(ctx, ph, mo, alpha) {
     ctx.drawImage(ph.bg, 0, 0, W, H);
     const r = Math.min(W / iw, H / ih) * mo.s;
     const w = iw * r, h = ih * r;
-    ctx.drawImage(ph.bmp, (W - w) / 2 - mo.dx * 60, (H - h) / 2, w, h);
+    ctx.drawImage(ph.bmp, (W - w) / 2 - mo.px, (H - h) / 2, w, h);
   } else {
     const r = Math.max(W / iw, H / ih) * mo.s;
     const w = iw * r, h = ih * r;
@@ -415,7 +415,7 @@ function drawSeg(ctx, plan, seg, tl) {
     const slot = seg.dur / P;
     const k = Math.min(P - 1, Math.floor(Math.max(0, tl) / slot));
     const u = tl - k * slot;
-    const mo = (j, uu) => motionAt(seg.photos[j].move, uu / slot, !!seg.photos[j].bg);
+    const mo = (j, uu) => motionAt(seg.photos[j].move, uu / slot, !!seg.photos[j].bg, plan.amt);
     if (k > 0 && u < XFADE) {
       drawPhoto(ctx, seg.photos[k - 1], mo(k - 1, slot + u), 1);
       drawPhoto(ctx, seg.photos[k], mo(k, u), easeInOut(u / XFADE));
@@ -481,6 +481,7 @@ function buildPlan(project, scenes, bmps, bufs, hasMusic) {
     ko: !!project.opts.ko,
     sub: fx.sub,
     cards: fx.cards,
+    amt: fx.amt,
     title: (project.title || '').trim() || '나의 마인크래프트 이야기',
     makers: (project.makers || '').trim(),
     date: `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일`,
